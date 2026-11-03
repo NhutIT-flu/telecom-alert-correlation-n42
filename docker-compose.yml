@@ -1,0 +1,35 @@
+# ============================================================
+# N42 - Docker Compose: 1 lenh dung toan moi truong lab
+# Chi CSDL:                docker compose up -d
+# Health scaffold + CSDL: docker compose --profile full up -d --build
+# ============================================================
+services:
+  # M3/M4: TimescaleDB - luu tru canh bao theo thoi gian (BE2 thay the InMemoryEventStore)
+  db:
+    image: timescale/timescaledb:latest-pg16
+    container_name: n42-db
+    environment:
+      POSTGRES_DB: n42
+      POSTGRES_USER: n42
+      POSTGRES_PASSWORD: n42_local_dev   # chi dung lab; du lieu 100% gia lap
+    ports:
+      - "5432:5432"
+    volumes:
+      - n42-db-data:/var/lib/postgresql/data
+      - ./docker/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U n42 -d n42"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # Khung FastAPI W1; chi co health endpoint.
+  app:
+    profiles: ["full"]
+    build: .
+    container_name: n42-app
+    ports:
+      - "8080:8080"      # HTTP REST API & Swagger UI
+
+volumes:
+  n42-db-data:
