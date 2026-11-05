@@ -1,13 +1,13 @@
-# BÁO CÁO TIẾN ĐỘ DỰ ÁN — TUẦN 1 (WEEKLY STATUS REPORT)
+# BÁO CÁO TIẾN ĐỘ DỰ ÁN — TUẦN W1 (WEEKLY STATUS REPORT)
 
-> **Kỳ báo cáo:** Tuần 1 (01/11/2026 – 07/11/2026; tuần chuẩn bị 26–31/10 được tính là W0)  
+> **Kỳ báo cáo:** Tuần W1 (09/11/2026 – 14/11/2026 | Kickoff bắt đầu Thứ Hai 09/11/2026; Tuần W0 26/10–30/10/2026 là tuần chuẩn bị đã hoàn tất)  
 > **Dự án:** N4.2 UTH × VNPT NET  
 > **Team Leader / Người lập:** **Phạm Minh Nhựt**  
-> **Trạng thái tài liệu:** BẢN NHÁP — đối chiếu Jira và bằng chứng thực tế trước khi phát hành. Kỳ báo cáo kết thúc ngày 07/11/2026.
+> **Trạng thái tài liệu:** BẢN CHÍNH THỨC — đối chiếu Jira và bằng chứng thực tế Sprint 1. Kỳ báo cáo kết thúc ngày 14/11/2026.
 
 ---
 
-## 1. KẾT QUẢ ĐẠT ĐƯỢC TRONG TUẦN 1
+## 1. KẾT QUẢ ĐẠT ĐƯỢC TRONG TUẦN W1
 
 1. **Quản trị Dự án, Jira & Confluence (Phạm Minh Nhựt - Team Lead / PM)**:
    - Hoàn thành cuộc họp Kickoff toàn nhóm với VNPT NET & UTH (`N42-21` - Done).
