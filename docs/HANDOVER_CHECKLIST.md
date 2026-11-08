@@ -6,7 +6,7 @@
 |---:|---|---|---|---|
 | 1 | Mã nguồn và phiên bản | Mã trên GitHub, tag release, lịch sử PR/review; không còn secret | TL + toàn nhóm | Link repo/tag, secret scan |
 | 2 | Hướng dẫn cài đặt | Máy sạch dựng được trong ≤1 giờ theo tài liệu | QA | Video + checklist |
-| 3 | Tài liệu kiến trúc và yêu cầu | Charter, SADD, TDD, ma trận truy vết và tiêu chí nghiệm thu cùng phiên bản | TL + BE2 | `docs/` |
+| 3 | Tài liệu kiến trúc, yêu cầu và kiểm thử | Charter, SADD, SRS, TDD, AC, Test Plan, Test Case Specification và RTM cùng baseline; Word/PDF/ZIP khớp nguồn | TL + BE2 + QA | `docs/` + manifest phân phối |
 | 4 | Lược đồ sự kiện và API | Schema có version; OpenAPI khớp build bàn giao; ví dụ request/response | BE2 + BE1 | OpenAPI/schema + examples |
 | 5 | Bộ dữ liệu và kịch bản | Fixture giả lập có nhãn; KB-01..08 chạy lại được; có expected result | QA + BE3 | Generator, fixtures, test report |
 | 6 | Báo cáo kiểm thử | Kết quả chức năng, benchmark W13 một giờ, sent/received, latency và tài nguyên | QA | Báo cáo + dữ liệu gốc |

@@ -19,12 +19,12 @@ Log đa định dạng làm việc lọc, tra cứu và nhận biết cảnh bá
 | Kiến trúc | [ARCHITECTURE_DESIGN.md](ARCHITECTURE_DESIGN.md) | C4, thành phần, luồng, failure path, security, deployment, hiện trạng vs target |
 | Dữ liệu/API | [DATA_AND_API_DESIGN.md](DATA_AND_API_DESIGN.md) | ERD, schema, hiện trạng mismatch, API thực tế và hợp đồng đề xuất |
 | Kỹ thuật | [TECHNICAL_DESIGN_DOCUMENT.md](TECHNICAL_DESIGN_DOCUMENT.md) | Module, triển khai, hiệu năng và các cấu hình còn cần quyết định |
-| Nghiệm thu | [ACCEPTANCE_CRITERIA.md](ACCEPTANCE_CRITERIA.md), [TEST_PLAN.md](TEST_PLAN.md) | Pass/fail, dữ liệu thử, phép đo |
-| Truy vết | [REQUIREMENTS_TRACEABILITY_MATRIX.md](REQUIREMENTS_TRACEABILITY_MATRIX.md) | Requirement → module → acceptance → test/evidence |
+| Nghiệm thu/kiểm thử | [ACCEPTANCE_CRITERIA.md](ACCEPTANCE_CRITERIA.md), [TEST_PLAN.md](TEST_PLAN.md), [TEST_CASE_SPECIFICATION.md](TEST_CASE_SPECIFICATION.md) | Pass/fail, phương pháp, test case, input/output và điều kiện biên |
+| Truy vết | [REQUIREMENTS_TRACEABILITY_MATRIX.md](REQUIREMENTS_TRACEABILITY_MATRIX.md) | FR/NFR → owner → acceptance → test/evidence và hiện trạng |
 
 ## 4. Kết luận phân tích hiện trạng
 
-Nhánh baseline W1 hiện chỉ có khung FastAPI và `GET /api/health`. UDP/TCP, ingest, parser, event store, correlation, dashboard và repository TimescaleDB là phần việc chưa triển khai theo Jira. SQL bootstrap chỉ bật extension, không tạo bảng nghiệp vụ hay nạp dữ liệu. Không ghi capability tương lai như thể đã triển khai.
+Nhánh baseline W1 hiện chỉ có khung FastAPI và `GET /api/health`. UDP/REST/file ingestion, parser, event store, correlation, dashboard và repository TimescaleDB chưa được triển khai theo Jira. TCP syslog nằm ngoài baseline hiện tại cho đến khi được chốt bằng quyết định phạm vi. SQL bootstrap chỉ bật extension, không tạo bảng nghiệp vụ hay nạp dữ liệu. Không ghi capability tương lai như thể đã triển khai.
 
 ## 5. Từ điển và ràng buộc
 
@@ -37,7 +37,7 @@ Nhánh baseline W1 hiện chỉ có khung FastAPI và `GET /api/health`. UDP/TCP
 ## 6. Câu hỏi thiết kế còn mở
 
 1. File import: format/encoding/rotation, dung lượng tối đa, duplicate và archive.
-2. TCP syslog có thuộc nghiệm thu W13 hay chỉ UDP/API/file.
+2. TCP syslog có cần được bổ sung vào release sau baseline hay không; hiện không tính vào phạm vi nghiệm thu.
 3. Timestamp fallback, timezone không ghi trong log, late-arrival policy.
 4. Cửa sổ event-time hay processing-time, rule overlap, merge/resolve incident.
 5. DB retention/backup/restore và cấu hình benchmark.

@@ -10,8 +10,8 @@
 
 | Mã | Tiêu chí pass | Bằng chứng tối thiểu | Chủ trì |
 |---|---|---|---|
-| AC-01 | Cả 3 nguồn syslog UDP/TCP, file và API đưa được sự kiện vào pipeline; nếu một nguồn bị loại thì phải có quyết định ghi log và vẫn đáp ứng tối thiểu 2 nguồn | Bộ dữ liệu có mã định danh; log gửi/nhận; kết quả kiểm tra từng nguồn | BE1 + QA |
-| AC-02 | Parser chuẩn hóa đúng 100% trên bộ test có nhãn, tối thiểu 200 sự kiện cho mỗi nguồn/định dạng nghiệm thu | Expected/actual, tổng số đúng/sai, mẫu lỗi | BE2 + QA |
+| AC-01 | Ba nguồn trong baseline SRS — syslog UDP, REST ingest và file import — đưa được sự kiện qua pipeline tới điểm lưu đã chốt. Nếu nguồn nào bị loại khỏi release, cần có quyết định phạm vi được ghi nhận; không tự thay UDP bằng TCP | Bộ dữ liệu có mã định danh; log gửi/nhận; kết quả kiểm tra từng nguồn và persistence outcome | BE1 + QA |
+| AC-02 | Parser chuẩn hóa đúng 100% trên corpus có nhãn, tối thiểu 200 mẫu cho mỗi định dạng/vendor trong scope; ghi nhận format và nguồn phát của từng mẫu | Corpus version/hash, expected/actual từng field, tổng đúng/sai, mẫu lỗi | BE2 + QA |
 | AC-03 | Truy vấn/lọc theo thời gian, thiết bị, mức độ; truy vấn chuẩn trả kết quả dưới 2 giây với bộ dữ liệu 1 triệu sự kiện trong môi trường được ghi rõ | Kịch bản truy vấn, số bản ghi, thời gian chạy, cấu hình máy | BE2 + QA |
 | AC-04 | Dashboard hiển thị dòng sự kiện, KPI, sự cố gom nhóm và chi tiết cảnh báo con; xuất báo cáo theo chức năng đã chốt | Video/demo, checklist UI, file xuất | FE + QA |
 | AC-05 | Có tối thiểu 5 luật tương quan; tại W12 đạt checkpoint ít nhất 70%; tại nghiệm thu W13 phát hiện đúng ít nhất 90% trường hợp dương tính trong bộ kiểm thử đã gắn nhãn; báo cáo FP và FN riêng | Phiên bản bộ luật và kịch bản, counts TP/FP/FN, kết quả từng KB | BE3 + QA |
@@ -19,12 +19,14 @@
 | AC-07 | Cài lại trên máy sạch trong tối đa 1 giờ từ bộ bàn giao và chạy được các luồng demo | Video có thời gian, phiên bản, cấu hình và log | QA + BE1 |
 | AC-08 | Không có credential thật/hardcode và không có IP thiết bị thật; hệ thống chỉ đọc/nhận log | Kết quả secret scan, rà soát cấu hình/dữ liệu | QA + TL |
 
+**Phạm vi nguồn:** baseline theo SRS gồm UDP, REST và file. TCP xuất hiện trong vai trò QA/hợp đồng đề xuất nhưng chưa có FR riêng; cần decision/Jira trước khi đưa TCP vào nghiệm thu.
+
 ## 3. Định nghĩa và cách tính
 
 - **Bài tải trung gian:** mốc 200/500/1.000 msg/s; mỗi lần kiểm tra danh định tối thiểu 10 phút.
 - **Bài nghiệm thu tải W13:** giữ ít nhất 1.000 msg/s trong 1 giờ liên tục. Pass khi số gửi/nhận đối soát được theo ID, tỷ lệ mất gói quan sát được là 0.00%, P50 < 50 ms, P99 < 200 ms, CPU ≤ 60% trên 4 core và RAM ≤ 1.5 GB. Ghi rõ máy, phiên bản, cấu hình, số gửi/nhận và công cụ đo. Spike 1.500 msg/s trong 2 phút là bài stress riêng, không thay bài danh định.
 - **Tỷ lệ phát hiện:** `TP / (TP + FN) × 100%` trên các trường hợp dương tính đã gắn nhãn. Báo cáo FP riêng; không gọi detection rate là accuracy.
-- **Tỷ lệ giảm nhiễu:** `(N_raw − (N_incidents + N_unassigned)) / N_raw × 100%`, trong đó incidents và unassigned là các mục còn hiển thị sau xử lý. Không tính event con đã ẩn như một mục hiển thị.
+- **Tỷ lệ giảm nhiễu:** `(N_raw − (N_incidents + N_unassigned)) / N_raw × 100%`, trong đó incidents và unassigned là các mục còn hiển thị sau xử lý. Không tính event con đã ẩn như một mục hiển thị. Nếu `N_raw = 0`, kết quả là `N/A`, không tính là 100%.
 - **Link Flap:** ít nhất 5 chuyển trạng thái UP/DOWN trên cùng thiết bị và giao diện trong cửa sổ trượt 60 giây tạo một incident gốc.
 - **Địa chỉ giả lập:** `10.10.0.0/16` dùng cho mạng lab riêng; `203.0.113.0/24` chỉ dùng làm địa chỉ ví dụ tài liệu. Không gọi toàn bộ dải `10.10.x.x` là TEST-NET.
 

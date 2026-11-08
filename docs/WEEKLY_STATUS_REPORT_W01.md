@@ -1,34 +1,45 @@
-# BÁO CÁO TIẾN ĐỘ DỰ ÁN — TUẦN W1 (WEEKLY STATUS REPORT)
+# Mẫu báo cáo tiến độ dự án N4.2 W1
 
-> **Kỳ báo cáo:** Tuần W1 (09/11/2026 – 14/11/2026 | Kickoff bắt đầu Thứ Hai 09/11/2026; Tuần W0 26/10–30/10/2026 là tuần chuẩn bị đã hoàn tất)  
-> **Dự án:** N4.2 UTH × VNPT NET  
-> **Team Leader / Người lập:** **Phạm Minh Nhựt**  
-> **Trạng thái tài liệu:** BẢN CHÍNH THỨC — đối chiếu Jira và bằng chứng thực tế Sprint 1. Kỳ báo cáo kết thúc ngày 14/11/2026.
+**Kỳ báo cáo:** W1, 01–07/11/2026 · **Người lập:** Team Leader · **Trạng thái:** DỰ THẢO CHƯA PHÁT HÀNH
 
----
+Bản này là mẫu ghi nhận, không xác nhận Jira Done, cuộc họp đã diễn ra, test đã chạy hoặc KPI đã đạt. TL hoàn tất sau khi đối chiếu Jira, PR/commit và artifact; nếu chưa có bằng chứng ghi `Chưa xác minh` hoặc `Chưa thực hiện`, không tự điền kết quả. Kickoff dự kiến ngày 09/11 thuộc W2.
 
-## 1. KẾT QUẢ ĐẠT ĐƯỢC TRONG TUẦN W1
+## 1. Tóm tắt kỳ báo cáo
 
-1. **Quản trị Dự án, Jira & Confluence (Phạm Minh Nhựt - Team Lead / PM)**:
-   - Hoàn thành cuộc họp Kickoff toàn nhóm với VNPT NET & UTH (`N42-21` - Done).
-   - Ban hành TDD v2 và QA Master Test Plan v2 lên Confluence.
-   - Thiết lập cấu trúc Jira Sprint 1 đến Sprint 7 (53 thẻ task) trải dài tới mốc Code Freeze trước Tết.
-   - Thống nhất cơ cấu 6 thành viên: Phạm Minh Nhựt (Team Lead), Nguyễn Duy Minh (BE3), Ngô Châu Kiệt (QA Lead), Phạm Hoàng Long (BE1), Phạm Tấn Thành (BE2), Lê Khắc Huy (FE).
-2. **QA Tooling & Kịch bản (Ngô Châu Kiệt - QA Lead)**:
-   - Tiếp nhận và làm chủ công cụ `tools/generator.py` (CLI 3 nguồn: UDP, API, File).
-   - Hoàn thành bộ kịch bản chuẩn `KB-01` và `KB-02` (`N42-11`, `N42-12` - Done).
-   - Chuẩn bị ma trận kịch bản kiểm thử `KB-03` đến `KB-08`.
-3. **Đo kiểm tải thực tế tại máy Local**:
-   - Đo thử thông lượng **963.48 msg/s**, tỷ lệ rớt gói được ghi nhận **0.00%** với socket buffer 4MB.
-   - Kết quả này **chưa đạt SLA nghiệm thu 1.000 msg/s** và chưa có thời lượng/phương pháp đo đầy đủ trong báo cáo; cần đo lại, không tính là nghiệm thu.
+- Trạng thái chung: `[Cập nhật sau đối chiếu]`
+- Mốc dự kiến: `[Mốc trong W1]`
+- Việc bị trễ / forecast: `[Nêu tác động và owner]`
+- Quyết định cần PM hỗ trợ: `[Nội dung hoặc Không có]`
 
----
+## 2. Kết quả theo công việc
 
-## 2. KẾ HOẠCH TUẦN 2 (W2)
+| Jira | Owner | Kế hoạch | Kết quả thực tế | Trạng thái | Evidence |
+|---|---|---|---|---|---|
+| `[N42-xx]` | `[Tên]` | `[Mô tả]` | `[Chưa cập nhật]` | `[To Do/In Progress/Done/Blocked]` | `[PR/log/link hoặc chưa có]` |
 
-- **Team Lead / PM (Nhựt):** Kiểm soát tiến độ Jira Sprint 1, theo dõi CI/CD, chuẩn bị báo cáo tuần 2.
-- **BE1 (Long):** Nối parser RFC3164/5424 vào router FastAPI.
-- **BE2 (Thành):** Dựng container TimescaleDB và DDL hypertable.
-- **BE3 (Minh):** Nạp module luật `rules.yaml` và kiểm thử Sliding Window.
-- **QA Lead (Kiệt):** Tiếp tục xây dựng ma trận test KB-03, KB-04 và chạy benchmark định kỳ.
-- **FE (Huy):** Khung giao diện NOC Dark Mode trên React 18 Tailwind CSS.
+## 3. Chất lượng và kiểm thử
+
+| Hạng mục | Kết quả | Evidence / ghi chú |
+|---|---|---|
+| Test case/coverage | Chưa xác minh | Liên kết `TEST_CASE_SPECIFICATION` và RTM |
+| Unit/integration tests | Chưa xác minh | Không ghi PASS nếu thiếu run log/commit |
+| CI/workflow | Chưa có workflow trong repo hiện tại; QA Lead là owner dự kiến triển khai | Ghi Jira/task, link workflow và run/evidence sau khi hoàn thành; hiện không ghi PASS |
+| Load/performance | Chưa xác minh | Ghi config, duration, sent/received, latency và tài nguyên |
+
+## 4. Rủi ro, blocker và hỗ trợ
+
+| Mô tả | Mức độ | Tác động | Owner | Hạn / hỗ trợ cần |
+|---|---|---|---|---|
+| `[Cập nhật từ Jira/Risk Register]` | `[H/M/L]` | `[Mốc/đầu việc]` | `[Tên]` | `[Yêu cầu]` |
+
+## 5. Kế hoạch kỳ tiếp theo
+
+| Ưu tiên | Jira | Owner | Kết quả dự kiến | Phụ thuộc |
+|---|---|---|---|---|
+| `[Điền sau khi thống nhất]` | `[N42-xx]` | `[Tên]` | `[Acceptance/evidence]` | `[Nếu có]` |
+
+## 6. Rà soát và gửi
+
+- TL đối chiếu với Jira và bằng chứng: `[Tên / ngày]`
+- Gửi PM trong hạn quy trình chương trình: `[Ngày / trạng thái]`
+- Link báo cáo / email: `[Chưa ghi nhận]`

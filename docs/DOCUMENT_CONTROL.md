@@ -1,6 +1,6 @@
 # Quản lý tài liệu dự án N4.2
 
-**Baseline hiện hành:** 03/11/2026 · **Trạng thái:** bản làm việc đồng bộ · **Chủ sở hữu:** Team Leader
+**Baseline hiện hành:** 07/11/2026 · **Trạng thái:** bản làm việc đồng bộ · **Chủ sở hữu:** Team Leader
 
 ## 1. Cơ cấu nhóm hiện hành
 
@@ -21,9 +21,19 @@
 4. `SYSTEM_ANALYSIS_AND_DESIGN.md`, `TECHNICAL_DESIGN_DOCUMENT.md` và `TEST_PLAN.md` diễn giải baseline thành thiết kế và phương pháp kiểm thử; không tự đặt KPI khác.
 5. Jira là nguồn sự thật về người nhận việc, hạn và trạng thái thực tế. Báo cáo tuần/tháng là hồ sơ lịch sử, không được sửa để làm đẹp kết quả.
 
-Tài liệu Word/PDF trong `vnpt-proposal/` là hồ sơ điều hành được sinh từ `generate*.js`. Bản ngày 24/10/2026 có cơ cấu cũ và cần cập nhật theo baseline ngày 03/11 trước khi phát hành lại. Không dùng ZIP hoặc PDF cũ nếu chưa đối chiếu ngày phiên bản.
+Tài liệu Word/PDF trong `vnpt-proposal/` là hồ sơ dẫn xuất; Markdown trong `vnpt-repos/n42/docs/` là nguồn chuẩn với tài liệu được sinh từ nguồn. Bản phát hành phải được tái sinh sau khi chốt nguồn và kiểm tra nội dung/layout. Theo yêu cầu ngày 07/11/2026, toàn bộ ZIP trong workspace đã được xóa; không có gói ZIP hiện hành.
 
-Hồ sơ phân tích–thiết kế đóng gói để phát hành/đọc thuận tiện nằm ngoài repo tại `vnpt-proposal/Phan_tich_thiet_ke_he_thong_N4.2_VNPT.docx` và `.pdf`; nguồn chuẩn, có thể sửa và truy vết là các Markdown trong `vnpt-repos/n42/docs/`. Sau khi sửa nguồn Markdown, chạy `vnpt-proposal/generate_system_analysis.py` để tạo lại cả hai bản phân phối.
+**Kết quả rà soát và điều khiển phát hành 07/11/2026:**
+
+- `TEST_CASE_SPECIFICATION.md` là đặc tả kế hoạch chi tiết; mã test trong tài liệu không chứng minh đã tự động hóa hoặc đã chạy. RTM phải chỉ rõ coverage dự kiến, evidence và gap.
+- Phạm vi baseline nguồn vào là syslog UDP, REST ingest và file; TCP chỉ bổ sung qua quyết định phạm vi và cập nhật SRS/AC/RTM/Jira. Không tuyên bố coverage chức năng 100%. QA chủ trì test/coverage/CI; owner code viết unit test module mình.
+- Báo cáo W1 (01–07/11/2026) và biên bản kickoff W2 (09/11/2026) phải mang trạng thái dự thảo/mẫu cho đến khi kỳ kết thúc/cuộc họp diễn ra và được đối chiếu evidence; không ghi thành kết quả đã đạt.
+- PDF phải được render và rà trực quan trước khi coi là bản phát hành; nội dung trích xuất chỉ là kiểm tra bổ sung, không thay QA bố cục.
+- Bản Word/PDF phát hành chỉ được xem là đồng bộ khi tên tệp khớp manifest, sinh từ nguồn cùng baseline, không còn bản tuần/biên bản sai tên, và đã qua kiểm tra nội dung/hình thức. ZIP đã bị xóa theo yêu cầu, không tái tạo.
+
+**Trạng thái bản phát hành sau cập nhật:** nguồn Markdown được dùng để sinh bộ Word/PDF; các tài liệu vận hành cấp cao nhất được tái sinh từ generator và PDF xuất lại từ Word. Tập kiểm thử có `TEST_CASE_SPECIFICATION` và `REQUIREMENTS_TRACEABILITY_MATRIX`; tập Lead phần kiểm thử phải gồm cả hai. Các bản thừa mang tên scenario cũ/W01 sai mốc cần loại khỏi thư mục phát hành để tránh nhầm phiên bản.
+
+Toàn bộ ZIP trong workspace đã bị xóa theo yêu cầu của người dùng ngày 07/11/2026 và không được tái tạo. Hồ sơ phân tích–thiết kế có nguồn chuẩn trong `vnpt-repos/n42/docs/`; bản Word/PDF cấp cao nhất nằm trong `vnpt-proposal/` và được sinh bằng `generate_system_analysis.py`.
 
 ## 3. Quy tắc sửa đổi
 
@@ -32,6 +42,8 @@ Hồ sơ phân tích–thiết kế đóng gói để phát hành/đọc thuận
 - Tài liệu dẫn xuất phải được cập nhật cùng đợt với nguồn; tăng phiên bản/ngày cập nhật và ghi người chịu trách nhiệm.
 - Báo cáo tuần/tháng đã gửi được giữ nguyên như hồ sơ; nếu phát hiện sai, thêm ghi chú đính chính có ngày, lý do và người xác nhận.
 - Trước khi phát hành DOCX/PDF, kiểm tra nội dung trích xuất, mục lục, bảng, đầu/chân trang và trang cuối.
+- Đặc tả Test Case và RTM do QA Lead chủ trì; owner nghiệp vụ/kỹ thuật cung cấp contract, dữ liệu kỳ vọng và xác nhận phạm vi. Repo hiện chưa có `.github/workflows/ci.yml`; QA Lead là owner dự kiến triển khai CI theo kế hoạch nhóm. Khi có workflow, QA/DevOps ghi nội dung check và run evidence; không tuyên bố CI PASS hoặc merge gate khi chưa có bằng chứng.
+- Manifest phát hành phải liệt kê từng nguồn, phiên bản/ngày, tệp Word/PDF tương ứng, phiên bản/ngày, tệp Word/PDF tương ứng, người rà nội dung và người rà hình thức. Chỉ đóng gói sau khi ma trận nguồn–bản dẫn xuất không còn thiếu.
 
 ## 4. Bộ tài liệu dự án
 
@@ -46,6 +58,7 @@ Hồ sơ phân tích–thiết kế đóng gói để phát hành/đọc thuận
 | `DATA_AND_API_DESIGN.md` | ERD, event/incident/rule schema, API hiện trạng và target | BE2 + BE3 |
 | `TECHNICAL_DESIGN_DOCUMENT.md` | Chi tiết kỹ thuật, KPI và các cấu hình cần quyết định | BE2 + BE3 + QA |
 | `TEST_PLAN.md` | Kịch bản và phương pháp kiểm thử | QA |
+| `TEST_CASE_SPECIFICATION.md` | Đặc tả ca kiểm thử chi tiết, điều kiện biên và expected result | QA Lead + owner BE/FE liên quan |
 | `RISK_REGISTER.md` | Rủi ro, dấu hiệu kích hoạt và phương án | TL |
 | `HANDOVER_CHECKLIST.md` | Bàn giao và nghiệm thu cuối kỳ | TL + QA |
 | `DECISIONS.md` | Quyết định kỹ thuật và quản trị | TL |

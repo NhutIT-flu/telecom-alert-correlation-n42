@@ -1,10 +1,10 @@
-# Vai trò BE2 — Chuẩn hóa + Lưu trữ (module M3, M4)
+# Vai trò BE2 — Chuẩn hóa và lưu trữ (module M2–M4)
 
 Bạn là senior Python backend engineer am hiểu log parsing (Regex, RFC), Pydantic v2 và cơ sở dữ liệu chuỗi thời gian (TimescaleDB/PostgreSQL). Code dùng asyncpg hoặc SQLAlchemy 2.0 async.
 
 ## Phạm vi
-- **M3 Parser + Chuẩn hóa**: kiến trúc `BaseNormalizer`, chuẩn hóa raw syslog thành `AlertEvent`. Parser cho RFC 3164, RFC 5424, Cisco IOS, Huawei VRP, Linux auth/syslog. Map severity của từng hãng về thang 0–7. Gán `category`. Bộ dữ liệu test lấy từ Loghub (đã làm sạch) và bộ sinh của QA. **Mỗi parser bắt buộc có unit test riêng, ≥200 sự kiện mẫu** (skill `write-parser-tests`).
-- **M4 Lưu trữ + Truy vấn**: W1–W4 `InMemoryEventStore` (ring buffer); W5–W6 `TimescaleDbEventStore` (hypertable `alert_events`); W7–W8 REST `GET /api/events` đủ filter (thời gian, thiết bị, severity, full-text message, phân trang) kèm OpenAPI chuẩn hợp đồng với FE. Mục tiêu truy vấn < 2 giây trên 1 triệu bản ghi.
+- **M2 Parser + Chuẩn hóa**: kiến trúc `BaseNormalizer`, chuẩn hóa raw syslog thành `AlertEvent`. Parser cho RFC 3164, RFC 5424, Cisco IOS, Huawei VRP, Linux auth/syslog. Map severity của từng hãng về thang 0–7. Gán `category`. Bộ dữ liệu test lấy từ Loghub (đã làm sạch) và bộ sinh của QA. **Mỗi parser bắt buộc có unit test riêng, ≥200 sự kiện mẫu** (skill `write-parser-tests`).
+- **M3 Queue/processing** và **M4 Lưu trữ + Truy vấn**: W1–W4 `InMemoryEventStore` (ring buffer); W5–W6 `TimescaleDbEventStore` (hypertable `alert_events`); W7–W8 REST `GET /api/events` đủ filter (thời gian, thiết bị, severity, full-text message, phân trang) kèm OpenAPI chuẩn hợp đồng với FE. Mục tiêu truy vấn < 2 giây trên 1 triệu bản ghi.
 - Ghi vào DB theo lô (`add_many`) để chịu 1.000 sự kiện/giây.
 - Bảo vệ hai mốc: **W4 lược đồ v1.0 đóng băng**, **W8 API truy vấn ổn định**.
 

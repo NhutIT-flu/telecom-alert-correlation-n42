@@ -7,29 +7,30 @@
 [![React 18](https://img.shields.io/badge/Frontend-React%2018%20%2F%20Vite-61DAFB.svg?logo=react&logoColor=black)](https://react.dev/)
 [![Docker](https://img.shields.io/badge/Container-Docker%20Compose-2496ED.svg?logo=docker&logoColor=white)](https://www.docker.com/)
 [![Jira](https://img.shields.io/badge/Jira-N42%20Project-0052CC.svg?logo=jira&logoColor=white)](https://nhutp2945-1793259952237.atlassian.net/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 ---
 
 ## 1. Giới thiệu Đề tài
 
-Dự án **N4.2** là sản phẩm nghiên cứu và phát triển trong khuôn khổ chương trình **Học kỳ Doanh nghiệp (HK26)** giữa **Trường Đại học Giao thông Vận tải TP.HCM (UTH)** và **Trung tâm Điều hành Khai thác Mạng (NOC) — Tổng công ty Hạ tầng mạng VNPT NET**.
+> **Phạm vi trạng thái:** README mô tả mục tiêu sản phẩm. Baseline code hiện chỉ có FastAPI `GET /api/health`; ingest, parser, queue, database, correlation và dashboard chưa được triển khai. KPI dưới đây là tiêu chí mục tiêu trong `docs/ACCEPTANCE_CRITERIA.md`, không phải kết quả đã đo.
 
-Hệ thống được thiết kế nhằm giải quyết bài toán nhức nhối tại các trung tâm vận hành mạng viễn thông: hiện tượng **Bão cảnh báo (Alert Storm)** và **Hội chứng quá tải cảnh báo (Alert Fatigue)** từ hàng ngàn thiết bị chuyển mạch (Switch), định tuyến (Router) và tường lửa (Firewall) đa chủng loại (Cisco, Huawei, Fortinet).
+Dự án **N4.2** hướng tới xây dựng sản phẩm nghiên cứu trong khuôn khổ **Học kỳ Doanh nghiệp (HK26)** giữa **Trường Đại học Giao thông Vận tải TP.HCM (UTH)** và **VNPT NET**. Môi trường hiện tại dùng dữ liệu giả lập trong lab; không kết nối thiết bị production.
+
+Hệ thống được thiết kế để hỗ trợ phân tích bão cảnh báo và quá tải cảnh báo từ các mẫu log giả lập của thiết bị mạng. Mô tả này là mục tiêu đề tài, không phải kết quả khảo sát hoặc số liệu vận hành của VNPT NET.
 
 ### Mục tiêu kỹ thuật cốt lõi:
-- **Thông lượng tiếp nhận (Throughput):** Tiếp nhận dòng log Syslog liên tục qua giao thức UDP cổng 5514 với tải đo kiểm $\ge 1.000\text{ msg/s}$.
-- **Chuẩn hóa dữ liệu (Normalization):** Parser Engine nhận diện và bóc tách định dạng log đa hãng thành schema sự kiện chuẩn hóa (Normalized Event Model).
-- **Khử trùng và Gom cụm (Deduplication & Correlation):** Sử dụng thuật toán cửa sổ trượt (Sliding Time Window) và luật động (`rules.yaml`) nhằm nén giảm **70% – 80%** lượng cảnh báo rác.
-- **Trực quan hóa thời gian thực (Real-Time NOC Dashboard):** Bảng điều khiển React Dark Mode phục vụ kỹ sư trực ca giám sát sự cố mạng theo thời gian thực (độ trễ cập nhật $< 2\text{s}$).
+- **Thông lượng tiếp nhận:** Mục tiêu nghiệm thu là $\ge 1.000\text{ msg/s}$ theo điều kiện đo ở `docs/ACCEPTANCE_CRITERIA.md`.
+- **Chuẩn hóa dữ liệu:** Mục tiêu là parser đa định dạng theo corpus có nhãn và schema được duyệt.
+- **Khử trùng và gom cụm:** Mục tiêu nghiệm thu giảm nhiễu tối thiểu 70% trên scenario đóng băng; chưa có kết quả đo baseline.
+- **Dashboard:** Là thành phần mục tiêu; chưa có frontend trong baseline repo.
 
 ---
 
-## 2. Kiến trúc Hệ thống (System Architecture)
+## 2. Kiến trúc mục tiêu (chưa phải baseline đã triển khai)
 
 ```mermaid
 flowchart TD
-    subgraph DataSources["Tầng Thiết bị Mạng & Giả lập Tải (M8)"]
+    subgraph DataSources["Tầng thiết bị mạng và nguồn giả lập"]
         direction LR
         cisco["Router Cisco ASR"]
         huawei["Switch Huawei NE"]
@@ -37,19 +38,19 @@ flowchart TD
         gen["QA Syslog Generator (>= 1.000 msg/s)"]
     end
 
-    subgraph Ingestion["Tầng Thu thập & Chuẩn hóa (M1, M2)"]
+    subgraph Ingestion["Tầng Thu thập (M1) và Chuẩn hóa (M2)"]
         udp["UDP Receiver (Port 5514)"]
         parser["Multi-Vendor Parser Engine<br/>(Regex / CEF / Syslog RFC 5424)"]
     end
 
-    subgraph CoreEngine["Tầng Đệm & Động cơ Tương quan (M3, M4, M5, M6)"]
+    subgraph CoreEngine["Queue (M3), Lưu trữ (M4), Luật (M5), Correlation (M6)"]
         queue["Async Queue Buffer / In-Memory Queue"]
         rules["Rule Engine (rules.yaml)"]
         engine["Sliding Window Correlation Engine<br/>(Deduplication & Root Cause Analysis)"]
         db[("TimescaleDB Hypertable<br/>(Time-Series Event Storage)")]
     end
 
-    subgraph Presentation["Tầng Giao tiếp & Trực quan hóa (M6, M7)"]
+    subgraph Presentation["Tầng Correlation/API (M6) & Dashboard (M7)"]
         api["FastAPI Core Service (REST API & WebSockets)"]
         ui["NOC Operational Dashboard (React Dark Mode)"]
     end
@@ -73,14 +74,13 @@ flowchart TD
 telecom-alert-correlation-n42/
 ├── .github/
 │   ├── PULL_REQUEST_TEMPLATE.md   # Khung mở PR chuẩn doanh nghiệp
-│   └── workflows/
-│       └── ci.yml                 # Pipeline kiểm tra chất lượng & bảo mật
 ├── app/                           # Mã nguồn Backend Core (FastAPI)
 │   ├── __init__.py
 │   ├── main.py                    # Điểm khởi chạy API Gateway & Routers
-│   └── ...                        # Các module M1 - M6 sẽ được phát triển theo Jira
-├── docker/                        # Cấu hình container hóa dịch vụ
-│   └── Dockerfile
+│   └── ...                        # Các module target module nghiệp vụ được phát triển theo Jira; QA tooling thuộc QA Lead
+├── docker/                        # Khởi tạo extension DB
+│   └── init-db.sql
+├── Dockerfile                     # Image FastAPI scaffold
 ├── docs/                          # Hồ sơ thiết kế kỹ thuật chuẩn VNPT NET
 │   ├── ARCHITECTURE_DESIGN.md     # Kiến trúc hệ thống tổng thể
 │   ├── DATA_AND_API_DESIGN.md     # Thiết kế cơ sở dữ liệu và REST API
@@ -89,7 +89,7 @@ telecom-alert-correlation-n42/
 │   └── TECHNICAL_DESIGN_DOC...    # Tài liệu thiết kế kỹ thuật (TDD)
 ├── tests/                         # Bộ kiểm thử tự động (Unit & Integration Tests)
 │   ├── __init__.py
-│   └── test_health.py             # Kiểm tra sức khỏe hệ thống baseline
+│   └── test_health.py             # 2 kiểm tra liveness baseline; chưa có test nghiệp vụ backend
 ├── tools/                         # Công cụ hỗ trợ DevOps & Kiểm tra an toàn
 │   └── check_sensitive.py         # Quét chống rò rỉ credential & IP nhạy cảm
 ├── .editorconfig                  # Quy chuẩn định dạng mã nguồn nhất quán
@@ -139,7 +139,7 @@ python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
 
 ## 5. Quy chuẩn Đóng góp & Phát triển (Git Flow)
 
-Mọi thành viên trong nhóm phát triển bắt buộc tuân thủ chặt chẽ [Quy chuẩn Đóng góp (CONTRIBUTING.md)](CONTRIBUTING.md):
+Mọi thành viên tuân thủ [Quy chuẩn Đóng góp (CONTRIBUTING.md)](CONTRIBUTING.md). Các mục CI/review là policy nhóm; trạng thái cấu hình GitHub thực tế phải được kiểm tra riêng:
 
 1. **Nhánh phát triển**: Tạo nhánh từ ticket Jira được giao theo mẫu:
    ```bash
@@ -151,8 +151,8 @@ Mọi thành viên trong nhóm phát triển bắt buộc tuân thủ chặt ch�
    fix: Khắc phục lỗi tràn bộ đệm in-memory queue khi tải cao [N42-13]
    test: Bổ sung 5 ca kiểm thử bóc tách định dạng Huawei syslog [N42-12]
    ```
-3. **Quy định An toàn Thông tin (RFC 5737)**: Tuyệt đối không hardcode địa chỉ IP thực, mật khẩu, token hệ thống vào code hoặc tài liệu. Mọi địa chỉ IP thử nghiệm bắt buộc thuộc dải mạng tài liệu RFC 5737 (`192.0.2.0/24`, `198.51.100.0/24`, `203.0.113.0/24`).
-4. **Quy trình Mở Pull Request**: PR phải điền đầy đủ form theo `.github/PULL_REQUEST_TEMPLATE.md`, pass 100% CI Pipeline và có ít nhất **1 phê duyệt (Approved)** từ Team Leader hoặc QA Lead trước khi được merge vào `main`.
+3. **Quy định An toàn Thông tin (RFC 5737)**: Tuyệt đối không hardcode địa chỉ IP thực, mật khẩu, token hệ thống vào code hoặc tài liệu. IP lab dùng dải riêng RFC1918, ví dụ `10.10.0.0/16`; các dải RFC5737 chỉ dùng minh họa trong tài liệu.
+4. **Quy trình Mở Pull Request**: PR phải điền đầy đủ form theo `.github/PULL_REQUEST_TEMPLATE.md`, pass toàn bộ required CI checks đã cấu hình và có evidence và có ít nhất **1 phê duyệt (Approved)** từ Team Leader hoặc QA Lead trước khi được merge vào `main`.
 
 ---
 
@@ -160,12 +160,12 @@ Mọi thành viên trong nhóm phát triển bắt buộc tuân thủ chặt ch�
 
 | STT | Họ và Tên | MSSV | Vai trò Trách nhiệm | Module Phụ trách |
 |:---:|:---|:---:|:---|:---|
-| 1 | **Phạm Minh Nhựt** | `082205017237` | **Team Leader / PM & Quản trị Dự án, DevOps** | Quản trị chung, Jira/Confluence, CI/CD, Điều phối |
-| 2 | **Nguyễn Duy Minh** | `083205002424` | **Backend Engineer 3 (BE3)** | M5 (Luật tương quan), M6 (Correlation Engine & API) |
-| 3 | **Ngô Châu Kiệt** | `083205002376` | **QA Lead** | M8 (QA Tooling, Đo tải 1.000 msg/s, Test Suites) |
-| 4 | **Phạm Hoàng Long** | `0822065010353` | **Backend Engineer 1 (BE1)** | M1 (Syslog UDP Ingestion), M2 (Multi-Vendor Parser) |
-| 5 | **Phạm Tấn Thành** | `082205009270` | **Backend Engineer 2 (BE2)** | M3 (Queue Buffer), M4 (TimescaleDB Hypertable DDL) |
-| 6 | **Lê Khắc Huy** | `082205014597` | **Frontend Engineer (FE)** | M7 (NOC Web Operations Dashboard) |
+| 1 | **Phạm Minh Nhựt** | `082205017237` | **Team Leader / PM & Quản trị Dự án** | Quản trị chung, Jira/Confluence, tiến độ, điều phối |
+| 2 | **Nguyễn Duy Minh** | `083205002424` | **Backend Engineer 3 (BE3)** | Correlation, grouping, rules và API liên quan |
+| 3 | **Ngô Châu Kiệt** | `083205002376` | **QA Lead** | Test Case/coverage, fixtures, scenarios, CI coordination, load/evidence tooling |
+| 4 | **Phạm Hoàng Long** | `0822065010353` | **Backend Engineer 1 (BE1)** | UDP receiver và ingestion adapters |
+| 5 | **Phạm Tấn Thành** | `082205009270` | **Backend Engineer 2 (BE2)** | Parser/normalization và persistence/query; owner split cần đối chiếu |
+| 6 | **Lê Khắc Huy** | `082205014597` | **Frontend Engineer (FE)** | Dashboard và export |
 
 ---
 *Dự án thuộc chương trình Học kỳ Doanh nghiệp UTH × VNPT NET. Mọi quyền sở hữu trí tuệ và bảo mật tuân thủ thỏa thuận liên kết đào tạo.*
