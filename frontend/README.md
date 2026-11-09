@@ -1,9 +1,10 @@
-# NOC VNPT NET — Frontend Dashboard
+# NOC VNPT NET — Frontend Dashboard (Module M7)
 
 > **Dự án N4.2** — Hệ thống Thu thập & Phân tích Cảnh báo Viễn thông  
 > **Chương trình** Học kỳ Doanh nghiệp UTH × VNPT NET (2026–2027)  
 > **Người phụ trách**: Lê Khắc Huy (Frontend Engineer — FE)  
-> **Thẻ Jira**: [N42-19](https://nhutp2945-1793259952237.atlassian.net/browse/N42-19) · **Epic cha**: N42-6 (Module M7)
+> **Thẻ Jira**: [N42-19](https://nhutp2945-1793259952237.atlassian.net/browse/N42-19) · **Epic cha**: N42-6 (Module M7)  
+> **Baseline đối chiếu**: 03/11/2026 (`docs/DATA_AND_API_DESIGN.md`, `docs/ARCHITECTURE_DESIGN.md`, `docs/TECHNICAL_DESIGN_DOCUMENT.md`)
 
 ---
 
@@ -15,11 +16,12 @@
 4. [Build production](#build-production)
 5. [Cấu trúc thư mục](#cấu-trúc-thư-mục)
 6. [Bảng màu NOC Dark Theme](#bảng-màu-noc-dark-theme)
-7. [Hợp đồng dữ liệu AlertEvent](#hợp-đồng-dữ-liệu-alertevent)
-8. [Tích hợp API Backend](#tích-hợp-api-backend)
-9. [Mock Data (W2–W4)](#mock-data-w2w4)
+7. [Hợp đồng dữ liệu AlertEvent (v0.9)](#hợp-đồng-dữ-liệu-alertevent-v09)
+8. [Tích hợp API Backend (Baseline W1)](#tích-hợp-api-backend-baseline-w1)
+9. [Mock Data & Quy chuẩn IP (Baseline 03/11/2026)](#mock-data--quy-chuẩn-ip-baseline-03112026)
 10. [Quy chuẩn an toàn thông tin](#quy-chuẩn-an-toàn-thông-tin)
-11. [Khắc phục sự cố thường gặp](#khắc-phục-sự-cố-thường-gặp)
+11. [Lịch trình tích hợp](#lịch-trình-tích-hợp)
+12. [Khắc phục sự cố thường gặp](#khắc-phục-sự-cố-thường-gặp)
 
 ---
 
@@ -29,23 +31,23 @@ Module M7 cung cấp giao diện điều hành (NOC Dashboard) cho hệ thống 
 
 | # | Màn hình | Mô tả |
 |---|---|---|
-| 1 | **Dòng thời gian** | KPI + Bảng sự kiện cảnh báo tổng quan theo thời gian thực |
-| 2 | **Chi tiết thiết bị** | Tra cứu lịch sử cảnh báo theo Router / Switch / Firewall |
-| 3 | **Bộ lọc & Tra cứu** | Lọc đa chiều theo thời gian, thiết bị, IP nguồn, mức độ |
-| 4 | **Thống kê viễn thông** | Phân bổ cảnh báo theo loại thiết bị và nhà sản xuất |
-| 5 | **Gom nhóm tương quan** | Sự cố gom nhóm từ luật tương quan (Module BE3) |
-| 6 | **Xuất báo cáo** | Xuất CSV/PDF phục vụ báo cáo vận hành NOC VNPT NET |
+| 1 | **Dòng thời gian (Event Explorer)** | 4 thẻ KPI (TC-UI-001) + Bảng sự kiện thời gian thực kèm Detail Panel tách trường chuẩn hóa khỏi bản tin thô |
+| 2 | **Chi tiết thiết bị** | Tra cứu lịch sử cảnh báo theo Router / Switch / Firewall trong dải lab `10.10.0.0/16` |
+| 3 | **Bộ lọc & Tra cứu** | Lọc đa chiều theo thời gian, hostname, IP nguồn, vendor, mức độ (RFC 5424) |
+| 4 | **Thống kê viễn thông** | Phân bổ cảnh báo theo Vendor (CISCO, HUAWEI, LINUX) phục vụ AC-02 (Corpus 200 mẫu) |
+| 5 | **Gom nhóm tương quan (Incident Explorer)** | Sự cố gom nhóm từ luật tương quan (M5/M6), đo tỷ lệ giảm nhiễu (mục tiêu ≥70% theo AC-06) |
+| 6 | **Xuất báo cáo** | Xuất CSV/PDF canonical tuân thủ bộ lọc và escaping (TC-EXP-001) |
 
 **Stack công nghệ:**
 
 | Thành phần | Phiên bản | Vai trò |
 |---|---|---|
-| React | 19.3.1 | Framework giao diện |
-| TypeScript | 6.0.x | Kiểm tra kiểu tĩnh |
+| React | 19.3.1 | Framework giao diện (Function components + Hooks) |
+| TypeScript | 6.0.x | Kiểm tra kiểu tĩnh strict (`verbatimModuleSyntax`) |
 | Vite | 8.3.x | Build tool & Dev server HMR |
-| Tailwind CSS | 3.4.x | Utility-first CSS — NOC Dark Theme |
-| Lucide React | 1.70.x | Icon hệ thống mạng |
-| Axios | 1.21.x | HTTP Client tích hợp Backend API |
+| Tailwind CSS | 3.4.x | Utility-first CSS — NOC Dark Theme Palette |
+| Lucide React | 1.70.x | Icon hệ thống mạng & chỉ báo Severity |
+| Axios | 1.21.x | HTTP Client tích hợp Backend API (fetch layer tách biệt) |
 
 ---
 
@@ -53,7 +55,7 @@ Module M7 cung cấp giao diện điều hành (NOC Dashboard) cho hệ thống 
 
 | Yêu cầu | Phiên bản tối thiểu | Ghi chú |
 |---|---|---|
-| Node.js | **20 LTS trở lên** | Yêu cầu bắt buộc theo CONTRIBUTING.md |
+| Node.js | **20 LTS trở lên** | Yêu cầu bắt buộc theo `CONTRIBUTING.md` |
 | npm | 10+ | Đi kèm Node.js 20 LTS |
 
 Kiểm tra phiên bản hiện tại:
@@ -91,7 +93,7 @@ Sau khi khởi động thành công, truy cập giao diện tại:
 http://localhost:5173
 ```
 
-> **Lưu ý:** Nếu Backend API (`/api`) chưa khởi động, giao diện vẫn hoạt động bình thường với dữ liệu giả lập (Mock Data). Thanh Header sẽ hiển thị trạng thái **MOCK / STANDBY** thay vì **ONLINE**.
+> **Lưu ý:** Giai đoạn W2–W4 sử dụng `VITE_USE_MOCK=true` trong `.env.development`. Giao diện hoạt động trơn tru với dữ liệu giả lập chuẩn, console browser sạch 100% không báo lỗi đỏ 404. Thanh Header hiển thị trạng thái `DEV MOCK (W2–W4)` màu cyan.
 
 ### Bước 4: Chạy kiểm tra lint
 
@@ -122,8 +124,6 @@ Xem trước bản build production:
 npm run preview
 ```
 
-Truy cập tại `http://localhost:4173`.
-
 ---
 
 ## Cấu trúc thư mục
@@ -134,26 +134,26 @@ frontend/
 ├── public/                        # Tài nguyên tĩnh công khai
 ├── src/
 │   ├── types/                     # Hợp đồng kiểu dữ liệu TypeScript
-│   │   ├── alert.ts               # Schema AlertEvent 10 trường (hợp đồng N42-19)
+│   │   ├── alert.ts               # Schema AlertEvent v0.9 & Severity RFC 5424 (D-01)
 │   │   └── index.ts
 │   ├── services/                  # Tầng fetch — tách biệt hoàn toàn khỏi UI
-│   │   ├── api.ts                 # Axios client tập trung + interceptors
-│   │   ├── alertService.ts        # Gọi API: /health, /events, /events/count, /ingest, /simulate
-│   │   ├── mockData.ts            # Dữ liệu giả lập chuẩn RFC 5737 (W2–W4)
+│   │   ├── api.ts                 # Axios client tập trung + interceptors chuẩn hóa lỗi
+│   │   ├── alertService.ts        # Gọi API: /health (thật), query/simulate (mock W2-W4)
+│   │   ├── mockData.ts            # Dữ liệu giả lập chuẩn RFC 1918 10.10.x & TEST-NET-3
 │   │   └── index.ts
 │   ├── components/
 │   │   └── common/                # UI component dùng chung
-│   │       ├── Header.tsx         # Thanh tiêu đề NOC + đồng hồ + API status
-│   │       ├── Sidebar.tsx        # Điều hướng 6 màn hình
-│   │       ├── SeverityBadge.tsx  # Huy hiệu màu severity chuẩn NOC
+│   │       ├── Header.tsx         # Thanh tiêu đề NOC + đồng hồ ICT/UTC + API status
+│   │       ├── Sidebar.tsx        # Điều hướng 6 màn hình + mốc dự án
+│   │       ├── SeverityBadge.tsx  # Huy hiệu màu severity (Icon + Text + Số RFC 5424)
 │   │       └── index.ts
 │   ├── pages/                     # 6 màn hình chính Module M7
-│   │   ├── DashboardOverviewPage.tsx   # Màn hình (1)
-│   │   ├── DeviceDetailPage.tsx        # Màn hình (2)
-│   │   ├── AlertSearchPage.tsx         # Màn hình (3)
-│   │   ├── DeviceStatsPage.tsx         # Màn hình (4)
-│   │   ├── CorrelationAlertsPage.tsx   # Màn hình (5)
-│   │   ├── ReportsPage.tsx             # Màn hình (6)
+│   │   ├── DashboardOverviewPage.tsx   # Màn hình (1): 4 thẻ KPI + Live Table + Detail Panel
+│   │   ├── DeviceDetailPage.tsx        # Màn hình (2): Tra cứu thiết bị mạng lab
+│   │   ├── AlertSearchPage.tsx         # Màn hình (3): Bộ lọc đa chiều
+│   │   ├── DeviceStatsPage.tsx         # Màn hình (4): Thống kê Vendor
+│   │   ├── CorrelationAlertsPage.tsx   # Màn hình (5): Gom nhóm Incident & Noise reduction
+│   │   ├── ReportsPage.tsx             # Màn hình (6): Xuất CSV/PDF escaping
 │   │   └── index.ts
 │   ├── App.tsx                    # Shell điều phối Header + Sidebar + Router màn hình
 │   ├── index.css                  # Tailwind directives + cấu hình nền tối NOC
@@ -170,121 +170,66 @@ frontend/
 
 ## Bảng màu NOC Dark Theme
 
-Giao diện sử dụng bảng màu chuyên dụng cho Trung tâm Giám sát Điều hành Mạng (NOC), được định nghĩa trong [`tailwind.config.js`](./tailwind.config.js):
+Giao diện sử dụng bảng màu chuyên dụng cho Trung tâm Giám sát Điều hành Mạng (NOC), định nghĩa trong [`tailwind.config.js`](./tailwind.config.js):
 
 | Token Tailwind | Mã màu HEX | Vai trò |
 |---|---|---|
 | `noc-bg` | `#0a0e17` | Nền màn hình chính |
 | `noc-surface` | `#121826` | Nền card, panel, bảng |
 | `noc-border` | `#1e293b` | Đường viền phân cách |
-| `noc-critical` | `#ef4444` | Cảnh báo CRITICAL (Severity 0–2) |
-| `noc-major` | `#f97316` | Cảnh báo MAJOR (Severity 3) |
-| `noc-minor` | `#f59e0b` | Cảnh báo WARNING (Severity 4) |
-| `noc-info` | `#06b6d4` | Thông tin INFO (Severity 5–6) |
+| `noc-critical` | `#ef4444` | Cảnh báo CRITICAL (Severity 0–2: Emergency, Alert, Critical) |
+| `noc-major` | `#f97316` | Cảnh báo MAJOR (Severity 3: Error) |
+| `noc-minor` | `#f59e0b` | Cảnh báo WARNING (Severity 4: Warning) |
+| `noc-info` | `#06b6d4` | Thông tin INFO (Severity 5–6: Notice, Info) |
 
-**Quy tắc hiển thị mức độ cảnh báo:**
-
-| Severity | Tên hiển thị | Màu sắc |
-|---|---|---|
-| `CRITICAL` | 🔴 Critical | Đỏ — `noc-critical` |
-| `MAJOR` | 🟠 Major | Cam — `noc-major` |
-| `WARNING` | 🟡 Warning | Vàng — `noc-minor` |
-| `INFO` | 🔵 Info | Cyan — `noc-info` |
+**Quy tắc hiển thị mức độ cảnh báo (RFC 5424 D-01 & ARCHITECTURE_DESIGN Mục 5):**
+Mọi badge cảnh báo bắt buộc phải có cả **Icon + Nhãn văn bản + Mã số (0–7)**, không chỉ phân biệt bằng màu sắc đơn thuần.
 
 ---
 
-## Hợp đồng dữ liệu AlertEvent
+## Hợp đồng dữ liệu AlertEvent (v0.9)
 
-Schema `AlertEvent` tuân thủ **đề xuất v0.9** tại `n42-ai-kit/docs/INTERFACES.md` (chờ TL chốt v1.0 trước W4), được khai báo tại [`src/types/alert.ts`](./src/types/alert.ts).  
-Mọi component, mock data và API call đều bám sát theo schema chuẩn này:
+Schema `AlertEvent` bám sát `n42-ai-kit/docs/INTERFACES.md` và `docs/DATA_AND_API_DESIGN.md` (Baseline 03/11/2026):
 
 ```typescript
-interface AlertEvent {
-  id: string;               // UUID định danh duy nhất
+export interface AlertEvent {
+  id: string;               // UUID
   received_at: string;      // ISO 8601 UTC — thời điểm hệ thống tiếp nhận
-  event_timestamp: string;  // ISO 8601 UTC — thời điểm sự kiện ghi nhận từ thiết bị
-  source_ip: string;        // IP nguồn — RFC 1918 hoặc TEST-NET-3 (RFC 5737)
-  hostname: string;         // Tên thiết bị viễn thông (Router, Switch, Firewall)
+  event_timestamp: string;  // ISO 8601 UTC — thời điểm sự kiện từ thiết bị
+  source_ip: string;        // IP nguồn: dải lab 10.10.0.0/16 hoặc TEST-NET 203.0.113.0/24
+  hostname: string;         // Tên thiết bị (router/switch/firewall)
   facility: number;         // Syslog facility (0–23)
-  severity: number;         // RFC 5424 (0–7): 0 Emergency → 7 Debug (Quyết định D-01)
-  program: string;          // Tiến trình ghi log (BGP, IFPDT, ddos-guard...)
-  message: string;          // Nội dung sự kiện đã chuẩn hóa
-  raw_payload: string;      // Nội dung gói tin log thô từ Syslog
+  severity: number;         // RFC 5424 (0: Emergency → 7: Debug)
+  program: string;          // Tiến trình/process ghi log
+  message: string;          // Nội dung thông điệp đã chuẩn hóa
+  raw_payload: string;      // Bản tin thô nhận từ Syslog
   vendor: string;           // CISCO | HUAWEI | LINUX | RFC3164 | RFC5424 | UNKNOWN
-  category: string;         // Phân loại sự kiện chuẩn hóa
+  category: string;         // Phân loại do BE2 gán khi chuẩn hóa
 }
 ```
 
-> **Lưu ý quan trọng (D-01, D-02):** Thang `severity` trong DB là số nguyên `0–7` (RFC 5424). Tên CRITICAL/MAJOR/WARNING... được FE ánh xạ bằng helper function `SEVERITY_LABEL` và `SEVERITY_COLOR_GROUP` để hiển thị trực quan. Sau khi TL chốt v1.0, mọi thay đổi trường sẽ cập nhật đồng bộ qua skill `change-alertevent-schema`.
+---
+
+## Tích hợp API Backend (Baseline W1)
+
+Theo `docs/DATA_AND_API_DESIGN.md` Mục 4 (Baseline 03/11/2026):
+- **Hiện hành (Baseline W1):** Chỉ có duy nhất `GET /api/health` (`status: "UP"`, `service: "n42-api"`, `version: "0.1.0"`).
+- **Target (W7–W8):** Các endpoint ingest (`POST /api/v1/events`), query (`GET /api/v1/events?from=&to=&hostname=&severity=...`) do BE2 bàn giao qua tài liệu OpenAPI.
+- **Frontend Layer:** Tuyệt đối không gọi API ngoài hợp đồng OpenAPI. Trong giai đoạn W2–W4, toàn bộ query được fallback an toàn bằng mock service nội bộ.
 
 ---
 
-## Tích hợp API Backend
+## Mock Data & Quy chuẩn IP (Baseline 03/11/2026)
 
-Mọi request HTTP đi qua tầng service tại [`src/services/alertService.ts`](./src/services/alertService.ts).  
-**Tuyệt đối không gọi API trực tiếp từ component.**
-
-| Endpoint | Phương thức | Hàm Service | Màn hình dùng |
-|---|---|---|---|
-| `/api/health` | `GET` | `alertService.getHealth()` | Header (kiểm tra kết nối) |
-| `/api/events?limit=N` | `GET` | `alertService.getEvents(limit)` | Màn hình (1) Dòng thời gian |
-| `/api/events/count` | `GET` | `alertService.getEventsCount()` | KPI tổng số sự kiện |
-| `/api/ingest` | `POST` | `alertService.ingestEvent(payload)` | Nhận sự kiện thủ công |
-| `/api/simulate?count=N` | `POST` | `alertService.simulateEvents(count)` | Giả lập dữ liệu kiểm thử |
-
-> API tìm kiếm/lọc đầy đủ (theo thời gian, thiết bị, severity, phân trang) dự kiến mở tại **W7–W8** (BE2). Không tự bổ sung endpoint ngoài danh sách trên — mọi đề xuất bổ sung phải qua họp kỹ thuật với TL và BE2.
-
-**Chế độ Mock Development (W2–W4):**
-- Dự án sử dụng cấu hình `.env.development` với biến `VITE_USE_MOCK=true`.
-- Khi bật chế độ mock, `alertService` trả trực tiếp dữ liệu giả lập từ `mockData.ts` mà không thực hiện request HTTP thật, triệt tiêu 100% các lỗi 404/ERR_CONNECTION_REFUSED trên Browser Console (đáp ứng đúng DoD của N42-19).
-- Khi Backend chạy thật (W5+), chỉ cần đổi `VITE_USE_MOCK=false` và trỏ `VITE_API_BASE_URL`.
-
----
-
-## Mock Data (W2–W4)
-
-Trong giai đoạn W2–W4, khi Backend chưa cung cấp đầy đủ API, `alertService` hoạt động với dữ liệu giả lập tại [`src/services/mockData.ts`](./src/services/mockData.ts).
-
-**Quy tắc bắt buộc khi chỉnh sửa mock data (D-09):**
-- Phân biệt rõ dải IP: `10.x.x.x` và `192.168.x.x` là dải private **RFC 1918**; `203.0.113.0/24` là **TEST-NET-3 (RFC 5737)** dùng trong tài liệu/log minh họa.
-- Phải khớp đầy đủ trường của `AlertEvent` v0.9 — không được thiếu hoặc thêm trường ngoài hợp đồng.
-- Không dùng IP, hostname, thiết bị thật của hạ tầng VNPT NET.
-- Không hardcode credential, API key hoặc token vào bất kỳ file nào trong `src/`.
+Tuân thủ nghiêm ngặt theo `docs/ACCEPTANCE_CRITERIA.md` Mục 3 và `docs/TECHNICAL_DESIGN_DOCUMENT.md` Mục 6:
+- **Dải IP lab riêng (RFC 1918):** `10.10.0.0/16` (ví dụ `10.10.1.1`, `10.10.2.10`, `10.10.10.1`).
+- **Dải IP tài liệu minh họa (RFC 5737):** `203.0.113.0/24` (TEST-NET-3).
+- **Tuyệt đối không dùng:** IP thật của thiết bị hạ tầng viễn thông VNPT NET.
 
 ---
 
 ## Quy chuẩn an toàn thông tin
 
-Tuân thủ 100% theo `CONTRIBUTING.md` và chính sách bảo mật dự án N4.2:
-
-- **Không commit** file `.env`, `.env.local`, token, secret key, mật khẩu vào Git.
-- **Không nhúng** thông tin thiết bị sản xuất, log thật, địa chỉ IP thật của VNPT NET vào source code.
-- **Không push thẳng** lên nhánh `main` — mọi thay đổi phải qua Pull Request với ít nhất **1 phê duyệt** từ Team Leader.
-- Toàn bộ dữ liệu hiển thị trong giai đoạn phát triển phải là **giả lập**.
-
----
-
-## Khắc phục sự cố thường gặp
-
-**`npm run dev` báo lỗi port đã bị chiếm:**
-```bash
-npm run dev -- --port 5174
-```
-
-**Tailwind classes không áp dụng (UI trắng bóc):**  
-Kiểm tra lại 2 điểm:
-1. File `src/index.css` có 3 dòng `@tailwind base/components/utilities` ở **đầu file**.
-2. `tailwind.config.js` có đúng đường dẫn `content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}']`.
-
-**Backend không kết nối được (Header hiển thị MOCK/STANDBY):**  
-Đây là trạng thái bình thường trong giai đoạn W2–W4. Giao diện tự dùng mock data, không cần can thiệp.
-
-**`npm run build` báo lỗi TypeScript:**  
-Chạy riêng để xem chi tiết:
-```bash
-cd frontend
-npx tsc -b --noEmit
-```
-
-**Lỗi `import type` khi build:**  
-Dự án dùng `verbatimModuleSyntax`. Mọi import chỉ dùng kiểu TypeScript phải dùng `import type { ... }`.
+- Không commit tệp `.env`, `.env.local`, `.env.development`, token bí mật hoặc credential vào Git.
+- Kiểm tra mã nguồn với công cụ quét bảo mật: `python tools/check_sensitive.py`.
+- Tuân thủ quy trình Git Flow: Nhánh `feature/N42-19-react-vite-setup`, commit theo chuẩn `feat: khoi tao du an react vite tailwind css (N42-19)`, PR có ít nhất 1 reviewer phê duyệt.

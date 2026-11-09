@@ -7,10 +7,10 @@ export const DeviceStatsPage: React.FC = () => {
       <div>
         <h2 className="text-xl font-bold text-white flex items-center space-x-2">
           <BarChart3 className="w-5 h-5 text-cyan-400" />
-          <span>Thống kê theo thiết bị & Phân loại viễn thông</span>
+          <span>Thống kê theo thiết bị & Phân loại viễn thông (FR-08)</span>
         </h2>
         <p className="text-sm text-slate-400">
-          Phân tích mật độ sự kiện cảnh báo theo Router, Switch và Firewall
+          Màn hình số (4) — Phân tích mật độ sự kiện cảnh báo theo Vendor (CISCO, HUAWEI, RFC5424) theo Baseline 03/11/2026
         </p>
       </div>
 
@@ -18,12 +18,12 @@ export const DeviceStatsPage: React.FC = () => {
         <div className="p-6 rounded-xl bg-slate-900 border border-slate-800 space-y-4">
           <div className="flex items-center space-x-2 text-white font-semibold text-sm">
             <PieChart className="w-4 h-4 text-cyan-400" />
-            <span>Phân bổ theo loại thiết bị</span>
+            <span>Phân bổ theo Vendor (Corpus tối thiểu 200 mẫu - AC-02)</span>
           </div>
           <div className="space-y-3 pt-2 text-sm">
             <div>
               <div className="flex justify-between text-xs text-slate-400 mb-1">
-                <span>Router (Cisco / Juniper)</span>
+                <span>CISCO (RFC 3164 / Syslog IOS)</span>
                 <span className="font-mono text-cyan-400">45%</span>
               </div>
               <div className="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
@@ -32,7 +32,7 @@ export const DeviceStatsPage: React.FC = () => {
             </div>
             <div>
               <div className="flex justify-between text-xs text-slate-400 mb-1">
-                <span>Switch (Huawei / Cisco)</span>
+                <span>HUAWEI (VRP format)</span>
                 <span className="font-mono text-cyan-400">35%</span>
               </div>
               <div className="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
@@ -41,7 +41,7 @@ export const DeviceStatsPage: React.FC = () => {
             </div>
             <div>
               <div className="flex justify-between text-xs text-slate-400 mb-1">
-                <span>Firewall (Fortinet / Checkpoint)</span>
+                <span>RFC 5424 / LINUX (Chuẩn IETF)</span>
                 <span className="font-mono text-cyan-400">20%</span>
               </div>
               <div className="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
@@ -53,8 +53,8 @@ export const DeviceStatsPage: React.FC = () => {
 
         <div className="p-6 rounded-xl bg-slate-900 border border-slate-800 flex flex-col justify-center items-center text-center text-slate-400">
           <Activity className="w-10 h-10 text-slate-600 mb-3" />
-          <p className="text-sm">Biểu đồ thống kê chuyên sâu (Recharts / Chart.js)</p>
-          <p className="text-xs text-slate-500 mt-1">Sẽ hoàn thiện tại mốc W10–W13</p>
+          <p className="text-sm">Biểu đồ thống kê thời gian thực (Recharts / Chart.js)</p>
+          <p className="text-xs text-slate-500 mt-1">Hoàn thiện tại mốc W10–W13 phục vụ nghiệm thu AC-04</p>
         </div>
       </div>
     </div>

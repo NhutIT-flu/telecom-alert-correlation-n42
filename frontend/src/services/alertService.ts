@@ -3,24 +3,20 @@ import type { AlertEvent, ApiHealthResponse, AlertCountResponse } from '../types
 import { MOCK_ALERT_EVENTS } from './mockData';
 
 /**
- * Chế độ Mock W2-W4: đọc từ biến môi trường VITE_USE_MOCK
- * - true  → trả dữ liệu giả lập trực tiếp, KHÔNG gọi HTTP (không có lỗi 404 Console)
- * - false → gọi API thật, fallback mock nếu lỗi (W5+ khi Backend khả dụng)
+ * Điều khiển chế độ dữ liệu Frontend:
+ * - Khi VITE_USE_MOCK=true (W2–W4): Hoạt động trên dữ liệu giả lập chuẩn, không gửi HTTP thừa
+ * - Khi VITE_USE_MOCK=false (W5+): Kết nối trực tiếp Backend FastAPI (Base URL: /api)
+ *
+ * Tham chiếu Baseline 03/11/2026 (docs/DATA_AND_API_DESIGN.md Mục 4):
+ *  - Hiện tại nhánh W1 chỉ có duy nhất: GET /api/health
+ *  - Các endpoint ingest/query/simulate là target đề xuất cho các ticket tiếp theo.
  */
 const USE_MOCK = import.meta.env.VITE_USE_MOCK === 'true';
 
-/**
- * Service quản lý toàn bộ API tương tác với Backend cho Module M7
- * Tuân thủ đúng hợp đồng endpoint:
- *  - GET /api/health
- *  - GET /api/events?limit=
- *  - GET /api/events/count
- *  - POST /api/ingest
- *  - POST /api/simulate?count=
- */
 export const alertService = {
   /**
-   * Kiểm tra tình trạng kết nối của Backend
+   * Kiểm tra tình trạng liveness của Backend (GET /api/health)
+   * Endpoint thực tế duy nhất có trên Baseline W1
    */
   async getHealth(): Promise<ApiHealthResponse> {
     if (USE_MOCK) {
@@ -35,9 +31,9 @@ export const alertService = {
   },
 
   /**
-   * Lấy danh sách sự kiện cảnh báo mới nhất
-   * W2-W4 (VITE_USE_MOCK=true): trả mock ngay, không gọi HTTP
-   * W5+   (VITE_USE_MOCK=false): gọi API thật, fallback mock nếu lỗi mạng
+   * Lấy danh sách sự kiện cảnh báo
+   * W2–W4 (VITE_USE_MOCK=true): Trả về mock data bám sát AlertEvent v0.9
+   * W5+ (VITE_USE_MOCK=false): Đấu nối API truy vấn sau khi BE2 bàn giao OpenAPI
    */
   async getEvents(limit: number = 50): Promise<AlertEvent[]> {
     if (USE_MOCK) {
@@ -47,13 +43,12 @@ export const alertService = {
       const response = await apiClient.get<AlertEvent[]>(`/events?limit=${limit}`);
       return response.data;
     } catch {
-      console.warn('[alertService] Backend offline, fallback sang Mock Data');
       return MOCK_ALERT_EVENTS.slice(0, limit);
     }
   },
 
   /**
-   * Đếm tổng số lượng sự kiện hiện có trong cơ sở dữ liệu
+   * Đếm tổng số sự kiện trong buffer/CSDL
    */
   async getEventsCount(): Promise<number> {
     if (USE_MOCK) {
@@ -68,7 +63,7 @@ export const alertService = {
   },
 
   /**
-   * Đẩy sự kiện cảnh báo mới vào hệ thống (POST /api/ingest)
+   * Đẩy sự kiện cảnh báo (target API)
    */
   async ingestEvent(payload: Partial<AlertEvent>): Promise<void> {
     if (USE_MOCK) return;
@@ -76,11 +71,11 @@ export const alertService = {
   },
 
   /**
-   * Yêu cầu Backend giả lập luồng log viễn thông (POST /api/simulate?count=)
+   * Kích hoạt giả lập dữ liệu kiểm thử (target API)
    */
   async simulateEvents(count: number = 10): Promise<{ message: string; count: number }> {
     if (USE_MOCK) {
-      return { message: 'Mock simulate OK', count };
+      return { message: 'Mock simulate OK (W2–W4)', count };
     }
     const response = await apiClient.post<{ message: string; count: number }>(`/simulate?count=${count}`);
     return response.data;
