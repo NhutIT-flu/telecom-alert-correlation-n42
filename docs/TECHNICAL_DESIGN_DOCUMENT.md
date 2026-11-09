@@ -6,7 +6,7 @@
 ## 1. Stack và hiện trạng code
 
 - Baseline W1: Python/FastAPI với duy nhất `GET /api/health` để xác nhận process khởi động.
-- UDP/TCP receiver, ingest, parser, event model, store, correlation, dashboard và query API chưa được triển khai; tạo theo ticket và hợp đồng đã chốt.
+- Ingestion UDP, REST/file, parser, event model, store, correlation, dashboard và query API chưa được triển khai; tạo theo ticket và hợp đồng đã chốt. TCP syslog chưa thuộc baseline nghiệm thu và chỉ được thêm sau quyết định phạm vi.
 - `docker/init-db.sql` chỉ bật extension TimescaleDB; chưa có migration, bảng nghiệp vụ, seed hoặc repository runtime.
 - API đang chạy được liệt kê trong `DATA_AND_API_DESIGN.md`; mọi endpoint khác là target, chưa phải capability hiện hữu.
 
@@ -14,12 +14,12 @@
 
 | Module | Trách nhiệm | Owner |
 |---|---|---|
-| M1 | UDP/TCP/API/file adapters, raw envelope, validation | Phạm Hoàng Long (BE1) |
-| M2 | Parser/vendor mapping/normalized event | Phạm Hoàng Long (BE1), Phạm Tấn Thành (BE2) |
+| M1 | Receiver/ingestion adapters cho UDP, REST và file; raw envelope, validation. TCP là mở rộng có điều kiện sau quyết định phạm vi. | Phạm Hoàng Long (BE1) |
+| M2 | Parser/vendor mapping/normalized event | Phạm Tấn Thành (BE2), phối hợp BE1 về raw contract |
 | M3 | Bounded queue, batch, backpressure | Phạm Tấn Thành (BE2) |
 | M4 | DB repository/migrations/index/retention | Phạm Tấn Thành (BE2) |
-| M5 | Grouping, statistics, incident lifecycle | Nguyễn Duy Minh (BE3) |
-| M6 | Rule schema/version/evaluator/evidence | Nguyễn Duy Minh (BE3) |
+| M5 | Rule schema, version, validation và cấu hình luật | Nguyễn Duy Minh (BE3) |
+| M6 | Correlation/grouping, incident lifecycle, evidence và API | Nguyễn Duy Minh (BE3) |
 | M7 | Operator dashboard theo API contract | Lê Khắc Huy (FE) |
 | M8 | Fixtures, scenario runner, load/evidence | Ngô Châu Kiệt (QA) |
 | Project | Plan, decisions, acceptance coordination | Phạm Minh Nhựt (TL/PM) |
@@ -30,7 +30,7 @@
 
 - Adapter ghi nguồn, received time và monotonic timestamp đo latency.
 - Parser không thực hiện I/O; giữ raw và ghi parse status.
-- Queue capacity hữu hạn; policy saturation riêng cho UDP/TCP/API.
+- Queue capacity hữu hạn; policy saturation cho UDP/API. TCP chỉ áp dụng sau khi được duyệt phạm vi.
 - DB batch transaction, bounded retry và idempotency; ack semantics phân biệt accepted/durable.
 - Incident giữ rule/version/evidence; quan hệ event–incident dùng bảng nối khi cần nhiều-nhiều.
 - UI chỉ truy cập API, không kết nối trực tiếp DB.

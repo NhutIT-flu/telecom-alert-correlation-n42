@@ -47,9 +47,9 @@ Leader: Phạm Minh Nhựt
 1. Mục tiêu tuần:
    - ...
 2. Công việc hoàn thành (Chi tiết từng thành viên):
-   - Phạm Minh Nhựt (Team Lead / PM): Quản trị Jira, Confluence, Điều phối & Hạ tầng CI/CD
+   - Phạm Minh Nhựt (Team Lead / PM): Quản trị Jira, Confluence, tiến độ và điều phối
    - Nguyễn Duy Minh (BE3): Module Luật tương quan M5 & API M6
-   - Ngô Châu Kiệt (QA Lead): Kịch bản kiểm thử KB-01..08, Đo kiểm tải 1.000 msg/s M8
+   - Ngô Châu Kiệt (QA Lead): Đặc tả/coverage test, kịch bản KB-01..08, CI và đo kiểm tải 1.000 msg/s
    - Phạm Hoàng Long (BE1): Module Ingestion UDP M1 & Parser Đa vendor M2
    - Phạm Tấn Thành (BE2): In-memory Queue M3 & TimescaleDB Hypertable M4
    - Lê Khắc Huy (FE): Web Dashboard React NOC M7

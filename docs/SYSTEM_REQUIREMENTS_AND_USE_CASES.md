@@ -14,6 +14,7 @@ N4.2 là dự án doanh nghiệp phối hợp UTH × VNPT NET, hướng tới h�
 ### Giả định cần xác nhận
 
 - Format file, encoding, rotation/archive, giới hạn kích thước cần được chốt.
+- TCP syslog có trong vai trò QA và `RawEvent.channel` của hợp đồng đề xuất, nhưng chưa có FR riêng (FR-01 hiện ghi UDP). Mặc định test baseline theo UDP, REST và file; cần decision/Jira để đưa TCP vào scope nghiệm thu.
 - Bộ log có nhãn do nhóm chọn, không đại diện mọi firmware/vendor.
 - KPI là tiêu chí thử trên môi trường đã mô tả, không phải SLA production.
 - Lưu UTC; UI có thể trình bày theo timezone người dùng.
