@@ -2,14 +2,14 @@
 
 Ma trận này là kế hoạch bao phủ FR/NFR đến tiêu chí nghiệm thu, mã ca kiểm thử và evidence cần thu. Mã test trong ma trận là mã đặc tả trong `TEST_CASE_SPECIFICATION.md`; không đồng nghĩa đã tự động hóa hoặc đã chạy.
 
-## Quy ước trạng thái
+## 1. Quy ước trạng thái
 
 - **Đặc tả:** Có mô tả ca kiểm thử, chưa có bằng chứng chạy.
 - **Một phần hiện thực:** Có code cho một phần yêu cầu; cần test đúng contract hiện tại.
 - **Gap:** Chưa có ca cụ thể hoặc chưa đủ acceptance/evidence để kết luận.
 - Chỉ ghi **PASS/FAIL** trong execution record có commit SHA, thời gian, môi trường, input/version và artifact. Không ghi kết quả dự kiến như kết quả thực tế.
 
-## Truy vết yêu cầu chức năng
+## 2. Truy vết yêu cầu chức năng
 
 | Requirement | AC | Owner | Mã ca kiểm thử đặc tả | Evidence cần thu | Hiện trạng repo |
 |---|---|---|---|---|---|
@@ -29,7 +29,7 @@ Ma trận này là kế hoạch bao phủ FR/NFR đến tiêu chí nghiệm thu,
 | FR-14 Export | AC-04, AC-08 | FE/BE | TC-EXP-001 | Filter equivalence, delimiter/quote/newline escaping, size limit, file integrity | Chưa có contract/export endpoint; format/limit cần chốt, test blocked |
 | FR-15 Rule configuration | AC-05 | BE3 | TC-RUL-001–007 | Schema/version, invalid cases, active hash trước/sau reload, rollback/audit | Rule service/API chưa có; schema/path/response phải chốt trước automation |
 
-## Truy vết yêu cầu phi chức năng
+## 3. Truy vết yêu cầu phi chức năng
 
 | Requirement | AC | Mã ca kiểm thử đặc tả | Evidence/định nghĩa đo | Hiện trạng |
 |---|---|---|---|---|
@@ -42,7 +42,7 @@ Ma trận này là kế hoạch bao phủ FR/NFR đến tiêu chí nghiệm thu,
 | NFR-07 Install/recovery | AC-07 | TC-INT-003; TC-PERF-007; TC-OPS-001, 003 | Clean install/restart/restore, thời gian, config/commit, ID reconciliation | Chưa có persistence/runtime stack và gói bàn giao hoàn chỉnh để chạy drill |
 | NFR-08 Bounded processing | AC-01, AC-07 | TC-ING-014; TC-PERF-004, 006 | Queue depth, saturation/backpressure/drop policy, recovery, resource samples | Queue chưa có; cần thêm ca rõ cho queue full và recovery |
 
-## Bao phủ bàn giao và chất lượng dự án
+## 4. Bao phủ bàn giao và chất lượng dự án
 
 Các mục sau không phải FR của sản phẩm, nhưng xuất hiện trong Charter, QA role, architecture và handover checklist nên cần bằng chứng trước khi đóng dự án.
 
@@ -56,7 +56,7 @@ Các mục sau không phải FR của sản phẩm, nhưng xuất hiện trong C
 | Tài liệu và sign-off | Document control, handover #3–8 | TC-OPS-004 | Tài liệu cùng baseline/version; report không ghi trạng thái chưa có evidence; approvals và package links thực | Có xung đột lịch/role/status liệt kê ở gap phía dưới; kickoff vẫn là draft |
 | Bảo vệ dữ liệu | AC-08, architecture security | TC-SEC-001–003; TC-HLT-003 | Synthetic fixtures; loopback chỉ dùng local; không có secret/production data; scanner findings được review | Scanner hiện không trả exit code khác 0 khi có finding; cần remediation trước CI gate |
 
-### Baseline đã làm rõ và gap còn mở
+## 5. Baseline đã làm rõ và gap còn mở
 
 - **Lịch W1/kickoff:** W1 là 01–07/11/2026; W2 là 08–14/11. Kickoff dự kiến 09/11 thuộc W2. Biên bản kickoff giữ trạng thái dự thảo cho đến sau họp; báo cáo tuần chỉ ghi kết quả sau khi đối chiếu Jira và evidence.
 - **Phân module:** dùng FR + owner làm khóa truy vết. Mapping M1–M8 đã được đồng bộ giữa Charter, TDD và role files; cập nhật Jira trước khi tạo dependency liên module.
@@ -64,7 +64,7 @@ Các mục sau không phải FR của sản phẩm, nhưng xuất hiện trong C
 - **Workflow/release evidence:** `.github/workflows/ci.yml` chưa có trong repo hiện tại; QA Lead sẽ triển khai theo kế hoạch. Sau khi có workflow, đối chiếu checks, kết quả gắn commit, required status và bằng chứng release.
 - **Scenario assets:** đã có đặc tả KB-01..08 với version, seed, input, expected outcome, phân công code owner theo module và QA runner. Fixture/generator/replay vẫn là công việc riêng; cả 8 case hiện BLOCKED/NOT RUN theo baseline, đặc tả không chứng minh scenario đã được chạy. Jira assignee phải được TL đối chiếu riêng.
 
-## Gap cần xử lý trước khi gọi đây là baseline kiểm thử hoàn chỉnh
+## 6. Gap cần xử lý trước khi gọi đây là baseline kiểm thử hoàn chỉnh
 
 1. **Contract-first:** `DATA_AND_API_DESIGN.md` ghi API/model nghiệp vụ là target. TC nào gọi `/api/v1/events`, `/api/v1/incidents`, WebSocket hoặc DB phải chuyển `BLOCKED` cho tới khi contract được duyệt và implementation xuất hiện. Hiện API có `GET /api/health`.
 2. **Hoàn tất coverage còn thiếu:** Thực thi TC-REP-001, TC-EXP-001, TC-OPS-001–004 sau khi contract/gói bàn giao được chốt; bổ sung lifecycle audit/mutation, queue saturation/recovery, file import limits/encoding và query pagination edge cases.
@@ -72,6 +72,6 @@ Các mục sau không phải FR của sản phẩm, nhưng xuất hiện trong C
 4. **Correlation labels:** Đóng băng tập scenario, expected labels và quy tắc đếm TP/FP/FN; tránh coi mỗi event trong một chuỗi là một positive case nếu AC chưa định nghĩa.
 5. **Execution:** Repo hiện có `tests/test_health.py` với 2 kiểm tra health route/service. Chưa có automated tests cho ingest, parser, storage/query, correlation hay rules. Tất cả các ca đó đang là đặc tả, chưa chạy/đạt.
 
-## Cách duy trì
+## 7. Cách duy trì
 
 Khi FR, API/schema, rule hoặc AC đổi, cập nhật SRS, thiết kế dữ liệu/API, acceptance criteria, test plan, test-case specification và ma trận trong cùng work item. Mỗi test phải truy ngược tới ít nhất một requirement; requirement chưa có test phải được ghi rõ là gap, owner và milestone.
