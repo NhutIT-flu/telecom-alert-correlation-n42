@@ -265,8 +265,8 @@ flowchart LR
             STATIC_SRV --- REACT_BUILD
         end
 
-        CONTAINER_APP <-->|Mạng nội bộ Docker (n42-bridge)| CONTAINER_DB
-        CONTAINER_UI <-->|Proxy API & WebSocket| CONTAINER_APP
+        APP_SRV <-->|Mạng nội bộ Docker bridge| TS_ENGINE
+        STATIC_SRV <-->|Proxy API & WebSocket| APP_SRV
     end
 
     subgraph CLIENTS["MÔI TRƯỜNG TRUY CẬP"]
