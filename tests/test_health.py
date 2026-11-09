@@ -6,11 +6,14 @@ from app.main import app
 
 class HealthEndpointTests(unittest.TestCase):
     def test_health_returns_service_status(self) -> None:
-        self.assertEqual(get_health(), {
-            "status": "UP",
-            "service": "n42-api",
-            "version": "0.1.0",
-        })
+        self.assertEqual(
+            get_health(),
+            {
+                "status": "UP",
+                "service": "n42-api",
+                "version": "0.1.0",
+            },
+        )
 
     def test_health_route_is_registered(self) -> None:
         paths = set(app.openapi()["paths"])
