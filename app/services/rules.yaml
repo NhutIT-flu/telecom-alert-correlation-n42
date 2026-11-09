@@ -1,0 +1,60 @@
+# N42-17: bộ luật mẫu v0.1.0 để duyệt cấu hình. Tất cả luật đang tắt.
+# Các tên trường sự kiện bên dưới là đề xuất cho AlertEvent v1.
+# match yêu cầu đồng thời tất cả các cặp trường/giá trị.
+# threshold là ngưỡng của phép đếm count trong cửa sổ tính bằng giây.
+version: "0.1.0"
+rules:
+  - rule_id: "RULE_LINK_FLAP_01"
+    name: "Link Flap"
+    description: "Gom ít nhất 5 sự kiện đổi trạng thái UP/DOWN trong 60 giây trên cùng cổng."
+    enabled: false
+    window_seconds: 60
+    threshold: 5
+    group_by: [hostname, interface]
+    match:
+      vendor: cisco
+      mnemonic: LINK-3-UPDOWN
+    count:
+      mode: state_changes
+      field: link_state
+    action:
+      create_incident: true
+      incident_severity: CRITICAL
+      title: "Cổng mạng đổi trạng thái liên tục"
+
+  - rule_id: "RULE_DUAL_PSU_FAILURE_01"
+    name: "Dual Power Supply Failure"
+    description: "Phát hiện hai bộ nguồn khác nhau báo lỗi trên cùng thiết bị."
+    enabled: false
+    # Cửa sổ 60 giây là giá trị minh họa, chờ duyệt theo N42-45.
+    window_seconds: 60
+    threshold: 2
+    group_by: [hostname]
+    match:
+      vendor: huawei
+      mnemonic: POWER_SUPPLY_FAILED
+    count:
+      mode: distinct
+      field: psu_slot
+    action:
+      create_incident: true
+      incident_severity: CRITICAL
+      title: "Hai bộ nguồn trên cùng thiết bị báo lỗi"
+
+  - rule_id: "RULE_BGP_FLAP_01"
+    name: "BGP Flapping"
+    description: "Phát hiện phiên BGP đổi trạng thái lặp lại trên cùng thiết bị và peer."
+    enabled: false
+    # Ngưỡng, cửa sổ và mã sự kiện dưới đây dùng để minh họa cấu hình.
+    window_seconds: 120
+    threshold: 3
+    group_by: [hostname, peer]
+    match:
+      mnemonic: BGP_SESSION_STATE_CHANGE
+    count:
+      mode: state_changes
+      field: session_state
+    action:
+      create_incident: true
+      incident_severity: CRITICAL
+      title: "Phiên BGP đổi trạng thái liên tục"
