@@ -24,7 +24,7 @@ SENSITIVE_PATTERNS = [
     (r'\b(?!0\.0\.0\.0)(?!10\.)(?!192\.168\.)(?!172\.(1[6-9]|2[0-9]|3[0-1])\.)(?!203\.0\.113\.)(?!198\.51\.100\.)(?!192\.0\.2\.)(?!127\.)\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b', "IP công cộng có thể là IP thật của hệ thống"),
 ]
 
-IGNORE_DIRS = {'.git', '__pycache__', 'node_modules', '.idea', '.vscode', 'venv'}
+IGNORE_DIRS = {'.git', '__pycache__', 'node_modules', '.idea', '.vscode', 'venv', '.venv'}
 IGNORE_FILES = {'check_sensitive.py', 'package-lock.json'}
 
 def scan_directory(base_dir):
