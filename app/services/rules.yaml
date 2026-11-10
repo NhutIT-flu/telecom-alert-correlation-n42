@@ -1,12 +1,15 @@
-# N42-17: bộ luật mẫu v0.1.0 để duyệt cấu hình. Tất cả luật đang tắt.
-# Các tên trường sự kiện bên dưới là đề xuất cho AlertEvent v1.
-# match yêu cầu đồng thời tất cả các cặp trường/giá trị.
-# threshold là ngưỡng của phép đếm count trong cửa sổ tính bằng giây.
+# N42-17: ba luật mẫu để QA duyệt cấu hình. enabled: false giữ mẫu ở chế độ tắt.
+# match áp dụng đồng thời tất cả cặp trường/giá trị; group_by tạo khóa gom.
+# threshold áp dụng cho phép đếm count trong cửa sổ tính bằng giây.
+# Tên trường sự kiện là đề xuất để đối chiếu với hợp đồng AlertEvent.
 version: "0.1.0"
 rules:
+  # KB-01: 4 lần không đủ ngưỡng; lần thứ 5 đúng giây 60 được tính.
   - rule_id: "RULE_LINK_FLAP_01"
     name: "Link Flap"
-    description: "Gom ít nhất 5 sự kiện đổi trạng thái UP/DOWN trong 60 giây trên cùng cổng."
+    description: >-
+      Gom ít nhất 5 lần đổi trạng thái UP/DOWN trong 60 giây trên cùng
+      thiết bị và cổng. Bản tin lặp cùng trạng thái không tăng số lần đổi.
     enabled: false
     window_seconds: 60
     threshold: 5
@@ -19,12 +22,16 @@ rules:
       field: link_state
     action:
       create_incident: true
+      # Giá trị theo ví dụ Jira N42-17; TC-COR-001 ghi MAJOR, chờ QA đối chiếu.
       incident_severity: CRITICAL
       title: "Cổng mạng đổi trạng thái liên tục"
 
+  # KB-02 có một nguồn hỏng; cần hai slot khác nhau cho mẫu nguồn kép.
   - rule_id: "RULE_DUAL_PSU_FAILURE_01"
     name: "Dual Power Supply Failure"
-    description: "Phát hiện hai bộ nguồn khác nhau báo lỗi trên cùng thiết bị."
+    description: >-
+      Gom lỗi từ hai slot nguồn khác nhau trên cùng thiết bị.
+      Nhiều bản tin từ cùng một slot chỉ đóng góp một slot vào ngưỡng.
     enabled: false
     # Cửa sổ 60 giây là giá trị minh họa, chờ duyệt theo N42-45.
     window_seconds: 60
@@ -43,9 +50,12 @@ rules:
 
   - rule_id: "RULE_BGP_FLAP_01"
     name: "BGP Flapping"
-    description: "Phát hiện phiên BGP đổi trạng thái lặp lại trên cùng thiết bị và peer."
+    description: >-
+      Gom các lần đổi trạng thái phiên BGP trên cùng thiết bị và peer.
+      Các bản tin liên tiếp cùng trạng thái không tăng số lần đổi.
     enabled: false
-    # Ngưỡng, cửa sổ và mã sự kiện dưới đây dùng để minh họa cấu hình.
+    # Ngưỡng, cửa sổ và mnemonic là giá trị minh họa, chờ xác nhận.
+    # KB-05 kiểm tra BGP Neighbor Down lặp lại theo retry.
     window_seconds: 120
     threshold: 3
     group_by: [hostname, peer]
