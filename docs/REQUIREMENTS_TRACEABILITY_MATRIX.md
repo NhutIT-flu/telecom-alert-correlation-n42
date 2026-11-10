@@ -66,6 +66,10 @@ Các mục sau không phải FR của sản phẩm, nhưng xuất hiện trong C
 
 ## Gap cần xử lý trước khi gọi đây là baseline kiểm thử hoàn chỉnh
 
+### Đề xuất thiết kế N42-15 (09/11/2026)
+
+[Bản thiết kế N42-15](N42-15_DESIGN.md) liên kết FR-04/FR-05 và AC-02 với các nhóm ca cục bộ N15-01..24, contract parser, corpus và evidence dự kiến. Trạng thái DRAFT / NEEDS OWNER REVIEW / NOT RUN; chưa thay thế TC-PAR chính thức, chưa chốt interface v0.9 và không thay đổi trạng thái Jira hoặc hiện trạng implementation trong các bảng trên. QA Lead review coverage; BE2 xác nhận expected output; TL cùng các owner xác nhận contract trước code hành vi.
+
 1. **Contract-first:** `DATA_AND_API_DESIGN.md` ghi API/model nghiệp vụ là target. TC nào gọi `/api/v1/events`, `/api/v1/incidents`, WebSocket hoặc DB phải chuyển `BLOCKED` cho tới khi contract được duyệt và implementation xuất hiện. Hiện API có `GET /api/health`.
 2. **Hoàn tất coverage còn thiếu:** Thực thi TC-REP-001, TC-EXP-001, TC-OPS-001–004 sau khi contract/gói bàn giao được chốt; bổ sung lifecycle audit/mutation, queue saturation/recovery, file import limits/encoding và query pagination edge cases.
 3. **Parser corpus:** 5 fixture mẫu trong đặc tả chỉ là smoke examples, không đáp ứng 200 mẫu mỗi format ở AC-02.
