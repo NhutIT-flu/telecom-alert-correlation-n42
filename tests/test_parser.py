@@ -189,7 +189,10 @@ def test_n15_11_empty_input():
 )
 def test_n15_12_invalid_timestamp(invalid_time_raw):
     event = parse_syslog_rfc3164(
-        invalid_time_raw, DEFAULT_IP, received_at=DEFAULT_RECEIVED, source_timezone=DEFAULT_TZ
+        invalid_time_raw,
+        DEFAULT_IP,
+        received_at=DEFAULT_RECEIVED,
+        source_timezone=DEFAULT_TZ,
     )
     assert event.parse_status == "fallback"
     assert event.parse_error == "invalid_timestamp"
@@ -207,16 +210,22 @@ def test_n15_13_malformed_header_bad_month():
 def test_n15_14_year_boundary_wrap_backward():
     raw = "<34>Dec 31 23:59:59 host-01 kernel: test"
     rec = datetime(2027, 1, 1, 0, 0, 1, tzinfo=timezone.utc)
-    event = parse_syslog_rfc3164(raw, DEFAULT_IP, received_at=rec, source_timezone=timezone.utc)
+    event = parse_syslog_rfc3164(
+        raw, DEFAULT_IP, received_at=rec, source_timezone=timezone.utc
+    )
     assert event.parse_status == "parsed"
-    assert event.event_timestamp == datetime(2026, 12, 31, 23, 59, 59, tzinfo=timezone.utc)
+    assert event.event_timestamp == datetime(
+        2026, 12, 31, 23, 59, 59, tzinfo=timezone.utc
+    )
     assert event.vendor == "linux"
 
 
 def test_n15_15_year_boundary_wrap_forward():
     raw = "<34>Jan  1 00:00:01 host-01 kernel: test"
     rec = datetime(2026, 12, 31, 23, 59, 59, tzinfo=timezone.utc)
-    event = parse_syslog_rfc3164(raw, DEFAULT_IP, received_at=rec, source_timezone=timezone.utc)
+    event = parse_syslog_rfc3164(
+        raw, DEFAULT_IP, received_at=rec, source_timezone=timezone.utc
+    )
     assert event.parse_status == "parsed"
     assert event.event_timestamp == datetime(2027, 1, 1, 0, 0, 1, tzinfo=timezone.utc)
 
@@ -224,7 +233,9 @@ def test_n15_15_year_boundary_wrap_forward():
 def test_n15_16_leap_year_valid():
     raw = "<34>Feb 29 00:00:00 host-01 kernel: test"
     rec = datetime(2024, 3, 1, 0, 0, 0, tzinfo=timezone.utc)
-    event = parse_syslog_rfc3164(raw, DEFAULT_IP, received_at=rec, source_timezone=timezone.utc)
+    event = parse_syslog_rfc3164(
+        raw, DEFAULT_IP, received_at=rec, source_timezone=timezone.utc
+    )
     assert event.parse_status == "parsed"
     assert event.event_timestamp == datetime(2024, 2, 29, 0, 0, 0, tzinfo=timezone.utc)
 
@@ -232,7 +243,9 @@ def test_n15_16_leap_year_valid():
 def test_n15_17_leap_year_invalid_non_leap():
     raw = "<34>Feb 29 00:00:00 host-01 kernel: test"
     rec = datetime(2026, 3, 1, 0, 0, 0, tzinfo=timezone.utc)
-    event = parse_syslog_rfc3164(raw, DEFAULT_IP, received_at=rec, source_timezone=timezone.utc)
+    event = parse_syslog_rfc3164(
+        raw, DEFAULT_IP, received_at=rec, source_timezone=timezone.utc
+    )
     assert event.parse_status == "fallback"
     assert event.parse_error == "invalid_timestamp"
 
@@ -256,7 +269,10 @@ def test_n15_18_unicode_and_crlf_suffix():
 )
 def test_n15_19_control_char_and_internal_newline(corrupt_raw):
     event = parse_syslog_rfc3164(
-        corrupt_raw, DEFAULT_IP, received_at=DEFAULT_RECEIVED, source_timezone=DEFAULT_TZ
+        corrupt_raw,
+        DEFAULT_IP,
+        received_at=DEFAULT_RECEIVED,
+        source_timezone=DEFAULT_TZ,
     )
     assert event.parse_status == "fallback"
     assert event.parse_error == "malformed_header"
@@ -383,6 +399,9 @@ def test_throughput_benchmark_dod():
     elapsed = time.perf_counter() - start
     rate = total_calls / elapsed
 
-    print(f"\n[BENCHMARK] Throughput: {rate:,.2f} logs/s (Thời gian: {elapsed:.3f}s cho {total_calls} bản tin)")
-    assert rate >= 5000.0, f"Hiệu năng không đạt DoD (thực tế: {rate:,.2f} logs/s < 5,000 logs/s)"
-
+    print(
+        f"\n[BENCHMARK] Throughput: {rate:,.2f} logs/s (Thời gian: {elapsed:.3f}s cho {total_calls} bản tin)"
+    )
+    assert (
+        rate >= 5000.0
+    ), f"Hiệu năng không đạt DoD (thực tế: {rate:,.2f} logs/s < 5,000 logs/s)"
