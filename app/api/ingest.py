@@ -3,9 +3,9 @@ from datetime import datetime, timezone
 import logging
 from uuid import uuid4
 
-from fastapi import APIRouter, Request, status
+from fastapi import APIRouter, File, HTTPException, Request, UploadFile, status
 
-from app.models.ingest import IngestRequest, IngestResponse
+from app.models.ingest import BatchImportResponse, IngestRequest, IngestResponse
 from app.models.raw_event import RawEvent
 
 logger = logging.getLogger(__name__)
@@ -52,3 +52,30 @@ async def ingest_event(
         received_at=now_utc,
     )
 
+
+@router.post(
+    "/import-file",
+    status_code=status.HTTP_200_OK,
+    response_model=BatchImportResponse,
+    summary="Nhập file log batch từ máy khách (FR-03)",
+)
+async def import_log_file(
+    file: UploadFile = File(..., description="Tệp tin log định dạng text"),
+) -> BatchImportResponse:
+    """Khung endpoint nhập file log (Bước 3.3: Kiểm tra an toàn Path Traversal)."""
+    filename = file.filename or ""
+
+    # TC-SEC-006: Kiểm tra chống tấn công Path Traversal
+    if ".." in filename or "/" in filename or "\\" in filename:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Tên tệp không hợp lệ: phát hiện dấu hiệu Path Traversal",
+        )
+
+    # Logic đọc file rỗng (Bước 3.4) và xử lý từng dòng (Bước 3.5) sẽ được bổ sung tiếp theo
+    return BatchImportResponse(
+        total=0,
+        success=0,
+        failed=0,
+        error_lines=[],
+    )

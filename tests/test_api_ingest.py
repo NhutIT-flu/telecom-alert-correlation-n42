@@ -51,3 +51,27 @@ class TestRESTIngestAPI:
         )
         assert response.status_code == 422
 
+
+class TestBatchFileImportStep33:
+    """Kiểm thử cho Bước 3.2 & 3.3: Schema BatchImportResponse, Endpoint khung & Chống Path Traversal."""
+
+    def test_tc_sec_006_path_traversal_protection(self):
+        """TC-SEC-006: Kiểm tra chống Path Traversal trên File Import (HTTP 400)."""
+        for malicious_name in ["../../../etc/passwd", "..\\..\\secret.log", "dir/sub.log"]:
+            response = client.post(
+                "/api/v1/events/import-file",
+                files={"file": (malicious_name, b"malicious content", "text/plain")},
+            )
+            assert response.status_code == 400
+            assert "Path Traversal" in response.json()["detail"]
+
+    def test_import_file_safe_filename_schema(self):
+        """Kiểm tra tên tệp hợp lệ đi qua bộ lọc an toàn và trả về đúng schema BatchImportResponse."""
+        response = client.post(
+            "/api/v1/events/import-file",
+            files={"file": ("valid_test.log", b"sample log line", "text/plain")},
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert set(data.keys()) == {"total", "success", "failed", "error_lines"}
+
