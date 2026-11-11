@@ -43,9 +43,7 @@ class AlertEvent(BaseModel):
     category: str = Field(default="unknown", description="Phân loại nghiệp vụ chuẩn hóa")
     message: str = Field(default="", description="Nội dung thông điệp cảnh báo đã bóc tách")
     raw_payload: str = Field(default="", description="Bản tin gốc đầy đủ nguyên trạng")
-    parse_status: ParseStatusType = Field(
-        default="parsed", description="Trạng thái bóc tách (parsed hoặc fallback)"
-    )
+    parse_status: ParseStatusType = Field(default="parsed", description="Trạng thái bóc tách (parsed hoặc fallback)")
     parse_error: Optional[str] = Field(default=None, description="Mã lỗi khi parse_status=fallback")
 
     @field_validator("facility", "severity", mode="before")
@@ -86,4 +84,3 @@ class AlertEvent(BaseModel):
     def raw_log(self) -> str:
         """Thuộc tính tương thích ngược trỏ về raw_payload."""
         return self.raw_payload
-

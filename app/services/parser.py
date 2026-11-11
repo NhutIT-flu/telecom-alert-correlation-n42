@@ -291,4 +291,3 @@ def parse_syslog_rfc3164(
         parse_status="parsed",
         parse_error=None,
     )
-
