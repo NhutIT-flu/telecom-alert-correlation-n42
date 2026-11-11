@@ -12,7 +12,7 @@ Hệ thống lab nhận cảnh báo qua syslog UDP, REST và file; chuẩn hóa,
 
 Baseline code W1 chỉ có FastAPI `GET /api/health`; các module ingest, parser, persistence, correlation và dashboard là công việc theo ticket. Dùng dữ liệu giả lập; không kết nối/quét thiết bị thật hoặc đưa credential/log production vào repo/AI.
 
-Timeline chuẩn: W0 26–31/10/2026; W1 01–07/11; W2 08–14/11; kickoff dự kiến 09/11 thuộc W2. W12 là checkpoint correlation ≥70%; W13 là nghiệm thu mục tiêu ≥90% trên 8–10 kịch bản và ≥1.000 msg/s trong 1 giờ, sau đó code freeze 30/01/2027. Đây là mục tiêu, chưa phải kết quả thực hiện.
+Timeline chuẩn: W0 26–31/10/2026; W1 01–07/11; W2 08–14/11; kickoff thực tế ngày 06/11 và Sprint 1 bắt đầu ngày 09/11 trong W2. W12 là checkpoint correlation ≥70%; W13 là nghiệm thu mục tiêu ≥90% trên 8–10 kịch bản và ≥1.000 msg/s trong 1 giờ, sau đó code freeze 30/01/2027. Đây là mục tiêu, chưa phải kết quả thực hiện.
 
 ## Cổng tài liệu trước khi code
 Với thay đổi hành vi, ticket phải liên kết yêu cầu/acceptance, owner, test case có input/expected output/điều kiện biên phù hợp và dòng trong RTM trước khi bắt đầu code. QA Lead chủ trì đặc tả và coverage; BE/FE owner xác nhận contract và expected result; owner code chịu trách nhiệm unit test; QA quản lý tích hợp, CI/workflow và evidence.

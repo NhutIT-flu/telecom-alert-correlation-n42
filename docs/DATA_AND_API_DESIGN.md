@@ -71,19 +71,19 @@ Base URL khi chạy local `http://127.0.0.1:8000`, prefix `/api`.
 |---|---|---|
 | `GET /api/health` | none | `status`, `service`, `version`; liveness của process |
 
-Đây là endpoint duy nhất đang có trên baseline W1. Ingest, query, simulate, correlation và mutation là ticket chưa triển khai; không dùng endpoint dự kiến trong FE trước khi có OpenAPI thực tế.
+Baseline W1 trên nhánh chính có liveness. Ở commit `671a7fd` của N42-14, `POST /api/v1/events/ingest` nhận `raw_message` vào RAM và trả `201`. Cùng commit vẫn trả thành công khi queue đầy và bản tin bị bỏ. Ca hồi quy N42-14 yêu cầu HTTP `503`, queue giữ nguyên và không trả ID cho bản tin bị từ chối.
 
 ## 5. API target đề xuất
 
 ### 5.1 Ingest
 
-`POST /api/v1/events` nhận `source`, `raw_message`, optional producer ID, occurred-at, device/format hints. Chọn duy nhất semantics ack: `202 accepted` vào queue hoặc `201 created` sau persistence commit. Response tối thiểu `event_id`, `received_at`, `parse_status`, `persistence_status`.
+OpenAPI `1.0.0-review.2` đề xuất `POST /api/v1/events` dùng `Idempotency-Key` và trả `201` sau khi ghi event và receipt thành công. Phương án `202` cho route RAM chuyển tiếp chờ quyết định N42-62. Với File Import N42-22, route đích `POST /api/v1/imports` đề xuất trả `202` sau khi lưu file và metadata. Đối chiếu số dòng sau khi job hoàn tất.
 
 Lỗi: 400 malformed JSON; 413 payload quá lớn; 422 schema/format sai; 429 rate limit; 503 queue/DB unavailable. UDP không có HTTP ack nên generator đối soát ID/counters.
 
 ### 5.2 Query
 
-`GET /api/v1/events?from=&to=&device_id=&severity=&vendor=&source=&limit=&cursor=`; mặc định giới hạn time range/limit, sort `(received_at DESC,id DESC)` để cursor ổn định. Response `{items,next_cursor,has_more}`. Incident query thêm status/severity/device/time; detail trả evidence và event references.
+OpenAPI review.2 đề xuất `GET /api/v1/events` với `from/to` bắt buộc và bộ lọc `hostname`. Bản thiết kế trước đó nêu `device_id`; N42-62 cần xác nhận tham số trước khi N42-67 triển khai API và N42-34 tích hợp Dashboard. Response đề xuất `{items,next_cursor,has_more}` dùng `EventView`. N42-39 phụ trách thống kê. N42-46 theo dõi truy vấn incident và quyền xem evidence.
 
 ### 5.3 Health và metrics
 
