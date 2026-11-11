@@ -17,11 +17,11 @@
 
 ---
 
-## Cổng sẵn sàng trước khi bắt đầu code
+## 2. Cổng sẵn sàng trước khi bắt đầu code
 
 Đây là quy ước kiểm soát nội bộ của nhóm N4.2, không được mô tả như chính sách đã ban hành của VNPT NET. Với mỗi yêu cầu chức năng hoặc thay đổi hành vi, Jira phải liên kết yêu cầu, owner, tiêu chí chấp nhận, Test Case Specification có input/expected output/điều kiện biên, và dòng tương ứng trong Requirements Traceability Matrix trước khi chuyển sang In Progress. QA Lead chủ trì đặc tả và ma trận; BE/FE owner xác nhận contract, dữ liệu và kết quả kỳ vọng; TL xử lý xung đột phạm vi và xác nhận readiness. Unit test của module do BE/FE phụ trách; QA quản lý kiểm thử tích hợp, CI/workflow, evidence và báo cáo. Các tài liệu này là kế hoạch cho đến khi có kết quả chạy gắn commit và môi trường.
 
-## 2. MA TRẬN TRÁCH NHIỆM RACI (TÁI CƠ CẤU 6 THÀNH VIÊN)
+## 3. MA TRẬN TRÁCH NHIỆM RACI (TÁI CƠ CẤU 6 THÀNH VIÊN)
 
 | Module / Nhiệm vụ | Nhựt (Team Lead / PM) | Minh (BE3) | Kiệt (QA Lead) | Long (BE1) | Thành (BE2) | Huy (FE) |
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: |
@@ -54,7 +54,7 @@
 
 ---
 
-## 3. LỘ TRÌNH 18 TUẦN & MỐC SỐNG CÒN
+## 4. LỘ TRÌNH 18 TUẦN & MỐC SỐNG CÒN
 
 - **W1 (01–07/11/2026):** rà soát hồ sơ và baseline; kickoff chưa diễn ra.
 - **W2 (08–14/11/2026):** kickoff dự kiến 09/11, xác nhận phạm vi, owner, backlog và phụ thuộc.

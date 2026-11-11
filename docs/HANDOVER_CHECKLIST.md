@@ -13,7 +13,7 @@
 | 7 | Hướng dẫn vận hành | Health check, port, cấu hình môi trường, reset lab, xử lý lỗi thường gặp | BE1 + BE2 | Runbook |
 | 8 | Hồ sơ học kỳ doanh nghiệp | Weekly/Monthly, minutes, đánh giá chéo, đóng góp cá nhân và báo cáo tổng kết | TL | Hồ sơ chương trình |
 
-## Cổng bàn giao
+## 1. Cổng bàn giao
 
 - **W16:** TL rà danh mục hạng mục, owner, đường dẫn và thiếu hụt.
 - **W17:** demo trên bộ dữ liệu chuẩn; nhóm ghi lại lỗi, giới hạn đã biết và hướng dẫn chạy demo.
