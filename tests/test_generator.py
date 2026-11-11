@@ -78,10 +78,7 @@ class SyslogGeneratorTests(unittest.TestCase):
         msg_5424 = gen_5424_no_seed.build_cisco_message(now=fixed_now)
         self.assertIn("2026-11-09T08:05:03.000Z", msg_5424)
         msg_5424_live = gen_5424_no_seed.build_fortinet_message()
-        self.assertTrue(
-            gen_5424_no_seed.syslog_format == "rfc5424"
-            and msg_5424_live.startswith("<188>1 ")
-        )
+        self.assertTrue(gen_5424_no_seed.syslog_format == "rfc5424" and msg_5424_live.startswith("<188>1 "))
 
     def test_deterministic_seed_replay_int_and_string(self) -> None:
         """Kiểm tra tính năng Deterministic Replay (FR-13 / TC-REP-001) với seed số và chuỗi KB-08-v1."""
@@ -118,9 +115,7 @@ class SyslogGeneratorTests(unittest.TestCase):
         gen = SyslogGenerator(seed=11)
 
         with self.assertRaises(ValueError):
-            gen._run_rate_controlled_loop(
-                rate_per_sec=0, count=5, vendor="cisco", send_fn=lambda _: None
-            )
+            gen._run_rate_controlled_loop(rate_per_sec=0, count=5, vendor="cisco", send_fn=lambda _: None)
 
         # Kiểm tra đếm lỗi khi hàm gửi ném ngoại lệ
         def _failing_sender(_: str) -> None:
@@ -231,9 +226,7 @@ class SyslogGeneratorTests(unittest.TestCase):
         self.assertEqual(args_int.count, 10)
         self.assertEqual(args_int.seed, 123)
 
-        args_str = parse_args(
-            ["--mode", "file", "--seed", "KB-08-v1", "--format", "rfc5424"]
-        )
+        args_str = parse_args(["--mode", "file", "--seed", "KB-08-v1", "--format", "rfc5424"])
         self.assertEqual(args_str.seed, "KB-08-v1")
         self.assertEqual(args_str.format, "rfc5424")
 
@@ -256,9 +249,7 @@ class SyslogGeneratorTests(unittest.TestCase):
                 ]
             )
             self.assertEqual(exit_file, 0)
-            self.assertEqual(
-                len(out_file.read_text(encoding="utf-8").strip().splitlines()), 5
-            )
+            self.assertEqual(len(out_file.read_text(encoding="utf-8").strip().splitlines()), 5)
 
         # Kiểm tra main() với chế độ UDP
         receiver = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)

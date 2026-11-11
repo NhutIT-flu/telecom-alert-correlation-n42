@@ -495,9 +495,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     )
 
     def _sigint_handler(signum: int, frame: Any) -> None:
-        print(
-            "\n[!] Nhận tín hiệu dừng (SIGINT / Ctrl+C). Đang hoàn tất và đóng kết nối an toàn..."
-        )
+        print("\n[!] Nhận tín hiệu dừng (SIGINT / Ctrl+C). Đang hoàn tất và đóng kết nối an toàn...")
         generator.request_stop()
 
     signal.signal(signal.SIGINT, _sigint_handler)

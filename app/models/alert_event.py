@@ -25,48 +25,26 @@ class AlertEvent(BaseModel):
         validate_assignment=True,
     )
 
-    id: UUID = Field(
-        default_factory=uuid4, description="Định danh duy nhất của sự kiện"
-    )
+    id: UUID = Field(default_factory=uuid4, description="Định danh duy nhất của sự kiện")
     schema_version: Literal["1.0"] = "1.0"
     received_at: datetime = Field(description="Thời điểm hệ thống tiếp nhận (UTC)")
-    event_timestamp: datetime = Field(
-        description="Thời điểm xảy ra sự kiện theo log (UTC)"
-    )
+    event_timestamp: datetime = Field(description="Thời điểm xảy ra sự kiện theo log (UTC)")
     timestamp_inferred: bool = Field(
         default=True,
         description="True nếu năm/múi giờ được suy diễn (mặc định True với RFC 3164 và fallback)",
     )
     source_ip: str = Field(description="Địa chỉ IP nguồn gửi bản tin (transport IP)")
-    hostname: str = Field(
-        description="Tên thiết bị bóc tách từ header hoặc IP nguồn khi fallback"
-    )
-    facility: int = Field(
-        ge=0, le=23, description="Mã phân loại dịch vụ theo RFC 5424 (0-23)"
-    )
-    severity: int = Field(
-        ge=0, le=7, description="Mức độ nghiêm trọng theo RFC 5424 (0-7)"
-    )
+    hostname: str = Field(description="Tên thiết bị bóc tách từ header hoặc IP nguồn khi fallback")
+    facility: int = Field(ge=0, le=23, description="Mã phân loại dịch vụ theo RFC 5424 (0-23)")
+    severity: int = Field(ge=0, le=7, description="Mức độ nghiêm trọng theo RFC 5424 (0-7)")
     vendor: VendorType = Field(description="Hãng thiết bị viễn thông hoặc unknown")
-    program: Optional[str] = Field(
-        default=None, description="Tên tiến trình/tag phát sinh cảnh báo"
-    )
-    mnemonic: Optional[str] = Field(
-        default=None, description="Mã nhận dạng sự kiện của hãng"
-    )
-    category: str = Field(
-        default="unknown", description="Phân loại nghiệp vụ chuẩn hóa"
-    )
-    message: str = Field(
-        default="", description="Nội dung thông điệp cảnh báo đã bóc tách"
-    )
+    program: Optional[str] = Field(default=None, description="Tên tiến trình/tag phát sinh cảnh báo")
+    mnemonic: Optional[str] = Field(default=None, description="Mã nhận dạng sự kiện của hãng")
+    category: str = Field(default="unknown", description="Phân loại nghiệp vụ chuẩn hóa")
+    message: str = Field(default="", description="Nội dung thông điệp cảnh báo đã bóc tách")
     raw_payload: str = Field(default="", description="Bản tin gốc đầy đủ nguyên trạng")
-    parse_status: ParseStatusType = Field(
-        default="parsed", description="Trạng thái bóc tách (parsed hoặc fallback)"
-    )
-    parse_error: Optional[str] = Field(
-        default=None, description="Mã lỗi khi parse_status=fallback"
-    )
+    parse_status: ParseStatusType = Field(default="parsed", description="Trạng thái bóc tách (parsed hoặc fallback)")
+    parse_error: Optional[str] = Field(default=None, description="Mã lỗi khi parse_status=fallback")
 
     @field_validator("facility", "severity", mode="before")
     @classmethod

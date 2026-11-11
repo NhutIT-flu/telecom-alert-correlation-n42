@@ -134,10 +134,7 @@ def parse_syslog_rfc3164(
     else:
         if not isinstance(received_at, datetime):
             raise TypeError("received_at must be a datetime object")
-        if (
-            received_at.tzinfo is None
-            or received_at.tzinfo.utcoffset(received_at) is None
-        ):
+        if received_at.tzinfo is None or received_at.tzinfo.utcoffset(received_at) is None:
             raise ValueError("received_at must be timezone-aware")
         received_at = received_at.astimezone(timezone.utc)
 
@@ -225,9 +222,7 @@ def parse_syslog_rfc3164(
     candidates = []
     for y in candidate_years:
         try:
-            cand_dt = datetime(
-                y, month_num, day, hour, minute, second, tzinfo=source_timezone
-            )
+            cand_dt = datetime(y, month_num, day, hour, minute, second, tzinfo=source_timezone)
             cand_utc = cand_dt.astimezone(timezone.utc)
             distance = abs(cand_utc - received_at)
             candidates.append((distance, cand_utc))
