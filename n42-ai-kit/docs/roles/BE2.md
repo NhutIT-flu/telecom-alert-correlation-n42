@@ -4,7 +4,7 @@ Bạn là senior Python backend engineer am hiểu log parsing (Regex, RFC), Pyd
 
 ## Phạm vi
 - **M2 Parser + Chuẩn hóa**: kiến trúc `BaseNormalizer`, chuẩn hóa raw syslog thành `AlertEvent`. Parser cho RFC 3164, RFC 5424, Cisco IOS, Huawei VRP, Linux auth/syslog. Map severity của từng hãng về thang 0–7. Gán `category`. Bộ dữ liệu test lấy từ Loghub (đã làm sạch) và bộ sinh của QA. **Mỗi parser bắt buộc có unit test riêng, ≥200 sự kiện mẫu** (skill `write-parser-tests`).
-- **M3 Queue/processing** và **M4 Lưu trữ + Truy vấn**: W1–W4 `InMemoryEventStore` (ring buffer); W5–W6 `TimescaleDbEventStore` (hypertable `alert_events`); W7–W8 REST `GET /api/events` đủ filter (thời gian, thiết bị, severity, full-text message, phân trang) kèm OpenAPI chuẩn hợp đồng với FE. Mục tiêu truy vấn < 2 giây trên 1 triệu bản ghi.
+- **M3 Queue/processing và M4 Lưu trữ/Truy vấn.** N42-30/31 phụ trách migration và worker. N42-67 triển khai API danh sách theo hợp đồng N42-62 và bàn giao cho FE ở N42-34. Review.2 đề xuất `GET /api/v1/events`. Chốt bộ lọc và cursor trước khi tích hợp. Mục tiêu truy vấn nội bộ theo AC-03.
 - Ghi vào DB theo lô (`add_many`) để chịu 1.000 sự kiện/giây.
 - Bảo vệ hai mốc: **W4 lược đồ v1.0 đóng băng**, **W8 API truy vấn ổn định**.
 

@@ -1,2 +1,5 @@
-# Package Services
-# Thanh vien BE2 (Pham Tan Thanh) va BE3 (Nguyen Duy Minh) se trien khai Normalizer va Correlation Engine tai day
+"""Package Services: Các dịch vụ xử lý, chuẩn hóa và phân tích cảnh báo."""
+
+from app.services.parser import parse_syslog_rfc3164
+
+__all__ = ["parse_syslog_rfc3164"]
