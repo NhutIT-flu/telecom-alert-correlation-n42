@@ -74,4 +74,3 @@ class TestBatchFileImportStep33:
         assert response.status_code == 200
         data = response.json()
         assert set(data.keys()) == {"total", "success", "failed", "error_lines"}
-

@@ -10,8 +10,8 @@ class RawEvent:
     Hợp đồng bàn giao giữa BE1 (Ingestion) và BE2 (Parser/Pipeline).
     Không chứa logic parse nghiệp vụ.
     """
+
     payload: bytes
     source_ip: str
     received_at: datetime
     channel: Literal["udp", "tcp", "file", "api"]
-
