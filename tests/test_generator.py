@@ -9,17 +9,22 @@ Kiểm tra:
 - Xử lý biên (rate <= 0, duration limit, send error, request_stop).
 """
 
-from contextlib import contextmanager
+from contextlib import contextmanager, redirect_stderr, redirect_stdout
 from datetime import datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
+import io
 from pathlib import Path
 import re
 import socket
+import signal
+import subprocess
+import sys
 import tempfile
 import threading
 from typing import Iterator
 import unittest
+from unittest.mock import MagicMock, mock_open, patch
 
 from tools.generator import DEFAULT_API_URL, FILE_FLUSH_EVERY, SyslogGenerator, main, parse_args
 
@@ -35,8 +40,17 @@ class _IngestHandler(BaseHTTPRequestHandler):
         self.server.requests.append(  # type: ignore[attr-defined]
             {"path": self.path, "client_port": self.client_address[1], "body": body}
         )
+        if self.server.drop_response_once and len(self.server.requests) == 1:  # type: ignore[attr-defined]
+            # Đã tiếp nhận payload nhưng response bị mất: retry sẽ tạo bản tin trùng.
+            self.close_connection = True
+            self.connection.shutdown(socket.SHUT_RDWR)
+            self.connection.close()
+            return
         data = b'{"status":"SUCCESS"}'
-        self.send_response(self.server.reply_status)  # type: ignore[attr-defined]
+        reply_status = self.server.reply_status  # type: ignore[attr-defined]
+        if isinstance(reply_status, list):
+            reply_status = reply_status[len(self.server.requests) - 1]  # type: ignore[attr-defined]
+        self.send_response(reply_status)
         self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", str(len(data)))
         if self.server.close_each:  # type: ignore[attr-defined]
@@ -49,13 +63,16 @@ class _IngestHandler(BaseHTTPRequestHandler):
 
 
 @contextmanager
-def _run_ingest_server(reply_status: int = 201, close_each: bool = False) -> Iterator[ThreadingHTTPServer]:
+def _run_ingest_server(
+    reply_status=201, close_each: bool = False, drop_response_once: bool = False
+) -> Iterator[ThreadingHTTPServer]:
     """Chạy server ingest giả lập trên cổng loopback ngẫu nhiên, tự dọn dẹp khi thoát."""
     server = ThreadingHTTPServer(("127.0.0.1", 0), _IngestHandler)
     server.daemon_threads = True
     server.requests = []  # type: ignore[attr-defined]
     server.reply_status = reply_status  # type: ignore[attr-defined]
     server.close_each = close_each  # type: ignore[attr-defined]
+    server.drop_response_once = drop_response_once  # type: ignore[attr-defined]
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
     try:
@@ -262,6 +279,131 @@ class SyslogGeneratorTests(unittest.TestCase):
 
         self.assertEqual(stats["sent"], 0)
         self.assertEqual(stats["errors"], 3)
+        self.assertEqual(stats["unknown_outcomes"], 0)
+
+    def test_lost_response_does_not_resend_accepted_payload(self) -> None:
+        with _run_ingest_server(drop_response_once=True) as server:
+            gen = SyslogGenerator(api_url=_server_url(server), seed=42)
+            stats = gen.emit_http_batch(rate_per_sec=1000, count=1)
+
+        self.assertEqual(len(server.requests), 1)
+        self.assertEqual(stats["sent"], 0)
+        self.assertEqual(stats["errors"], 1)
+        self.assertEqual(stats["unknown_outcomes"], 1)
+        self.assertEqual(stats["attempted"], 1)
+
+    def test_after_lost_response_next_message_uses_new_connection(self) -> None:
+        with _run_ingest_server(drop_response_once=True) as server:
+            gen = SyslogGenerator(api_url=_server_url(server), seed=42)
+            stats = gen.emit_http_batch(rate_per_sec=1000, count=2)
+
+        self.assertEqual(len(server.requests), 2)
+        self.assertNotEqual(server.requests[0]["body"], server.requests[1]["body"])
+        self.assertNotEqual(server.requests[0]["client_port"], server.requests[1]["client_port"])
+        self.assertEqual((stats["sent"], stats["errors"], stats["unknown_outcomes"]), (1, 1, 1))
+        self.assertEqual(stats["attempted"], 2)
+
+    def test_timeout_or_partial_body_never_retries_post(self) -> None:
+        import http.client
+
+        for failure in (TimeoutError("response timeout"), http.client.IncompleteRead(b"partial", 20)):
+            with self.subTest(failure=type(failure).__name__):
+                connection = MagicMock()
+                connection.getresponse.return_value.read.side_effect = failure
+                with patch("tools.generator.http.client.HTTPConnection", return_value=connection):
+                    stats = SyslogGenerator(seed=42).emit_http_batch(rate_per_sec=1000, count=1)
+                self.assertEqual(connection.request.call_count, 1)
+                self.assertEqual(stats["unknown_outcomes"], 1)
+                self.assertEqual(stats["errors"], 1)
+                self.assertEqual(stats["sent"], 0)
+                connection.close.assert_called()
+
+    def test_mixed_http_results_keep_exact_attempt_count(self) -> None:
+        with _run_ingest_server(reply_status=[201, 503, 201]) as server:
+            stats = SyslogGenerator(api_url=_server_url(server), seed=42).emit_http_batch(1000, 3)
+        self.assertEqual(len(server.requests), 3)
+        self.assertEqual((stats["attempted"], stats["sent"], stats["errors"], stats["unknown_outcomes"]), (3, 2, 1, 0))
+
+    def test_cli_exit_code_for_all_failed_and_partial_http_batches(self) -> None:
+        for reply in (404, [201, 503, 201]):
+            with self.subTest(reply=reply), _run_ingest_server(reply_status=reply) as server:
+                with redirect_stdout(io.StringIO()):
+                    result = main(["--mode", "http", "--api-url", _server_url(server), "--count", "3"])
+                self.assertEqual(result, 1)
+                self.assertEqual(len(server.requests), 3)
+
+    def test_cli_reports_connection_failure_as_error(self) -> None:
+        connection = MagicMock()
+        connection.sock = None
+        connection.connect.side_effect = ConnectionRefusedError("local server not listening")
+        with patch("tools.generator.http.client.HTTPConnection", return_value=connection):
+            with redirect_stdout(io.StringIO()):
+                self.assertEqual(main(["--mode", "http", "--count", "2"]), 1)
+        self.assertEqual(connection.connect.call_count, 2)
+        connection.request.assert_not_called()
+
+    def test_cli_process_returns_nonzero_when_response_is_lost(self) -> None:
+        with _run_ingest_server(drop_response_once=True) as server:
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    "-X",
+                    "utf8",
+                    str(Path(__file__).parents[1] / "tools/generator.py"),
+                    "--mode",
+                    "http",
+                    "--api-url",
+                    _server_url(server),
+                    "--count",
+                    "1",
+                    "--seed",
+                    "42",
+                ],
+                capture_output=True,
+                encoding="utf-8",
+                timeout=10,
+            )
+        self.assertEqual(result.returncode, 1, result.stderr)
+        self.assertEqual(len(server.requests), 1)
+        self.assertIn("chưa rõ kết quả: 1", result.stdout)
+
+    def test_cli_rejects_invalid_options_before_creating_file(self) -> None:
+        for options in (
+            ["--rate", "0"],
+            ["--count", "-1"],
+            ["--duration", "nan"],
+            ["--duration", "inf"],
+            ["--duration", "0"],
+            ["--port", "65536"],
+        ):
+            with self.subTest(options=options), redirect_stderr(io.StringIO()):
+                with self.assertRaises(SystemExit) as raised:
+                    parse_args(options)
+                self.assertEqual(raised.exception.code, 2)
+
+    def test_cli_runtime_errors_return_nonzero_and_restore_sigint(self) -> None:
+        original = signal.getsignal(signal.SIGINT)
+        with tempfile.TemporaryDirectory() as directory, redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
+            result = main(["--mode", "file", "--file-path", directory, "--count", "1"])
+        self.assertEqual(result, 1)
+        self.assertEqual(signal.getsignal(signal.SIGINT), original)
+        with redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
+            self.assertEqual(main(["--mode", "http", "--api-url", "invalid-url", "--count", "1"]), 1)
+        self.assertEqual(signal.getsignal(signal.SIGINT), original)
+
+    def test_sigint_returns_130_and_restores_previous_handler(self) -> None:
+        original = signal.getsignal(signal.SIGINT)
+        emit = SyslogGenerator.emit_file_batch
+
+        def interrupted_batch(generator, **kwargs):
+            signal.getsignal(signal.SIGINT)(signal.SIGINT, None)
+            return emit(generator, **kwargs)
+
+        with tempfile.TemporaryDirectory() as directory, redirect_stdout(io.StringIO()):
+            with patch.object(SyslogGenerator, "emit_file_batch", interrupted_batch):
+                result = main(["--mode", "file", "--file-path", str(Path(directory) / "stop.log"), "--count", "5"])
+        self.assertEqual(result, 130)
+        self.assertEqual(signal.getsignal(signal.SIGINT), original)
 
     def test_emit_http_batch_rejects_invalid_url(self) -> None:
         """api_url sai định dạng phải báo ValueError rõ ràng ngay từ đầu."""
@@ -298,6 +440,17 @@ class SyslogGeneratorTests(unittest.TestCase):
             self.assertEqual(stats["sent"], total)
             self.assertEqual(stats["errors"], 0)
             self.assertEqual(len(log_file.read_text(encoding="utf-8").splitlines()), total)
+
+    def test_file_flush_is_batched_instead_of_per_line(self) -> None:
+        opened = mock_open()
+        total = FILE_FLUSH_EVERY * 2 + 50
+        with tempfile.TemporaryDirectory() as directory, patch("pathlib.Path.open", opened):
+            gen = SyslogGenerator(file_path=str(Path(directory) / "batched.log"), seed=42)
+            stats = gen.emit_file_batch(rate_per_sec=1_000_000, count=total)
+        self.assertEqual(stats["sent"], total)
+        self.assertEqual(opened().write.call_count, total)
+        self.assertEqual(opened().flush.call_count, 2)
+        opened().__exit__.assert_called_once()
 
     def test_cli_parse_args_and_main_all_modes(self) -> None:
         """Kiểm tra hàm parse_args và luồng thực thi CLI main() trên cả 3 chế độ (file, udp, http)."""

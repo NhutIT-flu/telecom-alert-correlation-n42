@@ -17,6 +17,7 @@ import argparse
 from datetime import datetime
 import http.client
 import json
+import math
 from pathlib import Path
 import random
 import signal
@@ -36,6 +37,20 @@ DEFAULT_API_URL = "http://127.0.0.1:8000/api/v1/events/ingest"
 
 # Chỉ flush file log định kỳ để tránh nghẽn Disk I/O ở tốc độ cao; phần còn lại được flush khi đóng file
 FILE_FLUSH_EVERY = 200
+
+
+class HTTPOutcomeUnknown(RuntimeError):
+    """POST đã bắt đầu nhưng không nhận được phản hồi đầy đủ; không tự retry."""
+
+
+def _validate_run_options(rate: float, count: int, duration: Optional[float]) -> None:
+    if not math.isfinite(rate) or rate <= 0:
+        raise ValueError("rate_per_sec phải hữu hạn và lớn hơn 0")
+    if count < 0:
+        raise ValueError("count không được âm (0 = chạy liên tục)")
+    if duration is not None and (not math.isfinite(duration) or duration <= 0):
+        raise ValueError("duration phải hữu hạn và lớn hơn 0")
+
 
 # Danh sách thiết bị giả lập (100% IP thuộc dải Private Lab RFC 1918: 10.10.x.x, 192.168.1.x)
 CISCO_DEVICES: List[Dict[str, str]] = [
@@ -261,11 +276,11 @@ class SyslogGenerator:
         duration_sec: Optional[float] = None,
     ) -> Dict[str, Any]:
         """Vòng lặp phát bản tin điều tiết tốc độ chính xác theo monotonic clock."""
-        if rate_per_sec <= 0:
-            raise ValueError("rate_per_sec phải lớn hơn 0")
+        _validate_run_options(rate_per_sec, count, duration_sec)
 
         sent_count = 0
         error_count = 0
+        unknown_count = 0
         start_time = time.perf_counter()
         interval = 1.0 / float(rate_per_sec)
 
@@ -281,6 +296,9 @@ class SyslogGenerator:
             try:
                 send_fn(msg)
                 sent_count += 1
+            except HTTPOutcomeUnknown:
+                error_count += 1
+                unknown_count += 1
             except Exception:
                 error_count += 1
 
@@ -296,6 +314,8 @@ class SyslogGenerator:
         return {
             "sent": sent_count,
             "errors": error_count,
+            "attempted": sent_count + error_count,
+            "unknown_outcomes": unknown_count,
             "elapsed_sec": round(elapsed, 4),
             "actual_rate": round(actual_rate, 2),
             "vendor": vendor,
@@ -345,7 +365,8 @@ class SyslogGenerator:
         """Phát luồng bản tin cảnh báo qua HTTP REST API (POST JSON) trên một kết nối keep-alive.
 
         Dùng chung một http.client.HTTPConnection cho cả đợt phát để tránh cạn kiệt cổng tạm (TIME_WAIT storm).
-        Khi kết nối bị đứt, thử mở lại một lần; nếu vẫn lỗi hoặc server trả mã ngoài 2xx thì tính vào errors.
+        Mỗi bản tin chỉ POST một lần. Mất phản hồi được ghi unknown_outcomes (thuộc errors), không tự gửi lại.
+        Kết nối mới chỉ dành cho bản tin tiếp theo; chưa có idempotency contract để retry POST an toàn.
         """
         parts = urlsplit(self.api_url)
         if parts.scheme not in ("http", "https") or not parts.hostname:
@@ -356,14 +377,6 @@ class SyslogGenerator:
         headers = {"Content-Type": "application/json", "Connection": "keep-alive"}
         connection = connection_cls(parts.hostname, parts.port, timeout=timeout)
 
-        def _post(payload: bytes) -> int:
-            connection.request("POST", path, body=payload, headers=headers)
-            response = connection.getresponse()
-            response.read()  # đọc hết body để kết nối được tái sử dụng
-            if response.will_close:
-                connection.close()  # lần gửi sau HTTPConnection tự mở lại kết nối
-            return response.status
-
         def _send_http(message: str) -> None:
             payload = json.dumps(
                 {
@@ -372,11 +385,23 @@ class SyslogGenerator:
                     "vendor": vendor,
                 }
             ).encode("utf-8")
+            # Lỗi connect xảy ra trước khi POST bắt đầu: không tính là kết quả chưa rõ.
+            if connection.sock is None:
+                try:
+                    connection.connect()
+                except (http.client.HTTPException, OSError):
+                    connection.close()
+                    raise
             try:
-                status = _post(payload)
-            except (http.client.HTTPException, OSError):
+                connection.request("POST", path, body=payload, headers=headers)
+                response = connection.getresponse()
+                response.read()  # đọc hết body để kết nối được tái sử dụng
+                status = response.status
+                if response.will_close:
+                    connection.close()
+            except (http.client.HTTPException, OSError) as exc:
                 connection.close()
-                status = _post(payload)  # thử lại một lần trên kết nối mới; lỗi tiếp theo được tính vào errors
+                raise HTTPOutcomeUnknown("Mất phản hồi HTTP; bản tin có thể đã được backend nhận") from exc
             if not 200 <= status < 300:
                 raise RuntimeError(f"HTTP {status} từ {self.api_url}")
 
@@ -502,7 +527,14 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
         default=None,
         help="Seed ngẫu nhiên (số hoặc chuỗi như KB-08-v1) phục vụ Deterministic Replay (FR-13 / TC-REP-001).",
     )
-    return parser.parse_args(argv)
+    args = parser.parse_args(argv)
+    try:
+        _validate_run_options(args.rate, args.count, args.duration)
+        if not 1 <= args.port <= 65535:
+            raise ValueError("port phải nằm trong khoảng 1–65535")
+    except ValueError as exc:
+        parser.error(str(exc))
+    return args
 
 
 def main(argv: Optional[List[str]] = None) -> int:
@@ -517,11 +549,15 @@ def main(argv: Optional[List[str]] = None) -> int:
         syslog_format=args.format,
     )
 
+    interrupted = False
+
     def _sigint_handler(signum: int, frame: Any) -> None:
+        nonlocal interrupted
+        interrupted = True
         print("\n[!] Nhận tín hiệu dừng (SIGINT / Ctrl+C). Đang hoàn tất và đóng kết nối an toàn...")
         generator.request_stop()
 
-    signal.signal(signal.SIGINT, _sigint_handler)
+    previous_sigint = signal.signal(signal.SIGINT, _sigint_handler)
 
     print("=" * 68)
     print("N42 TELECOM SYSLOG GENERATOR — BỘ SINH DỮ LIỆU GIẢ LẬP 3 NGUỒN")
@@ -556,16 +592,22 @@ def main(argv: Optional[List[str]] = None) -> int:
             )
     except KeyboardInterrupt:
         print("\n[!] Đã dừng chương trình theo yêu cầu người dùng.")
-        return 0
+        return 130
+    except (OSError, ValueError, http.client.HTTPException) as exc:
+        print(f"[LỖI] Không hoàn tất đợt phát: {exc}", file=sys.stderr)
+        return 1
+    finally:
+        signal.signal(signal.SIGINT, previous_sigint)
 
     print("-" * 68)
     print(
         f"[HOÀN TẤT] Đích: {stats['target']} | Đã phát: {stats['sent']} bản tin | "
-        f"Lỗi: {stats['errors']} | Thời gian: {stats['elapsed_sec']}s | "
+        f"Lỗi: {stats['errors']} (chưa rõ kết quả: {stats['unknown_outcomes']}) | "
+        f"Thời gian: {stats['elapsed_sec']}s | "
         f"Thông lượng đạt: {stats['actual_rate']} msg/s"
     )
     print("-" * 68)
-    return 0
+    return 130 if interrupted else (1 if stats["errors"] else 0)
 
 
 if __name__ == "__main__":

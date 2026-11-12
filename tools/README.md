@@ -54,11 +54,36 @@ python tools/generator.py --mode udp --count 0 --duration 60 --rate 200
 - **HTTP:** generator dùng một kết nối keep-alive cho cả đợt phát. Chỉ mã trả về 2xx được tính là gửi thành công; mã khác
   hoặc lỗi kết nối được tính vào số `Lỗi` ở dòng tổng kết. Nếu thấy toàn bộ là lỗi, kiểm tra backend đã chạy và `--api-url`
   đúng với router đang triển khai.
+- **Không tự retry POST:** khi mất phản hồi, timeout hoặc body phản hồi bị ngắt, backend có thể đã nhận bản tin.
+  Generator ghi `unknown_outcomes` (hiển thị `chưa rõ kết quả`, là một phần của `errors`), không gửi lại payload đó.
+  Kết nối mới chỉ được dùng cho bản tin tiếp theo. Retry chỉ được bổ sung sau khi backend có idempotency contract được duyệt.
+- **Đối soát:** API Python trả `attempted = sent + errors`; `unknown_outcomes <= errors`, không cộng unknown thêm lần nữa.
+  Lỗi connect trước POST là lỗi gửi thông thường. `--count` giới hạn tổng số lượt thử, gồm cả lỗi; không bù bằng bản tin mới.
+  `sent` HTTP là số phản hồi 2xx đầy đủ, không chứng minh đã persist. Với UDP, `sent` chỉ là số `sendto` thành công.
 - **File:** log được flush định kỳ (mỗi 200 dòng) và khi kết thúc đợt phát.
 - **An toàn:** chỉ phát tới loopback hoặc máy lab được phê duyệt, không gửi tới thiết bị thật. Thư mục `logs/` sinh ra khi
   chạy thử chỉ để thử nghiệm cục bộ, không commit lên repo.
 - Số `Thông lượng đạt` ở dòng tổng kết là số đo tại máy phát trong lần chạy đó; không phải kết quả nghiệm thu.
 - Kiểm thử: `python -m unittest tests.test_generator -v`.
+
+### Exit code cho script QA/CI
+
+| Mã | Ý nghĩa |
+| :--- | :--- |
+| `0` | Đợt phát kết thúc theo count/duration và không ghi nhận lỗi gửi |
+| `1` | Có ít nhất một lỗi gửi hoặc kết quả chưa rõ; hoặc lỗi runtime như URL/file không hợp lệ |
+| `2` | Tham số CLI không hợp lệ: rate ≤0, count âm, duration không hữu hạn/≤0, port ngoài 1–65535 |
+| `130` | Bị ngắt bởi Ctrl+C; file/kết nối được đóng và SIGINT handler cũ được khôi phục |
+
+`--duration` có thể kết thúc trước `--count` theo chủ đích; mã 0 không xác nhận đã gửi đủ count khi dùng cả hai.
+Nếu có `unknown_outcomes`, giữ log/seed/commit và đối chiếu backend trước khi quyết định phát lại, tránh tạo dữ liệu trùng.
+
+### Ca hồi quy N42-11
+
+FR-13/AC-01 và TC-REP-001/TC-ING-007–010: kiểm server nhận POST rồi mất response (không nhận payload lần hai),
+timeout/body bị ngắt, lỗi connect, 404/503, hỗn hợp thành công–thất bại và exit code của process thật.
+Kiểm tiếp keep-alive 50 bản tin trên một kết nối, mở lại kết nối cho bản tin tiếp theo, count hữu hạn khi toàn lỗi,
+flush mỗi 200 dòng, Ctrl+C và tham số biên. Đây là kiểm thử tooling trên server giả lập local, không thay nghiệm thu N42-14.
 
 ## `check_sensitive.py` — Quét rò rỉ thông tin nhạy cảm
 
