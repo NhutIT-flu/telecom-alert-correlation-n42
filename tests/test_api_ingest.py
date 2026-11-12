@@ -1,3 +1,5 @@
+import asyncio
+from datetime import datetime, timezone
 import uuid
 
 from fastapi.testclient import TestClient
@@ -5,6 +7,7 @@ import pytest
 
 from app.api.ingest import ingest_queue
 from app.main import app
+from app.models.raw_event import RawEvent
 
 client = TestClient(app)
 
@@ -60,6 +63,45 @@ class TestRESTIngestAPI:
             headers={"Content-Type": "text/plain"},
         )
         assert response.status_code == 422
+
+    def test_tc_ing_016_reject_when_queue_full(self, monkeypatch):
+        """TC-ING-016: REST ingest từ chối bản tin với HTTP 503 khi queue đầy."""
+        small_queue: asyncio.Queue[RawEvent] = asyncio.Queue(maxsize=2)
+        existing_events = [
+            RawEvent(
+                payload=b"<134>Nov 06 15:00:01 fw-01 %SYS-5-CONFIG: preloaded-1",
+                source_ip="10.0.0.1",
+                received_at=datetime(2026, 11, 6, 15, 0, 1, tzinfo=timezone.utc),
+                channel="api",
+            ),
+            RawEvent(
+                payload=b"<134>Nov 06 15:00:02 fw-01 %SYS-5-CONFIG: preloaded-2",
+                source_ip="10.0.0.2",
+                received_at=datetime(2026, 11, 6, 15, 0, 2, tzinfo=timezone.utc),
+                channel="api",
+            ),
+        ]
+        for ev in existing_events:
+            small_queue.put_nowait(ev)
+
+        monkeypatch.setattr("app.api.ingest.ingest_queue", small_queue)
+
+        response = client.post(
+            "/api/v1/events/ingest",
+            json={
+                "raw_message": "<134>Nov 06 15:10:00 fw-01 %SYS-5-CONFIG: overflow-message",
+                "source": "REST_CLIENT",
+            },
+        )
+
+        assert response.status_code == 503
+        assert response.json() == {"detail": "Ingest queue is full"}
+        assert "SUCCESS" not in response.text
+        assert "event_id" not in response.json()
+
+        assert small_queue.qsize() == 2
+        drained = [small_queue.get_nowait(), small_queue.get_nowait()]
+        assert drained == existing_events
 
 
 class TestBatchFileImport:

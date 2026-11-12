@@ -45,6 +45,10 @@ async def ingest_event(
         ingest_queue.put_nowait(raw_event)
     except asyncio.QueueFull:
         logger.warning("Ingest queue is full; dropping REST event %s", event_id)
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Ingest queue is full",
+        )
 
     return IngestResponse(
         status="SUCCESS",
