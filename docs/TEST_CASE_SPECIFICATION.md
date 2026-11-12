@@ -557,7 +557,8 @@ Giá trị field mapping (đặc biệt normalized severity label/number và tê
 **Local review revision 12/11/2026:** validator N42-17 hiện có trên nhánh
 `feature/N42-17-rules-yaml-design`; QA/TL sign-off vẫn pending. Đây là đối chiếu code và
 expected tại boundary loader; không phải nghiệm thu reload/detector hoặc sửa Confluence.
-Contract và bảng test chi tiết: [N42-17_RULES_DRAFT.md](N42-17_RULES_DRAFT.md).
+Contract đang được kiểm bằng `app/models/rule_config.py`, `app/services/rule_config_loader.py`
+và `tests/test_rules_config.py`; các quyết định nghiệp vụ cần QA/TL xác nhận trên Jira N42-17.
 
 | Test case | Jira / priority | Input | Expected |
 |---|---|---|---|
