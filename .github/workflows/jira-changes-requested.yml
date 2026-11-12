@@ -1,0 +1,59 @@
+name: Sync Jira on PR Changes Requested
+
+on:
+  pull_request_review:
+    types: [submitted]
+
+permissions: {}
+
+jobs:
+  notify-jira:
+    if: >-
+      github.event.review.state == 'changes_requested' &&
+      github.event.pull_request.base.ref == 'main' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.review.author_association)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    steps:
+      - name: Find N42 issue and call Jira Automation
+        shell: bash
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          BRANCH_NAME: ${{ github.event.pull_request.head.ref }}
+          WEBHOOK_URL: ${{ secrets.JIRA_CHANGES_REQUESTED_WEBHOOK }}
+          WEBHOOK_SECRET: ${{ secrets.JIRA_WEBHOOK_SECRET }}
+        run: |
+          issue_key=$(python3 - <<'PY'
+          import os
+          import re
+
+          branch = re.search(r"(?:^|/)(N42-[1-9][0-9]*)(?=$|[-/])", os.environ["BRANCH_NAME"])
+          title_keys = set(re.findall(r"(?<![\w-])N42-[1-9][0-9]*(?![\w-])", os.environ["PR_TITLE"]))
+          candidates = title_keys | ({branch[1]} if branch else set())
+          if len(candidates) > 1:
+              raise SystemExit("Conflicting N42 issue keys in PR title and branch.")
+          if candidates:
+              print(candidates.pop())
+          PY
+          )
+
+          if [[ -z "$issue_key" ]]; then
+            echo "No N42 issue key found in PR title or branch."
+            exit 0
+          fi
+
+          if [[ -z "$WEBHOOK_URL" || -z "$WEBHOOK_SECRET" ]]; then
+            echo "::error::Configure JIRA_CHANGES_REQUESTED_WEBHOOK and JIRA_WEBHOOK_SECRET."
+            exit 1
+          fi
+
+          printf -v payload '{"issues":["%s"]}' "$issue_key"
+          curl --fail --silent --show-error --output /dev/null \
+            --proto '=https' --connect-timeout 5 --max-time 20 \
+            --request POST \
+            --header 'Content-Type: application/json' \
+            --header "X-Automation-Webhook-Token: $WEBHOOK_SECRET" \
+            --data "$payload" \
+            -- "$WEBHOOK_URL"
+          echo "Jira webhook accepted the HTTP request for $issue_key. Verify the Jira Automation audit log."
