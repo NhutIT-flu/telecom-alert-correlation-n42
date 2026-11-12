@@ -17,6 +17,13 @@
 
 ## Mẫu thêm dòng mới
 
+**Cập nhật N42-10 ngày 12/11/2026 — xác nhận trong phiên làm việc với QA:**
+
+- Ngô Châu Kiệt chốt Python **3.12** để đồng bộ local/GitHub Actions/Jenkins; image Jenkins mới cung cấp Python 3.12 và pipeline kiểm tra phiên bản trước khi tạo lại `.venv`.
+- Job Jenkins chính theo dõi `main`, tự kiểm tra khi nhánh có cập nhật qua SCM polling khoảng 5 phút. Người dùng xác nhận chỉ chạy Docker localhost; không yêu cầu public Jenkins hoặc webhook GitHub.
+- SonarQube Quality Gate không `OK` phải làm job chính **FAILURE**. Chỉ analysis từ `main` cập nhật project SonarQube chính; feature job dùng để thử CI và không ghi đè báo cáo chính.
+- Đây là yêu cầu được người dùng xác nhận để chuẩn bị thay đổi; chờ TL review PR và evidence chạy thật. Không xác nhận webhook, lịch tự chạy hay Quality Gate mới đã hoạt động trên dịch vụ.
+
 | # | Ngày | Hoàn cảnh | Các phương án xét | Quyết định | Người quyết |
 |---|------|-----------|-------------------|-----------|-------------|
 |   |      |           |                   |           |             |

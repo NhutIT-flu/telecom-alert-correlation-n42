@@ -28,7 +28,6 @@ source .venv/bin/activate
 # 3. Cài đặt các gói phụ thuộc
 pip install --upgrade pip
 pip install -r requirements.txt
-pip install flake8 black
 ```
 
 ### 1.3. Khởi chạy Dịch vụ CSDL
@@ -127,9 +126,9 @@ Dự án vận hành trên nguyên tắc an toàn dữ liệu viễn thông tuy�
    - Điền đầy đủ mô tả công việc, bằng chứng thực thi (kết quả test) và dẫn liên kết thẻ Jira tương ứng.
    - Gắn nhãn (Labels) phù hợp (`backend`, `frontend`, `qa`, `devops`).
 2. **Điều kiện Hợp nhất (Merge Criteria)**:
-   - Policy nhóm đặt CI xanh làm mục tiêu merge gate. Hiện repo chưa có workflow GitHub Actions; QA Lead dự kiến triển khai checks, ghi run evidence và phối hợp xác minh required checks/branch protection trước khi coi đây là gate đang hoạt động.
-   - Secret scan phải chạy bằng công cụ có exit status phù hợp; hiện công cụ cần được sửa/kiểm chứng trước khi dùng làm required check.
+   - CI dùng `.github/workflows/ci.yml`; check tổng hợp dự kiến bắt buộc là **Code Quality & Automated Tests**. Chỉ coi merge gate hoạt động sau khi xác minh required checks và thử PR lỗi bị chặn theo [hồ sơ N42-10](docs/N42-10_HANDOVER.md).
+   - Secret scan phải đạt và trả exit status phù hợp. Bộ kiểm thử CI xác minh scanner trả khác 0 khi gặp fixture nhạy cảm giả lập; không suy rộng đây là công cụ phát hiện mọi loại secret.
    - Nhận được ít nhất **01 phê duyệt (Approval)** chính thức từ **Team Leader (Phạm Minh Nhựt)** hoặc **QA Lead (Ngô Châu Kiệt)**.
 3. **Cập nhật Tiến độ Jira**:
    - Khi mở PR: Kéo thẻ từ `In Progress` sang `Code Review`.
-   - Sau khi PR được merge vào `main`: Kéo thẻ sang `Done` và đóng thẻ.
+   - Chỉ chuyển thẻ sang `Done` sau review, CI xanh, merge, kiểm chứng Docker, cập nhật docs và demo theo DoD của nhóm; merge đơn lẻ chưa đủ xác nhận hoàn thành.

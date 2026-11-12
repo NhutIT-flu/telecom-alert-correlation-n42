@@ -963,7 +963,7 @@ Giá trị field mapping (đặc biệt normalized severity label/number và tê
 - **Mã Jira:** `N42-10`, `N42-50`
 - **Nguồn:** QA role, kickoff minutes và quy trình PR.
 - **Owner:** QA Lead; phối hợp DevOps/code owners.
-- **Trạng thái:** `BLOCKED / NOT IMPLEMENTED` — repo hiện chưa có `.github/workflows/ci.yml`; QA Lead là owner dự kiến để bổ sung pipeline theo kế hoạch nhóm.
+- **Trạng thái (12/11/2026):** `PARTIAL / PENDING VERIFICATION` — đã có workflow; bản nâng cấp local và test failure probes chưa thay thế run PR mới hoặc kiểm chứng enforcement. API main trả protected nhưng required checks trống; chi tiết protection chưa đọc được do quyền kết nối. Xem [hồ sơ N42-10](N42-10_HANDOVER.md) cho MG-01–06 và evidence cần thu.
 - **Các bước sau khi QA bổ sung workflow:** rà triggers/jobs/checks; chạy PR pass và fail có kiểm soát; nếu policy yêu cầu merge gate, xác minh required check và branch protection trực tiếp trên GitHub.
 - **Kết quả mong đợi:** workflow chạy checks được nhóm duyệt và kết quả gắn commit; chỉ khẳng định merge bị chặn nếu required check/branch protection đã cấu hình. Lưu YAML, run pass/fail và bằng chứng cấu hình.
 

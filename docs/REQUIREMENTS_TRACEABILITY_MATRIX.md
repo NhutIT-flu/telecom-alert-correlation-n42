@@ -1,5 +1,7 @@
 # MA TRẬN TRUY VẾT YÊU CẦU — N4.2
 
+> **Bổ sung N42-10, 12/11/2026:** TC-OPS-002/TC-SEC-001–003, AC-08 có ma trận CI-01–08 trong [GITHUB_ACTIONS_GUIDE.md](GITHUB_ACTIONS_GUIDE.md), liên kết workflow, smoke/failure probes và evidence. [Hồ sơ bàn giao](N42-10_HANDOVER.md) bổ sung MG-01–06 để kiểm chứng required checks/review và liên kết Jenkins/Sonar. Đây là thay đổi chờ review/run GitHub; các mục snapshot cũ bên dưới không tự cập nhật trạng thái triển khai hoặc branch protection.
+
 Ma trận này là kế hoạch bao phủ FR/NFR đến tiêu chí nghiệm thu, mã ca kiểm thử và evidence cần thu. Mã test trong ma trận là mã đặc tả trong `TEST_CASE_SPECIFICATION.md`; không đồng nghĩa đã tự động hóa hoặc đã chạy.
 
 ## 1. Quy ước trạng thái

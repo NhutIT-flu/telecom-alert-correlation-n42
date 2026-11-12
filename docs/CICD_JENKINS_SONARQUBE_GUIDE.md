@@ -1,5 +1,9 @@
 # HƯỚNG DẪN CÀI ĐẶT & SỬ DỤNG JENKINS VÀ SONARQUBE TRÊN MÁY MỚI (DỰ ÁN N4.2)
 
+> **Jenkins/SonarQube — cập nhật 12/11/2026:** dùng [JENKINS_SONAR_RUNBOOK.md](JENKINS_SONAR_RUNBOOK.md) cho Python 3.12, job main tự động và Quality Gate bắt buộc. Các hướng dẫn pipeline 4 stage/Python hệ điều hành bên dưới là cấu hình trước thay đổi này; không dùng để xác nhận bản mới đã triển khai. Giữ scanner/server name theo runbook và cấu hình thực tế.
+
+> **GitHub Actions (cập nhật N42-10 ngày 12/11/2026):** xem [GITHUB_ACTIONS_GUIDE.md](GITHUB_ACTIONS_GUIDE.md) cho cấu trúc job, dependency CI, artifact và kiểm chứng. Thay đổi này không đồng nghĩa Jenkins/SonarQube đã được cập nhật hoặc branch protection đã bật.
+
 > **Dự án:** N4.2 — Hệ thống thu thập và phân tích cảnh báo từ router, switch và firewall  
 > **Phụ trách hạ tầng CI/CD & QA (Module M8):** Ngô Châu Kiệt (QA Lead)  
 > **Đối tượng áp dụng:** Toàn bộ thành viên nhóm kỹ thuật N4.2 khi thiết lập môi trường trên máy mới  
