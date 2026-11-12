@@ -60,9 +60,15 @@ async def ingest_event(
     summary="Nhập file log batch từ máy khách (FR-03)",
 )
 async def import_log_file(
+    request: Request,
     file: UploadFile = File(..., description="Tệp tin log định dạng text"),
 ) -> BatchImportResponse:
-    """Khung endpoint nhập file log (Bước 3.3: Kiểm tra an toàn Path Traversal)."""
+    """Đọc từng dòng trong file log, chuyển thành RawEvent đưa vào queue.
+
+    Xử lý an toàn: kiểm tra chống Path Traversal (TC-SEC-006), an toàn với file rỗng
+    0 byte (TC-ING-013), chịu lỗi dòng hỏng mà không gián đoạn tiến trình (TC-ING-012).
+    Không thực hiện parse nghiệp vụ tại đây (theo nguyên tắc BE1).
+    """
     filename = file.filename or ""
 
     # TC-SEC-006: Kiểm tra chống tấn công Path Traversal
@@ -72,10 +78,55 @@ async def import_log_file(
             detail="Tên tệp không hợp lệ: phát hiện dấu hiệu Path Traversal",
         )
 
-    # Logic đọc file rỗng (Bước 3.4) và xử lý từng dòng (Bước 3.5) sẽ được bổ sung tiếp theo
+    content = await file.read()
+
+    # Bước 3.4 (TC-ING-013): File kích thước 0 byte
+    if not content:
+        return BatchImportResponse(
+            total=0,
+            success=0,
+            failed=0,
+            error_lines=[],
+        )
+
+    # Bước 3.5 (TC-ING-011, TC-ING-012): Đọc từng dòng và xử lý dòng lỗi
+    raw_lines = content.splitlines()
+    total = len(raw_lines)
+    success = 0
+    failed = 0
+    error_lines: list[int] = []
+
+    now_utc = datetime.now(timezone.utc)
+    client_ip = request.client.host if request.client else "127.0.0.1"
+
+    for line_idx, line in enumerate(raw_lines, 1):
+        try:
+            decoded = line.decode("utf-8")
+            if "\x00" in decoded or not decoded.strip():
+                failed += 1
+                error_lines.append(line_idx)
+                continue
+
+            raw_event = RawEvent(
+                payload=line,
+                source_ip=client_ip,
+                received_at=now_utc,
+                channel="file",
+            )
+
+            try:
+                ingest_queue.put_nowait(raw_event)
+            except asyncio.QueueFull:
+                logger.warning("Ingest queue full during batch file import at line %d", line_idx)
+
+            success += 1
+        except UnicodeDecodeError:
+            failed += 1
+            error_lines.append(line_idx)
+
     return BatchImportResponse(
-        total=0,
-        success=0,
-        failed=0,
-        error_lines=[],
+        total=total,
+        success=success,
+        failed=failed,
+        error_lines=error_lines,
     )

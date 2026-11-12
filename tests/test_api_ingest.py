@@ -1,10 +1,22 @@
 import uuid
+
 from fastapi.testclient import TestClient
+import pytest
 
 from app.api.ingest import ingest_queue
 from app.main import app
 
 client = TestClient(app)
+
+
+@pytest.fixture(autouse=True)
+def clear_ingest_queue():
+    """Đảm bảo hàng đợi trống trước và sau mỗi ca kiểm thử."""
+    while not ingest_queue.empty():
+        ingest_queue.get_nowait()
+    yield
+    while not ingest_queue.empty():
+        ingest_queue.get_nowait()
 
 
 class TestRESTIngestAPI:
@@ -22,11 +34,9 @@ class TestRESTIngestAPI:
         data = response.json()
         assert data["status"] == "SUCCESS"
         assert "event_id" in data
-        # Kiểm tra event_id là UUID hợp lệ
         uuid.UUID(data["event_id"])
         assert "received_at" in data
 
-        # Kiểm tra event được đưa vào queue đúng chuẩn RawEvent
         assert not ingest_queue.empty()
         event = ingest_queue.get_nowait()
         assert event.payload == payload["raw_message"].encode("utf-8")
@@ -52,8 +62,72 @@ class TestRESTIngestAPI:
         assert response.status_code == 422
 
 
-class TestBatchFileImportStep33:
-    """Kiểm thử cho Bước 3.2 & 3.3: Schema BatchImportResponse, Endpoint khung & Chống Path Traversal."""
+class TestBatchFileImport:
+    """Kiểm thử cho Bước 3: Batch Log File Import (Module M1 - BE1 - FR-03)."""
+
+    def test_tc_ing_011_batch_100_valid_lines(self):
+        """TC-ING-011: File Log Batch Import - 100 dòng hợp lệ nạp thành công 100%."""
+        lines = [f"<134>Nov 06 15:00:00 host-{i:03d} %LINK-3-UPDOWN: Line {i}" for i in range(1, 101)]
+        file_content = "\n".join(lines).encode("utf-8")
+
+        response = client.post(
+            "/api/v1/events/import-file",
+            files={"file": ("batch_100.log", file_content, "text/plain")},
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["total"] == 100
+        assert data["success"] == 100
+        assert data["failed"] == 0
+        assert data["error_lines"] == []
+        assert ingest_queue.qsize() == 100
+        first_event = ingest_queue.get_nowait()
+        assert first_event.channel == "file"
+
+    def test_tc_ing_012_batch_corrupted_lines(self):
+        """TC-ING-012: File Log Batch Import - Trộn lẫn dòng lỗi định dạng (dòng 3 và 7)."""
+        raw_lines = [
+            b"<134>Nov 06 15:00:00 host-1 %LINK-3-UPDOWN: Line 1",
+            b"<134>Nov 06 15:00:00 host-2 %LINK-3-UPDOWN: Line 2",
+            b"CORRUPT\x00BINARY\xff\xfeLINE-3",
+            b"<134>Nov 06 15:00:00 host-4 %LINK-3-UPDOWN: Line 4",
+            b"<134>Nov 06 15:00:00 host-5 %LINK-3-UPDOWN: Line 5",
+            b"<134>Nov 06 15:00:00 host-6 %LINK-3-UPDOWN: Line 6",
+            b"\x80\x81\x82CORRUPT-LINE-7\x00",
+            b"<134>Nov 06 15:00:00 host-8 %LINK-3-UPDOWN: Line 8",
+            b"<134>Nov 06 15:00:00 host-9 %LINK-3-UPDOWN: Line 9",
+            b"<134>Nov 06 15:00:00 host-10 %LINK-3-UPDOWN: Line 10",
+        ]
+        file_content = b"\n".join(raw_lines)
+
+        response = client.post(
+            "/api/v1/events/import-file",
+            files={"file": ("batch_mixed.log", file_content, "text/plain")},
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["total"] == 10
+        assert data["success"] == 8
+        assert data["failed"] == 2
+        assert data["error_lines"] == [3, 7]
+        assert ingest_queue.qsize() == 8
+
+    def test_tc_ing_013_empty_file(self):
+        """TC-ING-013: File Log Batch Import - File rỗng 0 byte xử lý an toàn."""
+        response = client.post(
+            "/api/v1/events/import-file",
+            files={"file": ("empty.log", b"", "text/plain")},
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["total"] == 0
+        assert data["success"] == 0
+        assert data["failed"] == 0
+        assert data["error_lines"] == []
+        assert ingest_queue.empty() is True
 
     def test_tc_sec_006_path_traversal_protection(self):
         """TC-SEC-006: Kiểm tra chống Path Traversal trên File Import (HTTP 400)."""
@@ -64,13 +138,3 @@ class TestBatchFileImportStep33:
             )
             assert response.status_code == 400
             assert "Path Traversal" in response.json()["detail"]
-
-    def test_import_file_safe_filename_schema(self):
-        """Kiểm tra tên tệp hợp lệ đi qua bộ lọc an toàn và trả về đúng schema BatchImportResponse."""
-        response = client.post(
-            "/api/v1/events/import-file",
-            files={"file": ("valid_test.log", b"sample log line", "text/plain")},
-        )
-        assert response.status_code == 200
-        data = response.json()
-        assert set(data.keys()) == {"total", "success", "failed", "error_lines"}
