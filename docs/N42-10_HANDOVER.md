@@ -1,7 +1,7 @@
 # N42-10 — cổng merge và bàn giao
 
 Ngày rà soát: 12/11/2026. Nhánh: `feature/N42-10-ci-pipeline`.
-Đây là hồ sơ chuẩn bị triển khai; các ô chưa đánh dấu cần evidence chạy thật. Chính sách Flake8/Black được xử lý sau cùng, trước vòng kiểm chứng cuối và đề nghị merge.
+Đây là hồ sơ chuẩn bị triển khai; các ô chưa đánh dấu cần evidence chạy thật. Cấu hình Flake8/Black dùng chung được bổ sung ở vòng cuối: `pyproject.toml`, `.flake8`, `.editorconfig` và hướng dẫn trong CONTRIBUTING; cần evidence theo revision cuối trước đề nghị merge.
 
 ## Hiện trạng GitHub đã đọc
 
@@ -45,7 +45,7 @@ Local đã kiểm tra gate từ chối failure/skipped/cancelled/missing. Điề
 
 ## Thứ tự triển khai và nghiệm thu
 
-1. Hoàn tất review diff local, sau đó xử lý Flake8/Black theo phần riêng đã thống nhất.
+1. Review diff local, gồm cấu hình Flake8/Black dùng chung và các thay đổi ghép từ main; xác nhận IDE/local/CI dùng cùng quy tắc.
 2. Chạy lại kiểm tra cuối trên đúng diff, commit trên feature theo khuôn `chore: hoan thien pipeline va ho so CI (N42-10)`; push feature khi sẵn sàng. Không push trực tiếp main.
 3. Thu run PR mới: đủ bốn job, check tổng hợp, JUnit/coverage/smoke và metadata. Đối chiếu checkout SHA với run; PR có thể kiểm tra merge ref.
 4. Chủ repo cấu hình rule và thực hiện MG-01–06. TL Phạm Minh Nhựt review; squash merge sau khi đủ điều kiện.

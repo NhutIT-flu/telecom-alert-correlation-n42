@@ -18,8 +18,10 @@ class CISmokeTests(unittest.TestCase):
         names = ("quality", "security", "tests", "smoke")
         for statuses in itertools.product(("success", "failure", "skipped", "cancelled", None), repeat=4):
             results = {name: {"result": status} for name, status in zip(names, statuses)}
-            with self.subTest(statuses=statuses), redirect_stdout(io.StringIO()), patch.dict(
-                "os.environ", {"GITHUB_STEP_SUMMARY": ""}
+            with (
+                self.subTest(statuses=statuses),
+                redirect_stdout(io.StringIO()),
+                patch.dict("os.environ", {"GITHUB_STEP_SUMMARY": ""}),
             ):
                 if all(status == "success" for status in statuses):
                     check_results(results)
@@ -63,8 +65,9 @@ class CISmokeTests(unittest.TestCase):
         process = MagicMock()
         process.poll.return_value = 1
         process.returncode = 1
-        with tempfile.TemporaryDirectory() as directory, patch(
-            "tools.ci_checks.subprocess.Popen", return_value=process
+        with (
+            tempfile.TemporaryDirectory() as directory,
+            patch("tools.ci_checks.subprocess.Popen", return_value=process),
         ):
             reports = Path(directory)
             (reports / "health-check.json").write_text('{"status":"UP"}', encoding="utf-8")
@@ -77,8 +80,9 @@ class CISmokeTests(unittest.TestCase):
         process = MagicMock()
         process.poll.return_value = None
         process.wait.side_effect = [subprocess.TimeoutExpired("uvicorn", 5), 0]
-        with tempfile.TemporaryDirectory() as directory, patch(
-            "tools.ci_checks.subprocess.Popen", return_value=process
+        with (
+            tempfile.TemporaryDirectory() as directory,
+            patch("tools.ci_checks.subprocess.Popen", return_value=process),
         ):
             with self.assertRaisesRegex(RuntimeError, "timed out"):
                 check_health(Path(directory), timeout=0)
@@ -92,9 +96,11 @@ class CISmokeTests(unittest.TestCase):
         response = MagicMock()
         response.__enter__.return_value.read.return_value = b'{"status":"DOWN"}'
         with tempfile.TemporaryDirectory() as directory:
-            with patch("tools.ci_checks.subprocess.Popen", return_value=process), patch(
-                "tools.ci_checks.Path.read_text", return_value="Uvicorn running on http://127.0.0.1:32123"
-            ), patch("tools.ci_checks.urlopen", return_value=response):
+            with (
+                patch("tools.ci_checks.subprocess.Popen", return_value=process),
+                patch("tools.ci_checks.Path.read_text", return_value="Uvicorn running on http://127.0.0.1:32123"),
+                patch("tools.ci_checks.urlopen", return_value=response),
+            ):
                 with self.assertRaisesRegex(RuntimeError, "Unexpected health"):
                     check_health(Path(directory))
         process.terminate.assert_called_once()

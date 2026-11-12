@@ -10,7 +10,7 @@ Tài liệu này mô tả quy ước phát triển nội bộ của nhóm N4.2. 
 ## 1. Thiết lập Môi trường Phát triển (Local Setup)
 
 ### 1.1. Yêu cầu Tiên quyết
-- **Python**: Phiên bản 3.12 trở lên.
+- **Python**: Phiên bản 3.12.x, đồng bộ với GitHub Actions và Jenkins.
 - **Docker & Docker Compose**: Để chạy cơ sở dữ liệu chuỗi thời gian PostgreSQL + TimescaleDB.
 - **Node.js**: Phiên bản 20+ LTS (dành cho kỹ sư Frontend React).
 
@@ -83,10 +83,21 @@ git commit -m "test: Bo sung 10 test case phan tach RFC 3164 cho Cisco va Huawei
 
 Trước khi khởi tạo Pull Request, kỹ sư bắt buộc tự kiểm tra trên máy cục bộ:
 
-1. **Chuẩn phong cách (PEP 8 Style Guide)**:
+1. **Định dạng và kiểm tra mã nguồn** — chạy từ thư mục gốc repo, bằng Python của môi trường đã cài `requirements.txt`:
    ```bash
-   flake8 app tests tools --count --max-line-length=120
+   python -m black app tests tools
+   python -m black --check --diff app tests tools
+   python -m flake8 app tests tools --count --statistics
    ```
+   Black tự sửa định dạng ở lệnh đầu; hai lệnh sau chỉ kiểm tra. Xem `git diff` trước khi commit. CI chạy hai lệnh kiểm tra và không tự sửa/commit code.
+
+   Cấu hình chung: Black đọc `pyproject.toml` (120 ký tự, Python 3.12); Flake8 đọc `.flake8` (120 ký tự, bỏ qua W391/E203/E701). `.editorconfig` đồng bộ độ dài dòng và kiểu xuống dòng LF. Không truyền `--line-length` hoặc `--max-line-length` khác trong lệnh riêng của thành viên/CI.
+
+   W391 cho phép dòng trắng dư cuối file; Black vẫn có thể loại bỏ chúng khi format. File vẫn cần ký tự xuống dòng kết thúc dòng cuối. E203/E701 được bỏ qua để tương thích cách Black định dạng; các kiểm tra khác của Flake8 giữ nguyên. Black không luôn rút ngắn được mọi chuỗi/comment dài, nên nếu còn E501 thì xem và sửa dòng đó thay vì bỏ qua toàn bộ E501.
+
+   **VS Code:** cài extension **Black Formatter** của Microsoft (`ms-python.black-formatter`), chọn **Format Document With → Configure Default Formatter → Black Formatter**, bật **Editor: Format On Save** cho Python. Chọn đúng Python 3.12 của môi trường dự án và đặt **Black Formatter: Import Strategy** thành `fromEnvironment` để ưu tiên phiên bản Black đã ghim. Nếu extension thông báo fallback sang Black đi kèm, cài lại `requirements.txt` trong interpreter đã chọn. Xóa đối số độ dài dòng riêng nếu đã cấu hình trong IDE; cấu hình chuẩn nằm trong repo. Không cần thêm pre-commit ở đợt này.
+
+   Tham chiếu: [Black với Flake8](https://black.readthedocs.io/en/stable/guides/using_black_with_other_tools.html), [Black Formatter cho VS Code](https://github.com/microsoft/vscode-black-formatter).
 2. **Kiểm thử Đơn vị (Automated Unit Testing)**:
    Mọi module mới bắt buộc phải có tệp kiểm thử tương ứng trong thư mục `tests/`:
    ```bash

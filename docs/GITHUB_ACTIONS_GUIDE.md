@@ -34,7 +34,7 @@ Hiện tests và ứng dụng không kết nối DB. Bỏ service TimescaleDB v�
 `.github/actions/setup-python-ci/action.yml` dùng chung Python, cache, cài `requirements.txt`, chạy `pip check`, ghi môi trường. Cache key theo file requirements duy nhất này.
 `requirements.txt` gồm dependency ứng dụng, kiểm thử, coverage và kiểm tra chất lượng; dùng chung cho local, Docker, Jenkins và GitHub Actions. Do dùng một file, Docker cũng cài các công cụ QA/CI. Các dependency trực tiếp được ghim theo bộ đã chạy trên Python 3.12; **chưa phải lock toàn bộ dependency bắc cầu**. `environment.json` ghi các phiên bản thực tế để điều tra sai khác; không thu env tùy ý hoặc secret. Muốn tái lập đầy đủ sau này cần lock Linux/Windows có quy trình cập nhật riêng.
 
-Đợt này không đổi `.flake8`, không đổi quy tắc Black và không tự đặt coverage threshold. Pin phiên bản công cụ giúp thống nhất môi trường; xử lý chính sách Flake8/Black được để sau cùng. Phần đồng bộ Jenkins/SonarQube được mô tả riêng trong [runbook](JENKINS_SONAR_RUNBOOK.md).
+Black đọc `pyproject.toml` (120 ký tự, Python 3.12); Flake8 đọc `.flake8` (120 ký tự, bỏ qua W391/E203/E701). Local, GitHub Actions và Jenkins dùng cùng cấu hình; CI chạy `black --check --diff`, thành viên chạy Black tự sửa trước khi commit theo [CONTRIBUTING.md](../CONTRIBUTING.md). Không tự đặt coverage threshold. Phần đồng bộ Jenkins/SonarQube được mô tả riêng trong [runbook](JENKINS_SONAR_RUNBOOK.md).
 Giữ cả unittest và pytest vì ticket ghi rõ lệnh unittest. Có chạy lặp một số case; có thể bỏ lượt unittest riêng sau khi TL đồng ý vì pytest cũng thu thập unittest.
 
 ## Kiểm chứng trước khi push

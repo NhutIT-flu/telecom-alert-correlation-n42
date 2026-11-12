@@ -54,8 +54,8 @@ python3.12 -m venv --clear .venv
             steps {
                 sh '''#!/usr/bin/env bash
 set -euo pipefail
-.venv/bin/python -m flake8 app tests tools --count --max-line-length=120 --statistics 2>&1 | tee reports/flake8.txt
-.venv/bin/python -m black --check --line-length 120 app tests tools 2>&1 | tee reports/black.txt
+.venv/bin/python -m flake8 app tests tools --count --statistics 2>&1 | tee reports/flake8.txt
+.venv/bin/python -m black --check --diff app tests tools 2>&1 | tee reports/black.txt
 .venv/bin/python n42-ai-kit/scripts/validate.py 2>&1 | tee reports/ai-kit.txt
 '''
             }
