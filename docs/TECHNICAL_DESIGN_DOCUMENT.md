@@ -6,9 +6,9 @@
 ## 1. Stack và hiện trạng code
 
 - Baseline W1: Python/FastAPI với duy nhất `GET /api/health` để xác nhận process khởi động.
-- Ingestion UDP, REST/file, parser, event model, store, correlation, dashboard và query API chưa được triển khai; tạo theo ticket và hợp đồng đã chốt. TCP syslog chưa thuộc baseline nghiệm thu và chỉ được thêm sau quyết định phạm vi.
+- Các nhánh tính năng có thể đi trước nhánh chính. Ref N42-14 tại `671a7fd` có route REST nhận vào RAM. TC-ING-016 kiểm lỗi queue đầy trên commit sửa. Theo dõi trạng thái từng module và bằng chứng tích hợp trên Jira. TCP syslog chỉ thêm sau quyết định phạm vi.
 - `docker/init-db.sql` chỉ bật extension TimescaleDB; chưa có migration, bảng nghiệp vụ, seed hoặc repository runtime.
-- API đang chạy được liệt kê trong `DATA_AND_API_DESIGN.md`; mọi endpoint khác là target, chưa phải capability hiện hữu.
+- Xem `DATA_AND_API_DESIGN.md` để tra route theo commit, phiên bản OpenAPI đề xuất và điều kiện sử dụng.
 
 ## 2. Module và ownership
 
@@ -31,6 +31,7 @@
 - Adapter ghi nguồn, received time và monotonic timestamp đo latency.
 - Parser không thực hiện I/O; giữ raw và ghi parse status.
 - Queue capacity hữu hạn; policy saturation cho UDP/API. TCP chỉ áp dụng sau khi được duyệt phạm vi.
+- Nhánh RAM N42-14 enqueue raw trước khi xử lý. Pipeline trên mô tả các bước của thiết kế đích. Với PoC bền vững, hợp đồng N42-62 xác định điều kiện commit và thời điểm phản hồi. QA ghi build, route và policy queue trong từng lần chạy.
 - DB batch transaction, bounded retry và idempotency; ack semantics phân biệt accepted/durable.
 - Incident giữ rule/version/evidence; quan hệ event–incident dùng bảng nối khi cần nhiều-nhiều.
 - UI chỉ truy cập API, không kết nối trực tiếp DB.

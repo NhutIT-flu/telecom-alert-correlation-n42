@@ -27,7 +27,7 @@ Tài liệu Word/PDF trong `vnpt-proposal/` là hồ sơ dẫn xuất; Markdown 
 
 - `TEST_CASE_SPECIFICATION.md` là đặc tả kế hoạch chi tiết; mã test trong tài liệu không chứng minh đã tự động hóa hoặc đã chạy. RTM phải chỉ rõ coverage dự kiến, evidence và gap.
 - Phạm vi baseline nguồn vào là syslog UDP, REST ingest và file; TCP chỉ bổ sung qua quyết định phạm vi và cập nhật SRS/AC/RTM/Jira. Không tuyên bố coverage chức năng 100%. QA chủ trì test/coverage/CI; owner code viết unit test module mình.
-- Báo cáo W1 (01–07/11/2026) và biên bản kickoff W2 (09/11/2026) phải mang trạng thái dự thảo/mẫu cho đến khi kỳ kết thúc/cuộc họp diễn ra và được đối chiếu evidence; không ghi thành kết quả đã đạt.
+- Lưu lịch dự kiến 09/11 làm hồ sơ chuẩn bị. Kickoff thực tế ngày 06/11/2026. Sprint 1 bắt đầu ngày 09/11/2026. Ghi kết quả họp và báo cáo theo bằng chứng đã đối chiếu.
 - PDF phải được render và rà trực quan trước khi coi là bản phát hành; nội dung trích xuất chỉ là kiểm tra bổ sung, không thay QA bố cục.
 - Bản Word/PDF phát hành chỉ được xem là đồng bộ khi tên tệp khớp manifest, sinh từ nguồn cùng baseline, không còn bản tuần/biên bản sai tên, và đã qua kiểm tra nội dung/hình thức. ZIP đã bị xóa theo yêu cầu, không tái tạo.
 

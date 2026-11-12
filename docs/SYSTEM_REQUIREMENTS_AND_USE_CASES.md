@@ -23,6 +23,7 @@ Hệ thống **N4.2** được phát triển nhằm giải quyết 3 bài toán 
 3. **Giám sát Trực quan Thời gian thực:** Cung cấp bảng điều hành NOC Dashboard hỗ trợ Kỹ sư trực ca theo dõi sự cố tức thời, tra cứu lịch sử nhanh chóng và ra quyết định xử lý chính xác.
 
 ### 1.2 Phạm vi Môi trường Thử nghiệm An toàn
+- **Nghiệm thu nguồn.** Khách hàng yêu cầu ít nhất hai nguồn hoặc định dạng mẫu, hoặc hai loại thiết bị giả lập. Baseline nội bộ theo dõi UDP, REST và file riêng. Các ngưỡng định lượng dùng khi nghiệm thu khách hàng cần UTH và mentor VNPT xác nhận sau khi đo baseline.
 - **Môi trường triển khai:** Hệ thống vận hành hoàn toàn trong môi trường phòng thí nghiệm thử nghiệm (Isolated Testbed Lab) bằng dữ liệu mô phỏng.
 - **Quy chuẩn địa chỉ mạng:** 100% địa chỉ IP trong hệ thống tuân thủ tiêu chuẩn mạng nội bộ RFC 1918 (`10.10.0.0/16`) và dải mạng tài liệu RFC 5737 (`203.0.113.0/24`). Tuyệt đối không can thiệp, không cấu hình hay tác động ngược lại hệ thống mạng sản xuất của VNPT NET.
 
@@ -192,14 +193,13 @@ flowchart LR
   3. Đưa sự kiện vào cửa sổ trượt (Sliding Window Deque) của nhóm tương ứng.
   4. Loại bỏ các sự kiện đã tồn tại trong cửa sổ nhưng có khoảng cách thời gian vượt quá 60 giây so với sự kiện hiện tại:
      $$\Delta t = t_{\text{current}} - t_{\text{event}} > 60\text{ giây} \implies \text{Loại bỏ}$$
-  5. Đếm số lượng sự kiện còn lại trong cửa sổ trượt:
-     - Nếu $\text{Số lượng} \ge 5$ lần: Kích hoạt tạo Sự cố mới (`Incident`).
+  5. Đếm chuyển trạng thái theo phiên bản luật và fixture được duyệt. Mốc đề xuất là 5 chuyển trạng thái trong 60 giây. DEC-03 xác nhận cách tính trạng thái đầu, sự kiện lặp và ca đúng biên.
   6. Khởi tạo đối tượng Sự cố:
      - Tiêu đề: `Giao diện mạng [interface] trên thiết bị [device] đang bị dao động (Link Flap)`.
-     - Mức độ nghiêm trọng: `MAJOR`.
+     - Mức độ nghiêm trọng theo rule và mapping đã duyệt tại DEC-03.
      - Trạng thái: `OPEN` (Mới tạo).
      - Bằng chứng liên kết: Đính kèm danh sách các UUID của 5 sự kiện gây ra sự cố.
-  7. Bắn gói tin thông báo tức thì qua kênh WebSocket để giao diện NOC đổi màu đỏ cảnh báo.
+  7. Công bố sự cố cho Dashboard theo hợp đồng đã duyệt. WebSocket thuộc phương án triển khai của N42-51 và N42-53.
 * **Luồng rẽ nhánh & Ngoại lệ:**
   - **A1: Sự kiện thứ 6, 7... tiếp tục phát sinh trong cùng cửa sổ:** Hệ thống không tạo thêm Incident mới (chống bão cảnh báo); chỉ cập nhật tăng trường `event_count` trong Incident hiện có.
 * **Hậu điều kiện:** Một sự cố duy nhất được hiển thị trên bảng điều hành NOC thay cho hàng chục dòng log rác.
@@ -213,83 +213,94 @@ flowchart LR
 * **Tác nhân chính:** Kỹ sư Giám sát NOC (NOC Operator)
 * **Tiền điều kiện:** Kỹ sư NOC truy cập vào địa chỉ Web Dashboard qua trình duyệt.
 * **Luồng sự kiện chính (Basic Flow):**
-  1. Trình duyệt thiết lập kết nối WebSocket liên tục tới máy chủ Backend: `ws://host/ws/alerts`.
+  1. Dashboard đọc dữ liệu theo hợp đồng API của N42-67 và tích hợp trong N42-34. Kết nối WebSocket theo N42-51/N42-53 chỉ áp dụng khi transport được duyệt và có build tương ứng.
   2. Hệ thống tải dữ liệu khởi tạo ban đầu:
      - 4 Thẻ chỉ số KPI: Tổng số sự kiện nhận trong ngày, Số sự cố đang mở, Tốc độ bản tin hiện tại (msg/s), Trạng thái dịch vụ (Healthy).
      - Danh sách 50 sự kiện mới nhất hiển thị trên Bảng dòng tin (Live Event Feed).
      - Bảng danh sách các sự cố gom nhóm (Active Incidents).
-  3. Khi Backend phát hiện sự cố khẩn cấp mức `CRITICAL` hoặc `MAJOR`:
+  3. Nếu WebSocket thuộc phạm vi đã duyệt, khi Backend phát hiện sự cố khẩn cấp mức `CRITICAL` hoặc `MAJOR`:
      - Gói tin WebSocket đẩy xuống máy khách.
      - Hàng sự cố tương ứng trên màn hình tự động hiển thị trên đầu danh sách và nhấp nháy đỏ cảnh báo.
      - Phát âm thanh cảnh báo ngắn (nếu Kỹ sư bật chế độ chuông trực ban).
   4. Người dùng không cần nhấn phím F5 để tải lại trang.
-* **Hậu điều kiện:** Kỹ sư trực ca nắm bắt được tình trạng mạng ngay tại giây đầu tiên phát sinh lỗi.
+* **Hậu điều kiện:** Kỹ sư trực ca xem được dữ liệu và trạng thái tải của Dashboard theo phiên bản được nghiệm thu.
 
 ---
 
-## 5. MA TRẬN 31 YÊU CẦU CHỨC NĂNG (FUNCTIONAL REQUIREMENTS - FR)
+## 5. YÊU CẦU DÙNG TRÊN JIRA VÀ QA
 
-Dưới đây là bảng đặc tả đầy đủ 31 yêu cầu chức năng của hệ thống N4.2:
+[RTM](REQUIREMENTS_TRACEABILITY_MATRIX.md) là bảng tra mã FR-01–15 và NFR-01–08, kèm AC, ca kiểm thử và Jira. [Tiêu chí nghiệm thu](ACCEPTANCE_CRITERIA.md) quy định cách chấm. Các bảng chi tiết lịch sử bên dưới giữ nội dung để truy vết và dùng tiền tố `LEGACY-`. Độ ưu tiên, ngưỡng và tên công nghệ trong các bảng lịch sử cần đối chiếu với phạm vi đã duyệt trước khi triển khai.
+
+| Nhóm chức năng | Mã hiện hành | Bàn giao |
+|---|---|---|
+| Thu nhận và chuẩn hóa | FR-01–05 | UDP N42-13, REST N42-14, file N42-22, parser N42-15/23–25 |
+| Lưu trữ, tra cứu và thống kê | FR-06–08 | N42-30/31, API N42-67, FE N42-34, thống kê N42-39 |
+| Tương quan, vòng đời và Dashboard | FR-09–11 | Rule và evidence theo phiên bản. WebSocket và thao tác thay đổi trạng thái theo quyết định phạm vi |
+| Chẩn đoán, replay, xuất và cấu hình luật | FR-12–15 | Health, bộ fixture tái lập, xuất dữ liệu theo bộ lọc, validate và reload bộ luật |
+
+### 5.1 Bảng phân rã chức năng lịch sử
 
 | Mã FR | Tên Yêu cầu Kỹ thuật & Nghiệp vụ | Mức ưu tiên | Kỹ sư phụ trách | Ca sử dụng liên kết |
 | :---: | :--- | :---: | :---: | :---: |
-| **FR-01** | Tiếp nhận dòng bản tin Syslog UDP trên cổng `5514` không nghẽn socket | **Bắt buộc (Must)** | Phạm Hoàng Long (BE1) | UC-01 |
-| **FR-02** | Cung cấp cổng tiếp nhận cảnh báo qua REST API chuẩn JSON (`/api/v1/events/ingest`) | **Bắt buộc (Must)** | Phạm Hoàng Long (BE1) | UC-02 |
-| **FR-03** | Hỗ trợ nạp tệp nhật ký hàng loạt từ ổ đĩa (Batch File Streaming Import) | Nên có (Should) | Phạm Hoàng Long (BE1) | UC-03 |
-| **FR-04** | Tự động bóc tách và phân loại cú pháp đa hãng (Cisco, Huawei, Juniper, Fortinet) | **Bắt buộc (Must)** | Phạm Tấn Thành (BE2) | UC-04 |
-| **FR-05** | Cơ chế dự phòng RAW Fallback: Bảo toàn 100% bản tin gốc khi gặp dữ liệu dị dạng | **Bắt buộc (Must)** | Phạm Tấn Thành (BE2) | UC-05 |
-| **FR-06** | Chuẩn hóa dấu thời gian về múi giờ UTC quốc tế, lưu vết nguồn gốc độ tin cậy giờ | **Bắt buộc (Must)** | Phạm Tấn Thành (BE2) | UC-04 |
-| **FR-07** | Ánh xạ mức độ nghiêm trọng của từng hãng về 5 mức chuẩn (CRITICAL, MAJOR, WARNING, INFO, DEBUG) | **Bắt buộc (Must)** | Phạm Tấn Thành (BE2) | UC-04 |
-| **FR-08** | Vùng đệm hàng đợi có giới hạn dung lượng trong RAM (Bounded In-Memory Queue 10.000 msgs) | **Bắt buộc (Must)** | Phạm Tấn Thành (BE2) | UC-01, 04 |
-| **FR-09** | Lưu trữ sự kiện bền vững vào CSDL chuỗi thời gian PostgreSQL + TimescaleDB Hypertable | **Bắt buộc (Must)** | Phạm Tấn Thành (BE2) | UC-06 |
-| **FR-10** | Hỗ trợ ghi dữ liệu theo khối lớn (Batch Insert) để hấp thụ thông lượng tải 1.000 msg/s | **Bắt buộc (Must)** | Phạm Tấn Thành (BE2) | UC-06 |
-| **FR-11** | Động cơ tương quan cửa sổ trượt thời gian thực (Sliding Window Deque) | **Bắt buộc (Must)** | Nguyễn Duy Minh (BE3) | UC-07, 08 |
-| **FR-12** | Luật tương quan nhận diện dao động cổng mạng Link Flap ($\ge 5$ lần trong 60 giây) | **Bắt buộc (Must)** | Nguyễn Duy Minh (BE3) | UC-07 |
-| **FR-13** | Luật tương quan nhận diện tấn công SYN Flood từ Firewall ($\ge 50$ deny trong 30 giây) | **Bắt buộc (Must)** | Nguyễn Duy Minh (BE3) | UC-08 |
-| **FR-14** | Luật tương quan nhận diện đứt kết nối lặp lại BGP Neighbor (3 lần retry trong 300 giây) | **Bắt buộc (Must)** | Nguyễn Duy Minh (BE3) | UC-09 |
-| **FR-15** | Luật tương quan nhận diện hỏng hóc nguồn điện dự phòng thiết bị Core (Single-hit alert) | **Bắt buộc (Must)** | Nguyễn Duy Minh (BE3) | UC-04, 07 |
-| **FR-16** | Luật tương quan nhận diện quá nhiệt vi xử lý CPU Core Router ($\ge 80^\circ$C) | **Bắt buộc (Must)** | Nguyễn Duy Minh (BE3) | UC-04, 07 |
-| **FR-17** | Cơ chế khử trùng lặp (Deduplication): Tự động gộp cảnh báo lặp vào một sự cố gốc | **Bắt buộc (Must)** | Nguyễn Duy Minh (BE3) | UC-10 |
-| **FR-18** | Đảm bảo tỷ lệ giảm nhiễu cảnh báo đạt tối thiểu 70% trong các đợt bão sự kiện | **Bắt buộc (Must)** | Nguyễn Duy Minh (BE3) | UC-10 |
-| **FR-19** | Cỗ máy trạng thái FSM điều khiển vòng đời sự cố (OPEN, ACKNOWLEDGED, RESOLVED, CLOSED) | Nên có (Should) | Nguyễn Duy Minh (BE3) | UC-13 |
-| **FR-20** | Tính năng tự động đóng sự cố (Auto-resolve) khi cổng mạng ổn định quá 300 giây | Nên có (Should) | Nguyễn Duy Minh (BE3) | UC-13 |
-| **FR-21** | Quản lý bộ luật bằng tệp `rules.yaml` tuân thủ tiêu chuẩn quốc tế YAML Specification 1.2 | **Bắt buộc (Must)** | Nguyễn Duy Minh (BE3) | UC-15 |
-| **FR-22** | Thẩm định tính toàn vẹn cú pháp bộ luật bằng mô hình Pydantic Schema Validator | **Bắt buộc (Must)** | Nguyễn Duy Minh (BE3) | UC-15 |
-| **FR-23** | Tính năng nạp lại bộ luật không gián đoạn dịch vụ (Atomic Hot-Reload) | **Bắt buộc (Must)** | Nguyễn Duy Minh (BE3) | UC-15 |
-| **FR-24** | Bảng điều hành giám sát NOC trực quan hỗ trợ chế độ màn hình tối (Dark Mode) | **Bắt buộc (Must)** | Lê Khắc Huy (FE) | UC-11 |
-| **FR-25** | Hiển thị 4 thẻ chỉ số KPI tổng quan hệ thống cập nhật động theo thời gian thực | **Bắt buộc (Must)** | Lê Khắc Huy (FE) | UC-11 |
-| **FR-26** | Kênh truyền phát thời gian thực WebSocket đẩy sự cố mới ngay lập tức xuống máy khách | **Bắt buộc (Must)** | Lê Khắc Huy (FE) | UC-11 |
-| **FR-27** | Cung cấp bộ lọc tra cứu sự kiện đa điều kiện (Khoảng thời gian, Thiết bị, Mức độ) | **Bắt buộc (Must)** | Lê Khắc Huy (FE) | UC-12 |
-| **FR-28** | Cơ chế phân trang con trỏ ổn định (Stable Cursor-based Pagination) chống giật giao diện | **Bắt buộc (Must)** | Lê Khắc Huy (FE) | UC-12 |
-| **FR-29** | Chức năng xuất dữ liệu báo cáo ca trực định dạng CSV phục vụ giao ban mạng | Nên có (Should) | Lê Khắc Huy (FE) | UC-14 |
-| **FR-30** | Điểm cuối giám sát sức khỏe dịch vụ hệ thống `/api/health` bảo mật không lộ secret | **Bắt buộc (Must)** | Phạm Hoàng Long (BE1) | UC-16 |
-| **FR-31** | Công cụ phát tải kịch bản giả lập phục vụ đo kiểm thông lượng 1.000 msg/s | **Bắt buộc (Must)** | Ngô Châu Kiệt (QA) | UC-17 |
+| **LEGACY-FR-01** | Tiếp nhận dòng bản tin Syslog UDP trên cổng `5514` không nghẽn socket | **Bắt buộc (Must)** | Phạm Hoàng Long (BE1) | UC-01 |
+| **LEGACY-FR-02** | Cung cấp cổng tiếp nhận cảnh báo qua REST API chuẩn JSON (`/api/v1/events/ingest`) | **Bắt buộc (Must)** | Phạm Hoàng Long (BE1) | UC-02 |
+| **LEGACY-FR-03** | Hỗ trợ nạp tệp nhật ký hàng loạt từ ổ đĩa (Batch File Streaming Import) | Nên có (Should) | Phạm Hoàng Long (BE1) | UC-03 |
+| **LEGACY-FR-04** | Tự động bóc tách và phân loại cú pháp đa hãng (Cisco, Huawei, Juniper, Fortinet) | **Bắt buộc (Must)** | Phạm Tấn Thành (BE2) | UC-04 |
+| **LEGACY-FR-05** | Cơ chế dự phòng RAW Fallback: Bảo toàn 100% bản tin gốc khi gặp dữ liệu dị dạng | **Bắt buộc (Must)** | Phạm Tấn Thành (BE2) | UC-05 |
+| **LEGACY-FR-06** | Chuẩn hóa dấu thời gian về múi giờ UTC quốc tế, lưu vết nguồn gốc độ tin cậy giờ | **Bắt buộc (Must)** | Phạm Tấn Thành (BE2) | UC-04 |
+| **LEGACY-FR-07** | Ánh xạ mức độ nghiêm trọng của từng hãng về 5 mức chuẩn (CRITICAL, MAJOR, WARNING, INFO, DEBUG) | **Bắt buộc (Must)** | Phạm Tấn Thành (BE2) | UC-04 |
+| **LEGACY-FR-08** | Vùng đệm hàng đợi có giới hạn dung lượng trong RAM (Bounded In-Memory Queue 10.000 msgs) | **Bắt buộc (Must)** | Phạm Tấn Thành (BE2) | UC-01, 04 |
+| **LEGACY-FR-09** | Lưu trữ sự kiện bền vững vào CSDL chuỗi thời gian PostgreSQL + TimescaleDB Hypertable | **Bắt buộc (Must)** | Phạm Tấn Thành (BE2) | UC-06 |
+| **LEGACY-FR-10** | Hỗ trợ ghi dữ liệu theo khối lớn (Batch Insert) để hấp thụ thông lượng tải 1.000 msg/s | **Bắt buộc (Must)** | Phạm Tấn Thành (BE2) | UC-06 |
+| **LEGACY-FR-11** | Động cơ tương quan cửa sổ trượt thời gian thực (Sliding Window Deque) | **Bắt buộc (Must)** | Nguyễn Duy Minh (BE3) | UC-07, 08 |
+| **LEGACY-FR-12** | Luật tương quan nhận diện dao động cổng mạng Link Flap ($\ge 5$ lần trong 60 giây) | **Bắt buộc (Must)** | Nguyễn Duy Minh (BE3) | UC-07 |
+| **LEGACY-FR-13** | Luật tương quan nhận diện tấn công SYN Flood từ Firewall ($\ge 50$ deny trong 30 giây) | **Bắt buộc (Must)** | Nguyễn Duy Minh (BE3) | UC-08 |
+| **LEGACY-FR-14** | Luật tương quan nhận diện đứt kết nối lặp lại BGP Neighbor (3 lần retry trong 300 giây) | **Bắt buộc (Must)** | Nguyễn Duy Minh (BE3) | UC-09 |
+| **LEGACY-FR-15** | Luật tương quan nhận diện hỏng hóc nguồn điện dự phòng thiết bị Core (Single-hit alert) | **Bắt buộc (Must)** | Nguyễn Duy Minh (BE3) | UC-04, 07 |
+| **LEGACY-FR-16** | Luật tương quan nhận diện quá nhiệt vi xử lý CPU Core Router ($\ge 80^\circ$C) | **Bắt buộc (Must)** | Nguyễn Duy Minh (BE3) | UC-04, 07 |
+| **LEGACY-FR-17** | Cơ chế khử trùng lặp (Deduplication): Tự động gộp cảnh báo lặp vào một sự cố gốc | **Bắt buộc (Must)** | Nguyễn Duy Minh (BE3) | UC-10 |
+| **LEGACY-FR-18** | Đảm bảo tỷ lệ giảm nhiễu cảnh báo đạt tối thiểu 70% trong các đợt bão sự kiện | **Bắt buộc (Must)** | Nguyễn Duy Minh (BE3) | UC-10 |
+| **LEGACY-FR-19** | Cỗ máy trạng thái FSM điều khiển vòng đời sự cố (OPEN, ACKNOWLEDGED, RESOLVED, CLOSED) | Nên có (Should) | Nguyễn Duy Minh (BE3) | UC-13 |
+| **LEGACY-FR-20** | Tính năng tự động đóng sự cố (Auto-resolve) khi cổng mạng ổn định quá 300 giây | Nên có (Should) | Nguyễn Duy Minh (BE3) | UC-13 |
+| **LEGACY-FR-21** | Quản lý bộ luật bằng tệp `rules.yaml` tuân thủ tiêu chuẩn quốc tế YAML Specification 1.2 | **Bắt buộc (Must)** | Nguyễn Duy Minh (BE3) | UC-15 |
+| **LEGACY-FR-22** | Thẩm định tính toàn vẹn cú pháp bộ luật bằng mô hình Pydantic Schema Validator | **Bắt buộc (Must)** | Nguyễn Duy Minh (BE3) | UC-15 |
+| **LEGACY-FR-23** | Tính năng nạp lại bộ luật không gián đoạn dịch vụ (Atomic Hot-Reload) | **Bắt buộc (Must)** | Nguyễn Duy Minh (BE3) | UC-15 |
+| **LEGACY-FR-24** | Bảng điều hành giám sát NOC trực quan hỗ trợ chế độ màn hình tối (Dark Mode) | **Bắt buộc (Must)** | Lê Khắc Huy (FE) | UC-11 |
+| **LEGACY-FR-25** | Hiển thị 4 thẻ chỉ số KPI tổng quan hệ thống cập nhật động theo thời gian thực | **Bắt buộc (Must)** | Lê Khắc Huy (FE) | UC-11 |
+| **LEGACY-FR-26** | Kênh truyền phát thời gian thực WebSocket đẩy sự cố mới ngay lập tức xuống máy khách | **Bắt buộc (Must)** | Lê Khắc Huy (FE) | UC-11 |
+| **LEGACY-FR-27** | Cung cấp bộ lọc tra cứu sự kiện đa điều kiện (Khoảng thời gian, Thiết bị, Mức độ) | **Bắt buộc (Must)** | Lê Khắc Huy (FE) | UC-12 |
+| **LEGACY-FR-28** | Cơ chế phân trang con trỏ ổn định (Stable Cursor-based Pagination) chống giật giao diện | **Bắt buộc (Must)** | Lê Khắc Huy (FE) | UC-12 |
+| **LEGACY-FR-29** | Chức năng xuất dữ liệu báo cáo ca trực định dạng CSV phục vụ giao ban mạng | Nên có (Should) | Lê Khắc Huy (FE) | UC-14 |
+| **LEGACY-FR-30** | Điểm cuối giám sát sức khỏe dịch vụ hệ thống `/api/health` bảo mật không lộ secret | **Bắt buộc (Must)** | Phạm Hoàng Long (BE1) | UC-16 |
+| **LEGACY-FR-31** | Công cụ phát tải kịch bản giả lập phục vụ đo kiểm thông lượng 1.000 msg/s | **Bắt buộc (Must)** | Ngô Châu Kiệt (QA) | UC-17 |
 
 ---
 
-## 6. MA TRẬN 13 YÊU CẦU PHI CHỨC NĂNG (NON-FUNCTIONAL REQUIREMENTS - NFR)
+## 6. BẢNG PHÂN RÃ PHI CHỨC NĂNG LỊCH SỬ
 
-Tuân thủ nghiêm ngặt theo tiêu chuẩn quốc tế **ISO/IEC 25010 (Software Product Quality Model)**:
+Các con số dưới đây ghi lại phương án thiết kế cũ. Dùng AC và RTM để xác định ngưỡng baseline, phép đo và bằng chứng hiện hành.
 
 | Mã NFR | Đặc tính chất lượng | Chỉ tiêu kỹ thuật cam kết (SLA / Target) | Phương pháp kiểm chứng & Thẩm định |
 | :---: | :--- | :--- | :--- |
-| **NFR-01** | **Hiệu năng (Throughput)** | Duy trì ổn định thông lượng danh định **$\ge 1.000$ msg/s liên tục trong 1 giờ** tại bài nghiệm thu W13. | Phát tải bằng script `tools/load_runner.py`, đối soát tổng số gói gửi/nhận đạt chính xác 3.600.000 bản tin. |
-| **NFR-02** | **Độ trễ xử lý (Latency)** | - Độ trễ trung vị: **$P_{50} < 50$ ms**.<br>- Độ trễ phân vị cao: **$P_{99} < 200$ ms** (Đo từ lúc nhận gói socket đến khi commit DB). | Gắn timestamp vi giây tại 2 đầu pipeline, xuất biểu đồ phân vị độ trễ trong báo cáo kiểm thử. |
-| **NFR-03** | **Độ tin cậy (Packet Drop)** | **Tỷ lệ rớt gói UDP Socket đạt chính xác $0.00\%$** ở tải danh định 1.000 msg/s. | Cấu hình `SO_RCVBUF = 4MB`, theo dõi bộ đếm `metrics.udp_dropped_packets == 0`. |
-| **NFR-04** | **Tiêu hao tài nguyên** | Chiếm dụng tài nguyên máy chủ kiểm thử (4 Cores):<br>- CPU tiêu thụ: **$\le 60\%$**.<br>- RAM sử dụng tối đa: **$\le 1.5$ GB** (Không bị rò rỉ bộ nhớ). | Giám sát liên tục bằng công cụ `docker stats` và `htop` trong suốt 60 phút nghiệm thu. |
-| **NFR-05** | **Tốc độ truy vấn CSDL** | Thời gian phản hồi câu lệnh truy vấn lọc trên tập dữ liệu **1 triệu bản ghi nhỏ hơn 2 giây**. | Chạy lệnh `EXPLAIN ANALYZE` trên TimescaleDB, đo kiểm thời gian phản hồi thực tế qua API. |
-| **NFR-06** | **Chịu tải đột biến (Spike)** | Hệ thống hấp thụ an toàn đợt bắn tải đột biến **1.500 msg/s trong 2 phút** mà không bị sập dịch vụ. | Chạy kịch bản kiểm thử đột biến KB-08, tỷ lệ rớt gói cho phép $\le 0.05\%$. |
-| **NFR-07** | **Bảo mật mã nguồn** | Tuyệt đối **không lưu trữ hardcode mật khẩu, token, secret** hay khóa bí mật trong mã nguồn Git. | Tự động quét bằng script `tools/check_sensitive.py` trước khi commit mã nguồn. |
-| **NFR-08** | **Tuân thủ dữ liệu mô phỏng** | 100% dữ liệu thử nghiệm chỉ dùng dải IP mô phỏng nội bộ **RFC 1918** hoặc **RFC 5737**, không dùng IP thật của VNPT. | Rà soát toàn bộ tệp cấu hình và dữ liệu mẫu qua biểu thức chính quy Regex. |
-| **NFR-09** | **Khả năng phục hồi (Restart)** | Thời gian khởi động lại toàn bộ hệ thống từ trạng thái tắt sạch (Cold Start) **dưới 30 giây**. | Đo thời gian chạy lệnh `docker compose up -d` đến khi endpoint `/api/health` trả mã HTTP 200. |
-| **NFR-10** | **Độ chính xác tương quan** | Động cơ tương quan phát hiện chính xác **$\ge 90\%$** các trường hợp sự cố mạng trên bộ dữ liệu chuẩn ở W13. | Đối soát tỷ lệ `TP / (TP + FN)` trên tập 8 kịch bản chuẩn KB-01..08 do QA kiểm thử. |
-| **NFR-11** | **Chống tấn công Web** | Hệ thống miễn nhiễm hoàn toàn với các cuộc tấn công **SQL Injection**, **XSS** và **Path Traversal**. | Áp dụng kỹ thuật truy vấn tham số hóa (Parameterized Query) và mã hóa ký tự HTML Entity. |
-| **NFR-12** | **Tính khả dụng giao diện** | Giao diện Dashboard hiển thị tốt trên các trình duyệt hiện đại (Chrome, Edge, Firefox), độ phân giải từ Full HD (1080p). | Kiểm thử khả năng hiển thị tương thích trên nhiều kích thước màn hình máy trạm NOC. |
-| **NFR-13** | **Khả năng triển khai sạch** | Triển khai cài đặt toàn bộ hệ thống từ kho mã nguồn Git lên một máy chủ sạch hoàn tất **trong vòng 1 giờ**. | Thực hiện bài diễn tập dựng hệ thống từ con số 0 theo tài liệu hướng dẫn bàn giao. |
+| **LEGACY-NFR-01** | **Hiệu năng (Throughput)** | Duy trì ổn định thông lượng danh định **$\ge 1.000$ msg/s liên tục trong 1 giờ** tại bài nghiệm thu W13. | Phát tải bằng script `tools/load_runner.py`, đối soát tổng số gói gửi/nhận đạt chính xác 3.600.000 bản tin. |
+| **LEGACY-NFR-02** | **Độ trễ xử lý (Latency)** | - Độ trễ trung vị: **$P_{50} < 50$ ms**.<br>- Độ trễ phân vị cao: **$P_{99} < 200$ ms** (Đo từ lúc nhận gói socket đến khi commit DB). | Gắn timestamp vi giây tại 2 đầu pipeline, xuất biểu đồ phân vị độ trễ trong báo cáo kiểm thử. |
+| **LEGACY-NFR-03** | **Độ tin cậy (Packet Drop)** | **Tỷ lệ rớt gói UDP Socket đạt chính xác $0.00\%$** ở tải danh định 1.000 msg/s. | Cấu hình `SO_RCVBUF = 4MB`, theo dõi bộ đếm `metrics.udp_dropped_packets == 0`. |
+| **LEGACY-NFR-04** | **Tiêu hao tài nguyên** | Chiếm dụng tài nguyên máy chủ kiểm thử (4 Cores):<br>- CPU tiêu thụ: **$\le 60\%$**.<br>- RAM sử dụng tối đa: **$\le 1.5$ GB** (Không bị rò rỉ bộ nhớ). | Giám sát liên tục bằng công cụ `docker stats` và `htop` trong suốt 60 phút nghiệm thu. |
+| **LEGACY-NFR-05** | **Tốc độ truy vấn CSDL** | Thời gian phản hồi câu lệnh truy vấn lọc trên tập dữ liệu **1 triệu bản ghi nhỏ hơn 2 giây**. | Chạy lệnh `EXPLAIN ANALYZE` trên TimescaleDB, đo kiểm thời gian phản hồi thực tế qua API. |
+| **LEGACY-NFR-06** | **Chịu tải đột biến (Spike)** | Hệ thống hấp thụ an toàn đợt bắn tải đột biến **1.500 msg/s trong 2 phút** mà không bị sập dịch vụ. | Chạy kịch bản kiểm thử đột biến KB-08, tỷ lệ rớt gói cho phép $\le 0.05\%$. |
+| **LEGACY-NFR-07** | **Bảo mật mã nguồn** | Tuyệt đối **không lưu trữ hardcode mật khẩu, token, secret** hay khóa bí mật trong mã nguồn Git. | Tự động quét bằng script `tools/check_sensitive.py` trước khi commit mã nguồn. |
+| **LEGACY-NFR-08** | **Tuân thủ dữ liệu mô phỏng** | 100% dữ liệu thử nghiệm chỉ dùng dải IP mô phỏng nội bộ **RFC 1918** hoặc **RFC 5737**, không dùng IP thật của VNPT. | Rà soát toàn bộ tệp cấu hình và dữ liệu mẫu qua biểu thức chính quy Regex. |
+| **LEGACY-NFR-09** | **Khả năng phục hồi (Restart)** | Thời gian khởi động lại toàn bộ hệ thống từ trạng thái tắt sạch (Cold Start) **dưới 30 giây**. | Đo thời gian chạy lệnh `docker compose up -d` đến khi endpoint `/api/health` trả mã HTTP 200. |
+| **LEGACY-NFR-10** | **Độ chính xác tương quan** | Động cơ tương quan phát hiện chính xác **$\ge 90\%$** các trường hợp sự cố mạng trên bộ dữ liệu chuẩn ở W13. | Đối soát tỷ lệ `TP / (TP + FN)` trên tập 8 kịch bản chuẩn KB-01..08 do QA kiểm thử. |
+| **LEGACY-NFR-11** | **Chống tấn công Web** | Hệ thống miễn nhiễm hoàn toàn với các cuộc tấn công **SQL Injection**, **XSS** và **Path Traversal**. | Áp dụng kỹ thuật truy vấn tham số hóa (Parameterized Query) và mã hóa ký tự HTML Entity. |
+| **LEGACY-NFR-12** | **Tính khả dụng giao diện** | Giao diện Dashboard hiển thị tốt trên các trình duyệt hiện đại (Chrome, Edge, Firefox), độ phân giải từ Full HD (1080p). | Kiểm thử khả năng hiển thị tương thích trên nhiều kích thước màn hình máy trạm NOC. |
+| **LEGACY-NFR-13** | **Khả năng triển khai sạch** | Triển khai cài đặt toàn bộ hệ thống từ kho mã nguồn Git lên một máy chủ sạch hoàn tất **trong vòng 1 giờ**. | Thực hiện bài diễn tập dựng hệ thống từ con số 0 theo tài liệu hướng dẫn bàn giao. |
 
 ---
 
 ## 7. PHÊ DUYỆT BẢN ĐẶC TẢ YÊU CẦU NGHIỆP VỤ
+
+Thông tin phê duyệt bên dưới thuộc bản SRS ngày 09/11. Ghi xác nhận riêng cho các quyết định API, luật và nghiệm thu phát sinh sau mốc này.
 
 | Vai trò phê duyệt | Họ và tên | Chữ ký điện tử | Ngày ký duyệt |
 | :--- | :--- | :---: | :---: |
