@@ -27,7 +27,7 @@ Ma trận này là kế hoạch bao phủ FR/NFR đến tiêu chí nghiệm thu,
 | FR-12 Health/diagnostics | AC-08 | BE1/BE2 | TC-HLT-001–004; TC-SEC-003 | Liveness/readiness, dependency failure, field allowlist, metric deltas | Có `GET /api/health` liveness với 2 unit checks; chưa có readiness/dependency/counters | [N42-13](https://nhutp2945-1793259952237.atlassian.net/browse/N42-13) |
 | FR-13 Deterministic replay | AC-01, AC-05 | QA | TC-REP-001 | Seed, fixture version, deterministic payload/order, expected labels and result | Chưa có replay harness/ID strategy; test blocked | [N42-11](https://nhutp2945-1793259952237.atlassian.net/browse/N42-11), [N42-54](https://nhutp2945-1793259952237.atlassian.net/browse/N42-54) |
 | FR-14 Export | AC-04, AC-08 | FE/BE | TC-EXP-001 | Filter equivalence, delimiter/quote/newline escaping, size limit, file integrity | Chưa có contract/export endpoint; format/limit cần chốt, test blocked | [N42-63](https://nhutp2945-1793259952237.atlassian.net/browse/N42-63) |
-| FR-15 Rule configuration | AC-05 | BE3 | TC-RUL-001–007 | Schema/version, invalid cases, active hash trước/sau reload, rollback/audit | Rule service/API chưa có; schema/path/response phải chốt trước automation | [N42-17](https://nhutp2945-1793259952237.atlassian.net/browse/N42-17), [N42-38](https://nhutp2945-1793259952237.atlassian.net/browse/N42-38) |
+| FR-15 Rule configuration | AC-05 | BE3 | TC-RUL-001–005, 008–012 N17; 006/007 N38 | Schema/version/corpus/startup/JUnit N17; active hash/rollback/audit N38 | N17 có schema/loader/startup và 3 mẫu tắt version0.1.1; QA/TL acceptance và reload pending | [N42-17](https://nhutp2945-1793259952237.atlassian.net/browse/N42-17), [N42-38](https://nhutp2945-1793259952237.atlassian.net/browse/N42-38) |
 
 ## 3. Truy vết yêu cầu phi chức năng
 
@@ -79,3 +79,31 @@ Các mục sau không phải FR của sản phẩm, nhưng xuất hiện trong C
 ## 7. Cách duy trì
 
 Khi FR, API/schema, rule hoặc AC đổi, cập nhật SRS, thiết kế dữ liệu/API, acceptance criteria, test plan, test-case specification và ma trận trong cùng work item. Mỗi test phải truy ngược tới ít nhất một requirement; requirement chưa có test phải được ghi rõ là gap, owner và milestone.
+
+
+## N42-17: crosswalk review draft ngày 12/11/2026
+
+Giữ nguyên mã lịch sử; bảng sau là đề xuất ánh xạ theo hành vi, chờ TL/QA đồng bộ
+nguồn chuẩn. Không renumber toàn RTM. SRS Confluence page3375211 v13, RTM page3440729 v7,
+TCS page3375173 v11; corpus đủ61 trang trong báo cáo review cùng ngày.
+
+| Namespace / version | Requirement nguồn | Hành vi | AC / TC | Jira / evidence hoặc gap |
+|---|---|---|---|---|
+| SRS page3375211 v13 | FR21/FR22 | cấu hình/validation luật | AC05; TC-RUL001–005 | N42-17; loader/schema/tests; QA nguồn kép pending |
+| SRS page3375211 v13 | FR23 | reload luật | AC05; TC-RUL006/007 | N42-38; NOT RUN, không thuộc loader stateless |
+| RTM page3440729 v7 / Jira N42-17 | FR15 | config và reload đang gộp | AC05/06; TC-RUL001–007 | cần tách evidence N17/N38, chưa nghiệm thu toàn dòng |
+| Feature local 001-n42-rule-config | FR001–014, SC001–006 | contract/fixture/truy vết N17 | spec và manifest theo từng FR/SC | local evidence hoặc dependency, không phải ID SRS |
+
+N42-17 có 3 mẫu disabled; số5 luật/KPI detector là mục tiêu dự án. Field missing
+interface/link_state/psu_slot/peer/session_state chờ N23/24/26/62/65.
+Fixture review không chứng minh engine N44/45/65 hoặc reload N38 chạy đạt.
+Các dòng khác trong RTM là baseline lịch sử; không suy trạng thái của module khác từ
+checkout riêng N17. CI chỉ được xác nhận theo run/commit; cached main có workflow nhưng
+nhánh N17 baseline883d048 chưa có workflow. Không dùng số unit tests thay coverage nghiệp vụ.
+
+
+## Implementation amendment N42-17 — 12/11/2026
+
+Local FR15/AC05 → TC-RUL008–011: bounded schema/severity, enabled field contract, optional SHA256 pin. Owner BE3; code/tests hiện có theo ủy quyền user, QA/TL sign-off sau. Không renumber nguồn; catalog0.1.1/MAJOR vẫn disabled.
+
+Local FR15/AC05 → TC-RUL012: startup dùng loader thật, valid→state catalog, invalid→startup fail; BE3; QA acceptance pending.
