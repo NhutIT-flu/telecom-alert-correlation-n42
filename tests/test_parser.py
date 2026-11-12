@@ -22,9 +22,7 @@ EXPECTED_TIMESTAMP = datetime(2026, 11, 3, 15, 0, 0, tzinfo=timezone.utc)
 
 def test_n15_01_cisco_link_updown():
     raw = "<189>Nov 03 22:00:00 rtr-01 %LINK-3-UPDOWN: Gi0/1 down"
-    event = parse_syslog_rfc3164(
-        raw, DEFAULT_IP, received_at=DEFAULT_RECEIVED, source_timezone=DEFAULT_TZ
-    )
+    event = parse_syslog_rfc3164(raw, DEFAULT_IP, received_at=DEFAULT_RECEIVED, source_timezone=DEFAULT_TZ)
     assert event.parse_status == "parsed"
     assert event.parse_error is None
     assert event.facility == 23
@@ -44,9 +42,7 @@ def test_n15_01_cisco_link_updown():
 
 def test_n15_02_cisco_ospf_adjchg():
     raw = "<133>Nov 03 22:00:00 rtr-01 %OSPF-5-ADJCHG: Neighbor down"
-    event = parse_syslog_rfc3164(
-        raw, DEFAULT_IP, received_at=DEFAULT_RECEIVED, source_timezone=DEFAULT_TZ
-    )
+    event = parse_syslog_rfc3164(raw, DEFAULT_IP, received_at=DEFAULT_RECEIVED, source_timezone=DEFAULT_TZ)
     assert event.parse_status == "parsed"
     assert event.facility == 16
     assert event.severity == 5
@@ -58,9 +54,7 @@ def test_n15_02_cisco_ospf_adjchg():
 
 def test_n15_03_huawei_power_supply_failed():
     raw = "<131>Nov 03 22:00:00 ne-01 %%01DEVM/2/POWER_SUPPLY_FAILED: Power failed"
-    event = parse_syslog_rfc3164(
-        raw, DEFAULT_IP, received_at=DEFAULT_RECEIVED, source_timezone=DEFAULT_TZ
-    )
+    event = parse_syslog_rfc3164(raw, DEFAULT_IP, received_at=DEFAULT_RECEIVED, source_timezone=DEFAULT_TZ)
     assert event.parse_status == "parsed"
     assert event.facility == 16
     assert event.severity == 3
@@ -73,9 +67,7 @@ def test_n15_03_huawei_power_supply_failed():
 
 def test_n15_04_huawei_with_suffix_l():
     raw = "<131>Nov 03 22:00:00 ne-01 %%01DEVM/2/POWER_SUPPLY_FAILED(l): Power failed"
-    event = parse_syslog_rfc3164(
-        raw, DEFAULT_IP, received_at=DEFAULT_RECEIVED, source_timezone=DEFAULT_TZ
-    )
+    event = parse_syslog_rfc3164(raw, DEFAULT_IP, received_at=DEFAULT_RECEIVED, source_timezone=DEFAULT_TZ)
     assert event.parse_status == "parsed"
     assert event.facility == 16
     assert event.severity == 3
@@ -87,9 +79,7 @@ def test_n15_04_huawei_with_suffix_l():
 
 def test_n15_05_linux_sshd():
     raw = "<34>Nov  3 22:00:00 host-01 sshd[123]: Login failed"
-    event = parse_syslog_rfc3164(
-        raw, DEFAULT_IP, received_at=DEFAULT_RECEIVED, source_timezone=DEFAULT_TZ
-    )
+    event = parse_syslog_rfc3164(raw, DEFAULT_IP, received_at=DEFAULT_RECEIVED, source_timezone=DEFAULT_TZ)
     assert event.parse_status == "parsed"
     assert event.facility == 4
     assert event.severity == 2
@@ -102,9 +92,7 @@ def test_n15_05_linux_sshd():
 
 def test_n15_06_linux_kernel():
     raw = "<0>Nov 03 22:00:00 host-01 kernel: test"
-    event = parse_syslog_rfc3164(
-        raw, DEFAULT_IP, received_at=DEFAULT_RECEIVED, source_timezone=DEFAULT_TZ
-    )
+    event = parse_syslog_rfc3164(raw, DEFAULT_IP, received_at=DEFAULT_RECEIVED, source_timezone=DEFAULT_TZ)
     assert event.parse_status == "parsed"
     assert event.facility == 0
     assert event.severity == 0
@@ -115,9 +103,7 @@ def test_n15_06_linux_kernel():
 
 def test_n15_07_customapp_unknown_vendor():
     raw = "<191>Nov 03 22:00:00 host-01 customapp[42]: test"
-    event = parse_syslog_rfc3164(
-        raw, DEFAULT_IP, received_at=DEFAULT_RECEIVED, source_timezone=DEFAULT_TZ
-    )
+    event = parse_syslog_rfc3164(raw, DEFAULT_IP, received_at=DEFAULT_RECEIVED, source_timezone=DEFAULT_TZ)
     assert event.parse_status == "parsed"
     assert event.facility == 23
     assert event.severity == 7
@@ -128,9 +114,7 @@ def test_n15_07_customapp_unknown_vendor():
 
 def test_n15_08_plain_content_without_tag():
     raw = "<134>Nov 03 22:00:00 host-01 plain content"
-    event = parse_syslog_rfc3164(
-        raw, DEFAULT_IP, received_at=DEFAULT_RECEIVED, source_timezone=DEFAULT_TZ
-    )
+    event = parse_syslog_rfc3164(raw, DEFAULT_IP, received_at=DEFAULT_RECEIVED, source_timezone=DEFAULT_TZ)
     assert event.parse_status == "parsed"
     assert event.facility == 16
     assert event.severity == 6
@@ -151,9 +135,7 @@ def test_n15_08_plain_content_without_tag():
     ],
 )
 def test_n15_09_invalid_pri_variants(pri_raw):
-    event = parse_syslog_rfc3164(
-        pri_raw, DEFAULT_IP, received_at=DEFAULT_RECEIVED, source_timezone=DEFAULT_TZ
-    )
+    event = parse_syslog_rfc3164(pri_raw, DEFAULT_IP, received_at=DEFAULT_RECEIVED, source_timezone=DEFAULT_TZ)
     assert event.parse_status == "fallback"
     assert event.parse_error == "invalid_pri"
     assert event.facility == 1
@@ -165,17 +147,13 @@ def test_n15_09_invalid_pri_variants(pri_raw):
 
 def test_n15_10_missing_pri():
     raw = "Nov 03 22:00:00 host-01 test"
-    event = parse_syslog_rfc3164(
-        raw, DEFAULT_IP, received_at=DEFAULT_RECEIVED, source_timezone=DEFAULT_TZ
-    )
+    event = parse_syslog_rfc3164(raw, DEFAULT_IP, received_at=DEFAULT_RECEIVED, source_timezone=DEFAULT_TZ)
     assert event.parse_status == "fallback"
     assert event.parse_error == "missing_pri"
 
 
 def test_n15_11_empty_input():
-    event = parse_syslog_rfc3164(
-        "", DEFAULT_IP, received_at=DEFAULT_RECEIVED, source_timezone=DEFAULT_TZ
-    )
+    event = parse_syslog_rfc3164("", DEFAULT_IP, received_at=DEFAULT_RECEIVED, source_timezone=DEFAULT_TZ)
     assert event.parse_status == "fallback"
     assert event.parse_error == "empty_input"
 
@@ -188,18 +166,14 @@ def test_n15_11_empty_input():
     ],
 )
 def test_n15_12_invalid_timestamp(invalid_time_raw):
-    event = parse_syslog_rfc3164(
-        invalid_time_raw, DEFAULT_IP, received_at=DEFAULT_RECEIVED, source_timezone=DEFAULT_TZ
-    )
+    event = parse_syslog_rfc3164(invalid_time_raw, DEFAULT_IP, received_at=DEFAULT_RECEIVED, source_timezone=DEFAULT_TZ)
     assert event.parse_status == "fallback"
     assert event.parse_error == "invalid_timestamp"
 
 
 def test_n15_13_malformed_header_bad_month():
     raw = "<34>Bad 03 22:00:00 host-01 test"
-    event = parse_syslog_rfc3164(
-        raw, DEFAULT_IP, received_at=DEFAULT_RECEIVED, source_timezone=DEFAULT_TZ
-    )
+    event = parse_syslog_rfc3164(raw, DEFAULT_IP, received_at=DEFAULT_RECEIVED, source_timezone=DEFAULT_TZ)
     assert event.parse_status == "fallback"
     assert event.parse_error == "malformed_header"
 
@@ -239,9 +213,7 @@ def test_n15_17_leap_year_invalid_non_leap():
 
 def test_n15_18_unicode_and_crlf_suffix():
     raw = "<34>Nov  3 22:00:00 host-01 sshd[123]: Cảnh báo: kết nối lỗi\r\n"
-    event = parse_syslog_rfc3164(
-        raw, DEFAULT_IP, received_at=DEFAULT_RECEIVED, source_timezone=DEFAULT_TZ
-    )
+    event = parse_syslog_rfc3164(raw, DEFAULT_IP, received_at=DEFAULT_RECEIVED, source_timezone=DEFAULT_TZ)
     assert event.parse_status == "parsed"
     assert event.message == "Cảnh báo: kết nối lỗi"
     assert event.raw_payload == raw  # raw giữ nguyên cả CRLF
@@ -255,27 +227,21 @@ def test_n15_18_unicode_and_crlf_suffix():
     ],
 )
 def test_n15_19_control_char_and_internal_newline(corrupt_raw):
-    event = parse_syslog_rfc3164(
-        corrupt_raw, DEFAULT_IP, received_at=DEFAULT_RECEIVED, source_timezone=DEFAULT_TZ
-    )
+    event = parse_syslog_rfc3164(corrupt_raw, DEFAULT_IP, received_at=DEFAULT_RECEIVED, source_timezone=DEFAULT_TZ)
     assert event.parse_status == "fallback"
     assert event.parse_error == "malformed_header"
 
 
 def test_n15_20_unsupported_iso_header():
     raw = "<134>2026-11-03T22:00:00+07:00 host-01 test"
-    event = parse_syslog_rfc3164(
-        raw, DEFAULT_IP, received_at=DEFAULT_RECEIVED, source_timezone=DEFAULT_TZ
-    )
+    event = parse_syslog_rfc3164(raw, DEFAULT_IP, received_at=DEFAULT_RECEIVED, source_timezone=DEFAULT_TZ)
     assert event.parse_status == "fallback"
     assert event.parse_error == "unsupported_format"
 
 
 def test_n15_21_unsupported_fortinet_kv():
     raw = 'date=2026-11-03 time=22:00:00 devname="fg-01" action="deny"'
-    event = parse_syslog_rfc3164(
-        raw, DEFAULT_IP, received_at=DEFAULT_RECEIVED, source_timezone=DEFAULT_TZ
-    )
+    event = parse_syslog_rfc3164(raw, DEFAULT_IP, received_at=DEFAULT_RECEIVED, source_timezone=DEFAULT_TZ)
     assert event.parse_status == "fallback"
     assert event.parse_error == "unsupported_format"
 
@@ -287,14 +253,10 @@ def test_n15_22_payload_length_boundary():
     raw_1024 = prefix + ("A" * rem_len_1024)
     raw_1025 = raw_1024 + "B"
 
-    event_1024 = parse_syslog_rfc3164(
-        raw_1024, DEFAULT_IP, received_at=DEFAULT_RECEIVED, source_timezone=DEFAULT_TZ
-    )
+    event_1024 = parse_syslog_rfc3164(raw_1024, DEFAULT_IP, received_at=DEFAULT_RECEIVED, source_timezone=DEFAULT_TZ)
     assert event_1024.parse_status == "parsed"
 
-    event_1025 = parse_syslog_rfc3164(
-        raw_1025, DEFAULT_IP, received_at=DEFAULT_RECEIVED, source_timezone=DEFAULT_TZ
-    )
+    event_1025 = parse_syslog_rfc3164(raw_1025, DEFAULT_IP, received_at=DEFAULT_RECEIVED, source_timezone=DEFAULT_TZ)
     assert event_1025.parse_status == "fallback"
     assert event_1025.parse_error == "payload_too_large"
 
@@ -316,9 +278,7 @@ def test_n15_23_contract_boundary_exceptions():
 
 def test_n15_24_empty_message():
     raw = "<34>Nov 03 22:00:00 host-01 kernel: "
-    event = parse_syslog_rfc3164(
-        raw, DEFAULT_IP, received_at=DEFAULT_RECEIVED, source_timezone=DEFAULT_TZ
-    )
+    event = parse_syslog_rfc3164(raw, DEFAULT_IP, received_at=DEFAULT_RECEIVED, source_timezone=DEFAULT_TZ)
     assert event.parse_status == "parsed"
     assert event.message == ""
     assert event.program == "kernel"
@@ -368,21 +328,16 @@ def test_throughput_benchmark_dod():
     # Warm-up 1.000 lượt
     for _ in range(1000):
         for s in samples:
-            parse_syslog_rfc3164(
-                s, DEFAULT_IP, received_at=DEFAULT_RECEIVED, source_timezone=DEFAULT_TZ
-            )
+            parse_syslog_rfc3164(s, DEFAULT_IP, received_at=DEFAULT_RECEIVED, source_timezone=DEFAULT_TZ)
 
     # Đo thời gian với 30.000 lượt (5.000 batch x 6 mẫu)
     total_calls = 30000
     start = time.perf_counter()
     for _ in range(5000):
         for s in samples:
-            parse_syslog_rfc3164(
-                s, DEFAULT_IP, received_at=DEFAULT_RECEIVED, source_timezone=DEFAULT_TZ
-            )
+            parse_syslog_rfc3164(s, DEFAULT_IP, received_at=DEFAULT_RECEIVED, source_timezone=DEFAULT_TZ)
     elapsed = time.perf_counter() - start
     rate = total_calls / elapsed
 
     print(f"\n[BENCHMARK] Throughput: {rate:,.2f} logs/s (Thời gian: {elapsed:.3f}s cho {total_calls} bản tin)")
     assert rate >= 5000.0, f"Hiệu năng không đạt DoD (thực tế: {rate:,.2f} logs/s < 5,000 logs/s)"
-

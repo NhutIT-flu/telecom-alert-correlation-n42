@@ -9,16 +9,82 @@ Kiểm tra:
 - Xử lý biên (rate <= 0, duration limit, send error, request_stop).
 """
 
+from contextlib import contextmanager, redirect_stderr, redirect_stdout
 from datetime import datetime
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
+import io
 from pathlib import Path
 import re
 import socket
+import signal
+import subprocess
+import sys
 import tempfile
+import threading
+from typing import Iterator
 import unittest
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, mock_open, patch
 
-from tools.generator import SyslogGenerator, main, parse_args
+from tools.generator import DEFAULT_API_URL, FILE_FLUSH_EVERY, SyslogGenerator, main, parse_args
+
+
+class _IngestHandler(BaseHTTPRequestHandler):
+    """Giả lập endpoint POST /api/v1/events/ingest của N42-14 (HTTP/1.1 keep-alive)."""
+
+    protocol_version = "HTTP/1.1"
+
+    def do_POST(self) -> None:  # noqa: N802 - tên hàm do http.server quy định
+        length = int(self.headers.get("Content-Length", 0))
+        body = json.loads(self.rfile.read(length).decode("utf-8"))
+        self.server.requests.append(  # type: ignore[attr-defined]
+            {"path": self.path, "client_port": self.client_address[1], "body": body}
+        )
+        if self.server.drop_response_once and len(self.server.requests) == 1:  # type: ignore[attr-defined]
+            # Đã tiếp nhận payload nhưng response bị mất: retry sẽ tạo bản tin trùng.
+            self.close_connection = True
+            self.connection.shutdown(socket.SHUT_RDWR)
+            self.connection.close()
+            return
+        data = b'{"status":"SUCCESS"}'
+        reply_status = self.server.reply_status  # type: ignore[attr-defined]
+        if isinstance(reply_status, list):
+            reply_status = reply_status[len(self.server.requests) - 1]  # type: ignore[attr-defined]
+        self.send_response(reply_status)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(data)))
+        if self.server.close_each:  # type: ignore[attr-defined]
+            self.send_header("Connection", "close")
+        self.end_headers()
+        self.wfile.write(data)
+
+    def log_message(self, format: str, *args: object) -> None:  # noqa: A002
+        """Tắt log truy cập để output test gọn."""
+
+
+@contextmanager
+def _run_ingest_server(
+    reply_status=201, close_each: bool = False, drop_response_once: bool = False
+) -> Iterator[ThreadingHTTPServer]:
+    """Chạy server ingest giả lập trên cổng loopback ngẫu nhiên, tự dọn dẹp khi thoát."""
+    server = ThreadingHTTPServer(("127.0.0.1", 0), _IngestHandler)
+    server.daemon_threads = True
+    server.requests = []  # type: ignore[attr-defined]
+    server.reply_status = reply_status  # type: ignore[attr-defined]
+    server.close_each = close_each  # type: ignore[attr-defined]
+    server.drop_response_once = drop_response_once  # type: ignore[attr-defined]
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        yield server
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=2)
+
+
+def _server_url(server: ThreadingHTTPServer) -> str:
+    return f"http://127.0.0.1:{server.server_address[1]}/api/v1/events/ingest"
 
 
 class SyslogGeneratorTests(unittest.TestCase):
@@ -160,28 +226,191 @@ class SyslogGeneratorTests(unittest.TestCase):
         finally:
             receiver.close()
 
-    def test_emit_http_batch_mocked(self) -> None:
-        """Kiểm tra phát luồng bản tin qua HTTP REST API (POST JSON)."""
-        captured_payloads = []
+    def test_default_api_url_matches_n42_14_contract(self) -> None:
+        """Endpoint mặc định phải khớp router N42-14: /api + /v1/events + /ingest."""
+        self.assertEqual(DEFAULT_API_URL, "http://127.0.0.1:8000/api/v1/events/ingest")
+        self.assertEqual(SyslogGenerator().api_url, DEFAULT_API_URL)
+        self.assertEqual(parse_args([]).api_url, DEFAULT_API_URL)
 
-        def _fake_urlopen(req, timeout=3.0):
-            body = json.loads(req.data.decode("utf-8"))
-            captured_payloads.append(body)
-            mock_resp = MagicMock()
-            mock_resp.__enter__.return_value = mock_resp
-            mock_resp.read.return_value = b'{"status":"ok"}'
-            return mock_resp
-
-        with patch("urllib.request.urlopen", side_effect=_fake_urlopen):
-            gen = SyslogGenerator(api_url="http://127.0.0.1:8000/api/ingest", seed=7)
-            stats = gen.emit_http_batch(rate_per_sec=1000, count=4, vendor="huawei")
+    def test_emit_http_batch_reuses_single_keepalive_connection(self) -> None:
+        """50 bản tin HTTP phải đi qua đúng 1 kết nối TCP (tránh TIME_WAIT storm) và đúng payload/đường dẫn."""
+        with _run_ingest_server() as server:
+            gen = SyslogGenerator(api_url=_server_url(server), seed=7)
+            stats = gen.emit_http_batch(rate_per_sec=5000, count=50, vendor="huawei")
 
         self.assertEqual(stats["mode"], "http")
-        self.assertEqual(stats["sent"], 4)
+        self.assertEqual(stats["sent"], 50)
         self.assertEqual(stats["errors"], 0)
-        self.assertEqual(len(captured_payloads), 4)
-        self.assertEqual(captured_payloads[0]["source"], "REST_CLIENT")
-        self.assertIn("%%01", captured_payloads[0]["raw_message"])
+        self.assertEqual(len(server.requests), 50)
+        self.assertEqual({req["client_port"] for req in server.requests}, {server.requests[0]["client_port"]})
+        self.assertEqual({req["path"] for req in server.requests}, {"/api/v1/events/ingest"})
+        first_body = server.requests[0]["body"]
+        self.assertEqual(first_body["source"], "REST_CLIENT")
+        self.assertIn("%%01", first_body["raw_message"])
+
+    def test_emit_http_batch_reconnects_when_server_closes_connection(self) -> None:
+        """Server đóng kết nối sau mỗi response: generator tự mở lại, không mất bản tin nào."""
+        with _run_ingest_server(close_each=True) as server:
+            gen = SyslogGenerator(api_url=_server_url(server), seed=8)
+            stats = gen.emit_http_batch(rate_per_sec=5000, count=6, vendor="cisco")
+
+        self.assertEqual(stats["sent"], 6)
+        self.assertEqual(stats["errors"], 0)
+        self.assertEqual(len({req["client_port"] for req in server.requests}), 6)
+
+    def test_emit_http_batch_counts_non_2xx_as_errors(self) -> None:
+        """Mã trả về ngoài 2xx (ví dụ 404 do sai endpoint) phải tính vào errors, không tính là đã gửi."""
+        with _run_ingest_server(reply_status=404) as server:
+            gen = SyslogGenerator(api_url=_server_url(server), seed=9)
+            stats = gen.emit_http_batch(rate_per_sec=5000, count=5, vendor="fortinet")
+
+        self.assertEqual(stats["sent"], 0)
+        self.assertEqual(stats["errors"], 5)
+
+    def test_emit_http_batch_counts_unreachable_server_as_errors(self) -> None:
+        """Không kết nối được server: không crash, mọi bản tin đều tính vào errors."""
+        probe = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        probe.bind(("127.0.0.1", 0))
+        _, closed_port = probe.getsockname()
+        probe.close()
+
+        gen = SyslogGenerator(api_url=f"http://127.0.0.1:{closed_port}/api/v1/events/ingest", seed=10)
+        stats = gen.emit_http_batch(rate_per_sec=1000, count=3, vendor="cisco", timeout=0.5)
+
+        self.assertEqual(stats["sent"], 0)
+        self.assertEqual(stats["errors"], 3)
+        self.assertEqual(stats["unknown_outcomes"], 0)
+
+    def test_lost_response_does_not_resend_accepted_payload(self) -> None:
+        with _run_ingest_server(drop_response_once=True) as server:
+            gen = SyslogGenerator(api_url=_server_url(server), seed=42)
+            stats = gen.emit_http_batch(rate_per_sec=1000, count=1)
+
+        self.assertEqual(len(server.requests), 1)
+        self.assertEqual(stats["sent"], 0)
+        self.assertEqual(stats["errors"], 1)
+        self.assertEqual(stats["unknown_outcomes"], 1)
+        self.assertEqual(stats["attempted"], 1)
+
+    def test_after_lost_response_next_message_uses_new_connection(self) -> None:
+        with _run_ingest_server(drop_response_once=True) as server:
+            gen = SyslogGenerator(api_url=_server_url(server), seed=42)
+            stats = gen.emit_http_batch(rate_per_sec=1000, count=2)
+
+        self.assertEqual(len(server.requests), 2)
+        self.assertNotEqual(server.requests[0]["body"], server.requests[1]["body"])
+        self.assertNotEqual(server.requests[0]["client_port"], server.requests[1]["client_port"])
+        self.assertEqual((stats["sent"], stats["errors"], stats["unknown_outcomes"]), (1, 1, 1))
+        self.assertEqual(stats["attempted"], 2)
+
+    def test_timeout_or_partial_body_never_retries_post(self) -> None:
+        import http.client
+
+        for failure in (TimeoutError("response timeout"), http.client.IncompleteRead(b"partial", 20)):
+            with self.subTest(failure=type(failure).__name__):
+                connection = MagicMock()
+                connection.getresponse.return_value.read.side_effect = failure
+                with patch("tools.generator.http.client.HTTPConnection", return_value=connection):
+                    stats = SyslogGenerator(seed=42).emit_http_batch(rate_per_sec=1000, count=1)
+                self.assertEqual(connection.request.call_count, 1)
+                self.assertEqual(stats["unknown_outcomes"], 1)
+                self.assertEqual(stats["errors"], 1)
+                self.assertEqual(stats["sent"], 0)
+                connection.close.assert_called()
+
+    def test_mixed_http_results_keep_exact_attempt_count(self) -> None:
+        with _run_ingest_server(reply_status=[201, 503, 201]) as server:
+            stats = SyslogGenerator(api_url=_server_url(server), seed=42).emit_http_batch(1000, 3)
+        self.assertEqual(len(server.requests), 3)
+        self.assertEqual((stats["attempted"], stats["sent"], stats["errors"], stats["unknown_outcomes"]), (3, 2, 1, 0))
+
+    def test_cli_exit_code_for_all_failed_and_partial_http_batches(self) -> None:
+        for reply in (404, [201, 503, 201]):
+            with self.subTest(reply=reply), _run_ingest_server(reply_status=reply) as server:
+                with redirect_stdout(io.StringIO()):
+                    result = main(["--mode", "http", "--api-url", _server_url(server), "--count", "3"])
+                self.assertEqual(result, 1)
+                self.assertEqual(len(server.requests), 3)
+
+    def test_cli_reports_connection_failure_as_error(self) -> None:
+        connection = MagicMock()
+        connection.sock = None
+        connection.connect.side_effect = ConnectionRefusedError("local server not listening")
+        with patch("tools.generator.http.client.HTTPConnection", return_value=connection):
+            with redirect_stdout(io.StringIO()):
+                self.assertEqual(main(["--mode", "http", "--count", "2"]), 1)
+        self.assertEqual(connection.connect.call_count, 2)
+        connection.request.assert_not_called()
+
+    def test_cli_process_returns_nonzero_when_response_is_lost(self) -> None:
+        with _run_ingest_server(drop_response_once=True) as server:
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    "-X",
+                    "utf8",
+                    str(Path(__file__).parents[1] / "tools/generator.py"),
+                    "--mode",
+                    "http",
+                    "--api-url",
+                    _server_url(server),
+                    "--count",
+                    "1",
+                    "--seed",
+                    "42",
+                ],
+                capture_output=True,
+                encoding="utf-8",
+                timeout=10,
+            )
+        self.assertEqual(result.returncode, 1, result.stderr)
+        self.assertEqual(len(server.requests), 1)
+        self.assertIn("chưa rõ kết quả: 1", result.stdout)
+
+    def test_cli_rejects_invalid_options_before_creating_file(self) -> None:
+        for options in (
+            ["--rate", "0"],
+            ["--count", "-1"],
+            ["--duration", "nan"],
+            ["--duration", "inf"],
+            ["--duration", "0"],
+            ["--port", "65536"],
+        ):
+            with self.subTest(options=options), redirect_stderr(io.StringIO()):
+                with self.assertRaises(SystemExit) as raised:
+                    parse_args(options)
+                self.assertEqual(raised.exception.code, 2)
+
+    def test_cli_runtime_errors_return_nonzero_and_restore_sigint(self) -> None:
+        original = signal.getsignal(signal.SIGINT)
+        with tempfile.TemporaryDirectory() as directory, redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
+            result = main(["--mode", "file", "--file-path", directory, "--count", "1"])
+        self.assertEqual(result, 1)
+        self.assertEqual(signal.getsignal(signal.SIGINT), original)
+        with redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
+            self.assertEqual(main(["--mode", "http", "--api-url", "invalid-url", "--count", "1"]), 1)
+        self.assertEqual(signal.getsignal(signal.SIGINT), original)
+
+    def test_sigint_returns_130_and_restores_previous_handler(self) -> None:
+        original = signal.getsignal(signal.SIGINT)
+        emit = SyslogGenerator.emit_file_batch
+
+        def interrupted_batch(generator, **kwargs):
+            signal.getsignal(signal.SIGINT)(signal.SIGINT, None)
+            return emit(generator, **kwargs)
+
+        with tempfile.TemporaryDirectory() as directory, redirect_stdout(io.StringIO()):
+            with patch.object(SyslogGenerator, "emit_file_batch", interrupted_batch):
+                result = main(["--mode", "file", "--file-path", str(Path(directory) / "stop.log"), "--count", "5"])
+        self.assertEqual(result, 130)
+        self.assertEqual(signal.getsignal(signal.SIGINT), original)
+
+    def test_emit_http_batch_rejects_invalid_url(self) -> None:
+        """api_url sai định dạng phải báo ValueError rõ ràng ngay từ đầu."""
+        for bad_url in ("ftp://127.0.0.1/ingest", "not-a-url", "http:///path"):
+            gen = SyslogGenerator(api_url=bad_url)
+            with self.assertRaises(ValueError):
+                gen.emit_http_batch(rate_per_sec=100, count=1)
 
     def test_emit_file_batch(self) -> None:
         """Kiểm tra phát luồng bản tin ghi trực tiếp ra file log."""
@@ -198,6 +427,30 @@ class SyslogGeneratorTests(unittest.TestCase):
             lines = log_file.read_text(encoding="utf-8").strip().splitlines()
             self.assertEqual(len(lines), 6)
             self.assertTrue(all('type="traffic"' in line for line in lines))
+
+    def test_emit_file_batch_flushes_periodically_and_keeps_all_lines(self) -> None:
+        """Ghi nhiều hơn FILE_FLUSH_EVERY dòng: flush định kỳ nhưng file cuối cùng vẫn đủ 100% dòng."""
+        total = FILE_FLUSH_EVERY * 2 + 50
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            log_file = Path(tmp_dir) / "bulk_syslog.log"
+            gen = SyslogGenerator(file_path=str(log_file), seed=16)
+
+            stats = gen.emit_file_batch(rate_per_sec=1_000_000, count=total, vendor="mixed")
+
+            self.assertEqual(stats["sent"], total)
+            self.assertEqual(stats["errors"], 0)
+            self.assertEqual(len(log_file.read_text(encoding="utf-8").splitlines()), total)
+
+    def test_file_flush_is_batched_instead_of_per_line(self) -> None:
+        opened = mock_open()
+        total = FILE_FLUSH_EVERY * 2 + 50
+        with tempfile.TemporaryDirectory() as directory, patch("pathlib.Path.open", opened):
+            gen = SyslogGenerator(file_path=str(Path(directory) / "batched.log"), seed=42)
+            stats = gen.emit_file_batch(rate_per_sec=1_000_000, count=total)
+        self.assertEqual(stats["sent"], total)
+        self.assertEqual(opened().write.call_count, total)
+        self.assertEqual(opened().flush.call_count, 2)
+        opened().__exit__.assert_called_once()
 
     def test_cli_parse_args_and_main_all_modes(self) -> None:
         """Kiểm tra hàm parse_args và luồng thực thi CLI main() trên cả 3 chế độ (file, udp, http)."""
@@ -260,20 +513,14 @@ class SyslogGeneratorTests(unittest.TestCase):
         finally:
             receiver.close()
 
-        # Kiểm tra main() với chế độ HTTP REST
-        def _fake_urlopen(req, timeout=3.0):
-            mock_resp = MagicMock()
-            mock_resp.__enter__.return_value = mock_resp
-            mock_resp.read.return_value = b'{"status":"ok"}'
-            return mock_resp
-
-        with patch("urllib.request.urlopen", side_effect=_fake_urlopen):
+        # Kiểm tra main() với chế độ HTTP REST (server ingest cục bộ giả lập endpoint N42-14)
+        with _run_ingest_server() as server:
             exit_http = main(
                 [
                     "--mode",
                     "http",
                     "--api-url",
-                    "http://127.0.0.1:8000/api/ingest",
+                    _server_url(server),
                     "--rate",
                     "1000",
                     "--count",
@@ -283,6 +530,7 @@ class SyslogGeneratorTests(unittest.TestCase):
                 ]
             )
             self.assertEqual(exit_http, 0)
+            self.assertEqual(len(server.requests), 2)
 
 
 if __name__ == "__main__":
