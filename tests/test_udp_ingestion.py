@@ -165,3 +165,34 @@ class TestUDPIngestion:
 
         await server.stop()
         assert server.is_running is False
+
+    async def test_so_rcvbuf_configured_minimum_4mb(self, receiver_server: SyslogReceiverServer):
+        """Kiểm tra cấu hình SO_RCVBUF tối thiểu 4MB (DoD N42-13, NFR-03 & TDD v2 Mục 2.1)."""
+        assert receiver_server.rcvbuf_size is not None
+        assert receiver_server.rcvbuf_size >= 4 * 1024 * 1024
+
+    async def test_fastapi_lifespan_manages_udp_receiver(self, monkeypatch):
+        """Kiểm tra FastAPI Lifespan tự động khởi động và giải phóng UDP Receiver (DoD N42-13)."""
+        from app.main import app
+
+        # Sử dụng port động (port=0) để tránh xung đột cổng 5514 trong môi trường kiểm thử
+        monkeypatch.setenv("N42_UDP_PORT", "0")
+        monkeypatch.setenv("N42_UDP_HOST", "127.0.0.1")
+
+        async with app.router.lifespan_context(app):
+            assert hasattr(app.state, "syslog_receiver")
+            receiver = app.state.syslog_receiver
+            assert receiver is not None
+            assert receiver.is_running is True
+            assert receiver.bound_port > 0
+
+            # Gửi gói tin thử nghiệm qua socket vừa được Lifespan mở
+            payload = b"<134>Nov 06 15:00:00 lifespan-host %SYS-5-TEST: Lifespan verification"
+            send_udp_datagram(payload, receiver.bound_port)
+
+            event: RawEvent = await asyncio.wait_for(receiver.queue.get(), timeout=2.0)
+            assert event.payload == payload
+            assert event.source_ip == "127.0.0.1"
+
+        # Khi thoát lifespan context, socket phải được đóng an toàn (Graceful Shutdown)
+        assert receiver.is_running is False
