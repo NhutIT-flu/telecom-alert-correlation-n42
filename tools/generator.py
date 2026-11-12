@@ -3,7 +3,7 @@
 Công cụ CLI Sinh dữ liệu giả lập Syslog 3 nguồn (Module M8 - QA & Simulation - N42-11).
 Hỗ trợ phát cảnh báo giả lập đa hãng (Cisco, Huawei, Fortinet, Mixed) qua 3 nguồn chuẩn Baseline:
 1. UDP Socket (mặc định 127.0.0.1:5514, chuẩn RFC 3164 / RFC 5424)
-2. HTTP REST API (POST JSON tới /api/ingest hoặc /api/v1/events/ingest)
+2. HTTP REST API (POST JSON tới /api/v1/events/ingest theo hợp đồng N42-14, dùng kết nối HTTP keep-alive)
 3. Log File (ghi/append trực tiếp dòng log chuẩn phục vụ File Ingestion)
 
 Tuân thủ:
@@ -15,7 +15,9 @@ Tuân thủ:
 
 import argparse
 from datetime import datetime
+import http.client
 import json
+import math
 from pathlib import Path
 import random
 import signal
@@ -23,13 +25,32 @@ import socket
 import sys
 import time
 from typing import Any, Callable, Dict, List, Literal, Optional, Union
-import urllib.error
-import urllib.request
+from urllib.parse import urlsplit
 
 VendorChoice = Literal["cisco", "huawei", "fortinet", "mixed"]
 ModeChoice = Literal["udp", "http", "api", "rest", "file"]
 FormatChoice = Literal["rfc3164", "rfc5424"]
 SeedType = Union[int, str]
+
+# Endpoint REST ingest theo hợp đồng N42-14 (router prefix /api + /v1/events + /ingest)
+DEFAULT_API_URL = "http://127.0.0.1:8000/api/v1/events/ingest"
+
+# Chỉ flush file log định kỳ để tránh nghẽn Disk I/O ở tốc độ cao; phần còn lại được flush khi đóng file
+FILE_FLUSH_EVERY = 200
+
+
+class HTTPOutcomeUnknown(RuntimeError):
+    """POST đã bắt đầu nhưng không nhận được phản hồi đầy đủ; không tự retry."""
+
+
+def _validate_run_options(rate: float, count: int, duration: Optional[float]) -> None:
+    if not math.isfinite(rate) or rate <= 0:
+        raise ValueError("rate_per_sec phải hữu hạn và lớn hơn 0")
+    if count < 0:
+        raise ValueError("count không được âm (0 = chạy liên tục)")
+    if duration is not None and (not math.isfinite(duration) or duration <= 0):
+        raise ValueError("duration phải hữu hạn và lớn hơn 0")
+
 
 # Danh sách thiết bị giả lập (100% IP thuộc dải Private Lab RFC 1918: 10.10.x.x, 192.168.1.x)
 CISCO_DEVICES: List[Dict[str, str]] = [
@@ -93,7 +114,7 @@ class SyslogGenerator:
         self,
         target_host: str = "127.0.0.1",
         udp_port: int = 5514,
-        api_url: str = "http://127.0.0.1:8000/api/ingest",
+        api_url: str = DEFAULT_API_URL,
         file_path: str = "logs/simulated_syslog.log",
         seed: Optional[SeedType] = None,
         syslog_format: FormatChoice = "rfc3164",
@@ -268,16 +289,17 @@ class SyslogGenerator:
         duration_sec: Optional[float] = None,
     ) -> Dict[str, Any]:
         """Vòng lặp phát bản tin điều tiết tốc độ chính xác theo monotonic clock."""
-        if rate_per_sec <= 0:
-            raise ValueError("rate_per_sec phải lớn hơn 0")
+        _validate_run_options(rate_per_sec, count, duration_sec)
 
         sent_count = 0
         error_count = 0
+        unknown_count = 0
         start_time = time.perf_counter()
         interval = 1.0 / float(rate_per_sec)
 
         while not self._stop_requested:
-            if count > 0 and sent_count >= count:
+            # Tính cả bản tin lỗi vào tổng số lượt phát để vòng lặp luôn kết thúc khi đích không phản hồi
+            if count > 0 and (sent_count + error_count) >= count:
                 break
             if duration_sec is not None and duration_sec > 0:
                 if (time.perf_counter() - start_time) >= duration_sec:
@@ -287,6 +309,9 @@ class SyslogGenerator:
             try:
                 send_fn(msg)
                 sent_count += 1
+            except HTTPOutcomeUnknown:
+                error_count += 1
+                unknown_count += 1
             except Exception:
                 error_count += 1
 
@@ -302,6 +327,8 @@ class SyslogGenerator:
         return {
             "sent": sent_count,
             "errors": error_count,
+            "attempted": sent_count + error_count,
+            "unknown_outcomes": unknown_count,
             "elapsed_sec": round(elapsed, 4),
             "actual_rate": round(actual_rate, 2),
             "vendor": vendor,
@@ -348,7 +375,20 @@ class SyslogGenerator:
         duration_sec: Optional[float] = None,
         timeout: float = 3.0,
     ) -> Dict[str, Any]:
-        """Phát luồng bản tin cảnh báo qua HTTP REST API (POST JSON)."""
+        """Phát luồng bản tin cảnh báo qua HTTP REST API (POST JSON) trên một kết nối keep-alive.
+
+        Dùng chung một http.client.HTTPConnection cho cả đợt phát để tránh cạn kiệt cổng tạm (TIME_WAIT storm).
+        Mỗi bản tin chỉ POST một lần. Mất phản hồi được ghi unknown_outcomes (thuộc errors), không tự gửi lại.
+        Kết nối mới chỉ dành cho bản tin tiếp theo; chưa có idempotency contract để retry POST an toàn.
+        """
+        parts = urlsplit(self.api_url)
+        if parts.scheme not in ("http", "https") or not parts.hostname:
+            raise ValueError(f"api_url không hợp lệ (cần http(s)://host[:port]/path): {self.api_url}")
+
+        connection_cls = http.client.HTTPSConnection if parts.scheme == "https" else http.client.HTTPConnection
+        path = (parts.path or "/") + (f"?{parts.query}" if parts.query else "")
+        headers = {"Content-Type": "application/json", "Connection": "keep-alive"}
+        connection = connection_cls(parts.hostname, parts.port, timeout=timeout)
 
         def _send_http(message: str) -> None:
             payload = json.dumps(
@@ -358,22 +398,36 @@ class SyslogGenerator:
                     "vendor": vendor,
                 }
             ).encode("utf-8")
-            req = urllib.request.Request(
-                self.api_url,
-                data=payload,
-                headers={"Content-Type": "application/json"},
-                method="POST",
-            )
-            with urllib.request.urlopen(req, timeout=timeout) as resp:
-                resp.read()
+            # Lỗi connect xảy ra trước khi POST bắt đầu: không tính là kết quả chưa rõ.
+            if connection.sock is None:
+                try:
+                    connection.connect()
+                except (http.client.HTTPException, OSError):
+                    connection.close()
+                    raise
+            try:
+                connection.request("POST", path, body=payload, headers=headers)
+                response = connection.getresponse()
+                response.read()  # đọc hết body để kết nối được tái sử dụng
+                status = response.status
+                if response.will_close:
+                    connection.close()
+            except (http.client.HTTPException, OSError) as exc:
+                connection.close()
+                raise HTTPOutcomeUnknown("Mất phản hồi HTTP; bản tin có thể đã được backend nhận") from exc
+            if not 200 <= status < 300:
+                raise RuntimeError(f"HTTP {status} từ {self.api_url}")
 
-        result = self._run_rate_controlled_loop(
-            rate_per_sec=rate_per_sec,
-            count=count,
-            vendor=vendor,
-            send_fn=_send_http,
-            duration_sec=duration_sec,
-        )
+        try:
+            result = self._run_rate_controlled_loop(
+                rate_per_sec=rate_per_sec,
+                count=count,
+                vendor=vendor,
+                send_fn=_send_http,
+                duration_sec=duration_sec,
+            )
+        finally:
+            connection.close()
         result["mode"] = "http"
         result["target"] = self.api_url
         return result
@@ -385,15 +439,22 @@ class SyslogGenerator:
         vendor: Literal["cisco", "huawei", "fortinet", "mixed"] = "mixed",
         duration_sec: Optional[float] = None,
     ) -> Dict[str, Any]:
-        """Ghi luồng bản tin Syslog ra file văn bản phục vụ kịch bản File Ingestion."""
+        """Ghi luồng bản tin Syslog ra file văn bản phục vụ kịch bản File Ingestion.
+
+        Chỉ flush mỗi FILE_FLUSH_EVERY dòng; phần còn lại được đẩy xuống đĩa khi đóng file ở cuối đợt.
+        """
         out_path = Path(self.file_path)
         out_path.parent.mkdir(parents=True, exist_ok=True)
 
         with out_path.open("a", encoding="utf-8") as file_handle:
+            written = 0
 
             def _write_line(message: str) -> None:
+                nonlocal written
                 file_handle.write(message + "\n")
-                file_handle.flush()
+                written += 1
+                if written % FILE_FLUSH_EVERY == 0:
+                    file_handle.flush()
 
             result = self._run_rate_controlled_loop(
                 rate_per_sec=rate_per_sec,
@@ -464,8 +525,8 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
     parser.add_argument(
         "--api-url",
         type=str,
-        default="http://127.0.0.1:8000/api/ingest",
-        help="URL endpoint nhận bản tin cho chế độ HTTP REST (mặc định: http://127.0.0.1:8000/api/ingest).",
+        default=DEFAULT_API_URL,
+        help=f"URL endpoint nhận bản tin cho chế độ HTTP REST (mặc định: {DEFAULT_API_URL}).",
     )
     parser.add_argument(
         "--file-path",
@@ -479,7 +540,14 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
         default=None,
         help="Seed ngẫu nhiên (số hoặc chuỗi như KB-08-v1) phục vụ Deterministic Replay (FR-13 / TC-REP-001).",
     )
-    return parser.parse_args(argv)
+    args = parser.parse_args(argv)
+    try:
+        _validate_run_options(args.rate, args.count, args.duration)
+        if not 1 <= args.port <= 65535:
+            raise ValueError("port phải nằm trong khoảng 1–65535")
+    except ValueError as exc:
+        parser.error(str(exc))
+    return args
 
 
 def main(argv: Optional[List[str]] = None) -> int:
@@ -494,11 +562,15 @@ def main(argv: Optional[List[str]] = None) -> int:
         syslog_format=args.format,
     )
 
+    interrupted = False
+
     def _sigint_handler(signum: int, frame: Any) -> None:
+        nonlocal interrupted
+        interrupted = True
         print("\n[!] Nhận tín hiệu dừng (SIGINT / Ctrl+C). Đang hoàn tất và đóng kết nối an toàn...")
         generator.request_stop()
 
-    signal.signal(signal.SIGINT, _sigint_handler)
+    previous_sigint = signal.signal(signal.SIGINT, _sigint_handler)
 
     print("=" * 68)
     print("N42 TELECOM SYSLOG GENERATOR — BỘ SINH DỮ LIỆU GIẢ LẬP 3 NGUỒN")
@@ -533,16 +605,22 @@ def main(argv: Optional[List[str]] = None) -> int:
             )
     except KeyboardInterrupt:
         print("\n[!] Đã dừng chương trình theo yêu cầu người dùng.")
-        return 0
+        return 130
+    except (OSError, ValueError, http.client.HTTPException) as exc:
+        print(f"[LỖI] Không hoàn tất đợt phát: {exc}", file=sys.stderr)
+        return 1
+    finally:
+        signal.signal(signal.SIGINT, previous_sigint)
 
     print("-" * 68)
     print(
         f"[HOÀN TẤT] Đích: {stats['target']} | Đã phát: {stats['sent']} bản tin | "
-        f"Lỗi: {stats['errors']} | Thời gian: {stats['elapsed_sec']}s | "
+        f"Lỗi: {stats['errors']} (chưa rõ kết quả: {stats['unknown_outcomes']}) | "
+        f"Thời gian: {stats['elapsed_sec']}s | "
         f"Thông lượng đạt: {stats['actual_rate']} msg/s"
     )
     print("-" * 68)
-    return 0
+    return 130 if interrupted else (1 if stats["errors"] else 0)
 
 
 if __name__ == "__main__":
