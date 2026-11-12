@@ -17,11 +17,11 @@
 
 ---
 
-## Cổng sẵn sàng trước khi bắt đầu code
+## 2. Cổng sẵn sàng trước khi bắt đầu code
 
 Đây là quy ước kiểm soát nội bộ của nhóm N4.2, không được mô tả như chính sách đã ban hành của VNPT NET. Với mỗi yêu cầu chức năng hoặc thay đổi hành vi, Jira phải liên kết yêu cầu, owner, tiêu chí chấp nhận, Test Case Specification có input/expected output/điều kiện biên, và dòng tương ứng trong Requirements Traceability Matrix trước khi chuyển sang In Progress. QA Lead chủ trì đặc tả và ma trận; BE/FE owner xác nhận contract, dữ liệu và kết quả kỳ vọng; TL xử lý xung đột phạm vi và xác nhận readiness. Unit test của module do BE/FE phụ trách; QA quản lý kiểm thử tích hợp, CI/workflow, evidence và báo cáo. Các tài liệu này là kế hoạch cho đến khi có kết quả chạy gắn commit và môi trường.
 
-## 2. MA TRẬN TRÁCH NHIỆM RACI (TÁI CƠ CẤU 6 THÀNH VIÊN)
+## 3. MA TRẬN TRÁCH NHIỆM RACI (TÁI CƠ CẤU 6 THÀNH VIÊN)
 
 | Module / Nhiệm vụ | Nhựt (Team Lead / PM) | Minh (BE3) | Kiệt (QA Lead) | Long (BE1) | Thành (BE2) | Huy (FE) |
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: |
@@ -54,14 +54,14 @@
 
 ---
 
-## 3. LỘ TRÌNH 18 TUẦN & MỐC SỐNG CÒN
+## 4. LỘ TRÌNH 18 TUẦN & MỐC SỐNG CÒN
 
 - **W1 (01–07/11/2026):** rà soát hồ sơ và baseline; kickoff chưa diễn ra.
-- **W2 (08–14/11/2026):** kickoff dự kiến 09/11, xác nhận phạm vi, owner, backlog và phụ thuộc.
+- **Kickoff và Sprint 1.** Kickoff thực tế ngày 06/11/2026. Sprint 1 bắt đầu ngày 09/11/2026, trong W2 (08–14/11).
 - **W3–W4 (15–28/11/2026):** triển khai theo Jira; W4 checkpoint và Monthly Report theo lịch chương trình.
 - **W5–W8 (29/11 – 26/12/2026):** Parser đa vendor, TimescaleDB hypertable, Batch insert.
 - **W9 (27/12/2026):** **ĐÁNH GIÁ CHÉO GIỮA KỲ (MẪU 4 - THANG ĐIỂM 100).**
-- **W9–W12 (27/12/2026 – 23/01/2027):** Động cơ tương quan Sliding Window, WebSocket Stream, Dashboard NOC.
+- **W9–W12 (27/12/2026 – 23/01/2027):** Động cơ tương quan Sliding Window và Dashboard NOC. WebSocket theo quyết định phạm vi và hợp đồng N42-51/N42-53.
 - **W13 (24–30/01/2027):** nghiệm thu mục tiêu và code freeze 30/01; ghi rõ đạt/chưa đạt theo evidence, ngoại lệ cần PM chấp thuận.
 - **W14–W15 (31/01 – 13/02/2027):** Nghỉ Tết Nguyên Đán; không phát triển tính năng. Soak test chỉ chạy nếu đã có giám sát và được nhóm thống nhất.
 - **W16–W18 (14/02 – 06/03/2027):** Hoàn tất Monthly Report 4, hồ sơ bàn giao, demo và đánh giá chéo cuối kỳ; nghiệm thu và bảo vệ trước hội đồng VNPT NET & UTH.

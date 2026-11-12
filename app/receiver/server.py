@@ -27,9 +27,7 @@ class SyslogReceiverServer:
         self.host = host
         self.port = port
         self.queue_size = queue_size
-        self.queue: asyncio.Queue[RawEvent] = (
-            queue if queue is not None else asyncio.Queue(maxsize=queue_size)
-        )
+        self.queue: asyncio.Queue[RawEvent] = queue if queue is not None else asyncio.Queue(maxsize=queue_size)
         self.metrics: ReceiverMetrics = metrics or ReceiverMetrics()
         self.transport: Optional[asyncio.DatagramTransport] = None
         self.protocol: Optional[SyslogUDPProtocol] = None

@@ -15,6 +15,6 @@
 | R-09 | Dữ liệu/credential thật lọt vào repo | Thấp / Cao | Secret scanner hoặc review phát hiện dữ liệu nhạy cảm | Chỉ dùng dữ liệu giả lập/public đã duyệt; cách ly và báo TL; thu hồi credential nếu có | QA + TL |
 | R-10 | Đóng băng W13 nhưng còn lỗi nghiệm thu | Trung bình / Cao | Critical test fail ở W12 hoặc không có máy sạch rehearsal | Rehearsal trước W13; khóa scope; phân loại lỗi chặn/không chặn; W16-W18 xử lý lỗi và bàn giao | TL + QA |
 
-## Cách vận hành
+## 1. Cách vận hành
 
 Mỗi rủi ro mới phải có owner, tín hiệu đo được, ngày rà soát và phương án. TL cập nhật sau cuộc họp tuần; vấn đề đã xảy ra chuyển thành issue Jira nhưng vẫn giữ liên kết R-ID để theo dõi nguyên nhân và phòng ngừa tái diễn.

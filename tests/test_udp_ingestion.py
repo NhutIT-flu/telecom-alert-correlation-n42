@@ -5,7 +5,6 @@ import pytest
 
 from app.models.raw_event import RawEvent
 from app.receiver.metrics import ReceiverMetrics
-from app.receiver.protocol import SyslogUDPProtocol
 from app.receiver.server import SyslogReceiverServer
 
 
@@ -35,8 +34,7 @@ class TestUDPIngestion:
     async def test_tc_ing_001_valid_rfc3164(self, receiver_server: SyslogReceiverServer):
         """TC-ING-001: Tiếp nhận Syslog UDP RFC 3164 chuẩn xác."""
         payload = (
-            b"<134>Nov 06 15:00:00 sw-core-01 %LINK-3-UPDOWN: "
-            b"Interface GigabitEthernet0/1, changed state to down"
+            b"<134>Nov 06 15:00:00 sw-core-01 %LINK-3-UPDOWN: " b"Interface GigabitEthernet0/1, changed state to down"
         )
         send_udp_datagram(payload, receiver_server.bound_port)
 
@@ -96,7 +94,7 @@ class TestUDPIngestion:
     async def test_tc_ing_006_valid_rfc5424(self, receiver_server: SyslogReceiverServer):
         """TC-ING-006: Tiếp nhận Syslog định dạng RFC 5424 (Structured Syslog)."""
         payload = (
-            b'<165>1 2026-11-06T15:05:00.123Z router-edge-01 rsyslogd 1234 ID47 '
+            b"<165>1 2026-11-06T15:05:00.123Z router-edge-01 rsyslogd 1234 ID47 "
             b'[exampleSDID@32473 iut="3" eventSource="Application"] BOMAn application event'
         )
         send_udp_datagram(payload, receiver_server.bound_port)

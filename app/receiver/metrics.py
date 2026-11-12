@@ -5,6 +5,7 @@ from typing import Dict
 @dataclass
 class ReceiverMetrics:
     """Bộ đếm metrics nội bộ cho UDP Receiver (Module M1)."""
+
     udp_received_total: int = 0
     udp_dropped_empty: int = 0
     udp_queue_full_drops: int = 0
@@ -25,4 +26,3 @@ class ReceiverMetrics:
         self.udp_dropped_empty = 0
         self.udp_queue_full_drops = 0
         self.udp_errors = 0
-

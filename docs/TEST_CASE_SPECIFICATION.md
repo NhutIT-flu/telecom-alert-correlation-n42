@@ -268,6 +268,7 @@ Mô hình dưới đây là phác thảo. Quy tắc ≥5 event/60 giây có tron
 
 #### TC-ING-007: REST Ingest API hợp lệ (FR-02)
 - **Mã Jira:** `N42-14` | **Ưu tiên:** P1 (CRITICAL)
+- **Phạm vi:** Kiểm nhánh RAM với queue còn chỗ. Ca queue đầy kiểm HTTP `503` và nội dung queue giữ nguyên. ACK sau commit được kiểm riêng khi N42-62 chốt hợp đồng và có persistence.
 - **Dữ liệu đầu vào:** `POST /api/v1/events/ingest`
   ```json
   {"raw_message": "<134>Nov 06 15:10:00 fw-01 %SYS-5-CONFIG: Configured from console", "source": "REST_CLIENT"}
@@ -275,6 +276,14 @@ Mô hình dưới đây là phác thảo. Quy tắc ≥5 event/60 giây có tron
 - **Kết quả mong đợi:**
   - HTTP Status: `201 Created`.
   - Body: `{"status": "SUCCESS", "event_id": "<UUID>", "received_at": "<TIMESTAMP>"}`.
+
+#### TC-ING-016: REST ingest từ chối bản tin khi queue đầy
+
+- **Mã Jira:** [N42-14](https://nhutp2945-1793259952237.atlassian.net/browse/N42-14) · **Yêu cầu:** FR-02, NFR-08 · **Tiêu chí:** AC-01.
+- **Thiết lập:** Dùng queue cô lập, dung lượng nhỏ, nạp trước các RawEvent giả lập có nội dung và thứ tự xác định.
+- **Thực hiện:** Gửi một `raw_message` hợp lệ tới `POST /api/v1/events/ingest` khi queue đã đầy.
+- **Kết quả mong đợi:** HTTP `503` với `{"detail":"Ingest queue is full"}`. Phản hồi không chứa `SUCCESS` hoặc `event_id`. Các RawEvent đã có giữ nguyên số lượng, thứ tự và nội dung.
+- **Bằng chứng:** Gắn commit, kết quả `tests/test_api_ingest.py` và đối chiếu queue trước/sau. Trạng thái ca kiểm thử cập nhật theo kết quả chạy trên commit đã sửa.
 
 #### TC-ING-008: REST Ingest API - Thiếu trường bắt buộc (Negative)
 - **Mã Jira:** `N42-14` | **Ưu tiên:** P2 (HIGH)
@@ -298,6 +307,7 @@ Mô hình dưới đây là phác thảo. Quy tắc ≥5 event/60 giây có tron
 
 #### TC-ING-011: File Log Batch Import - 100 dòng hợp lệ (FR-03)
 - **Mã Jira:** `N42-22` | **Ưu tiên:** P2 (HIGH)
+- **Phạm vi:** Đối soát kết quả cuối của import run theo pipeline được duyệt. Với API bất đồng bộ, lấy các bộ đếm sau khi run hoàn tất.
 - **Dữ liệu đầu vào:** File `batch_100.log` chứa đúng 100 dòng Syslog chuẩn.
 - **Kết quả mong đợi:**
   - Tạo thành công 100 bản ghi trong CSDL.
@@ -451,9 +461,9 @@ Giá trị field mapping (đặc biệt normalized severity label/number và tê
   - $t = 52s$: `<134>Nov 06 15:40:52 sw-01 %LINK-3-UPDOWN: Interface Gi0/1, changed state to down`
 - **Kết quả mong đợi:**
   - Đúng thời điểm $t = 52s$, hệ thống sinh **1 Incident mới**.
-  - Tiêu đề Incident: `Interface Gi0/1 on sw-01 is flapping`. Mức độ: `MAJOR`.
+  - Tiêu đề Incident: `Interface Gi0/1 on sw-01 is flapping`. Severity đối chiếu rule version được duyệt tại DEC-03.
   - Danh sách `evidence_event_ids` chứa chính xác 5 UUID của 5 event trên.
-  - Kênh WebSocket phát bản tin cập nhật Incident mới tới FE.
+  - Đối soát incident và event IDs. Kênh WebSocket được kiểm riêng ở TC-UI-005 khi có hợp đồng transport và build.
 
 #### TC-COR-002: Kiểm tra biên dưới - 4 lần trong 60 giây (Không tạo Incident)
 - **Mã Jira:** `N42-44` | **Ưu tiên:** P1 (CRITICAL)
@@ -544,55 +554,48 @@ Giá trị field mapping (đặc biệt normalized severity label/number và tê
 
 ### 6.4 Cấu hình luật — BE3 (TC-RUL)
 
-#### TC-RUL-001: Thẩm định cú pháp YAML 1.2 hợp lệ qua Pydantic (FR-15)
-- **Mã Jira:** `N42-17` (design), `N42-38` (implementation) | **Ưu tiên:** P1 (CRITICAL)
-- **Trạng thái:** `BLOCKED` — schema, số rule baseline và lệnh CLI chưa được implementation/contract xác nhận.
-- **Dữ liệu đầu vào:** File `rules.yaml` hợp lệ theo schema được phê duyệt (fixture hiện là ví dụ thiết kế).
-- **Lệnh thực thi:** Chốt sau khi CLI/API validator được triển khai.
-- **Kết quả mong đợi:**
-  - Validation thành công; số rule và response theo schema/hợp đồng đã duyệt.
+**Local review revision 12/11/2026:** validator N42-17 hiện có trên nhánh
+`feature/N42-17-rules-yaml-design`; QA/TL sign-off vẫn pending. Đây là đối chiếu code và
+expected tại boundary loader; không phải nghiệm thu reload/detector hoặc sửa Confluence.
+Contract đang được kiểm bằng `app/models/rule_config.py`, `app/services/rule_config_loader.py`
+và `tests/test_rules_config.py`; các quyết định nghiệp vụ cần QA/TL xác nhận trên Jira N42-17.
 
-**TC-RUL-002–007:** Đặc tả target, hiện `BLOCKED` cho tới khi validator, rule schema và reload API được xác nhận. Không phụ thuộc vào nội dung/chuỗi exception cụ thể của Pydantic phiên bản chưa chốt.
+| Test case | Jira / priority | Input | Expected |
+|---|---|---|---|
+| TC-RUL-001 | N42-17 / P1 | app/services/rules.yaml; YAML1.2/UTF-8 hợp lệ, biên1 | RuleConfiguration version0.1.1 có đúng3 mẫu tắt; default enabled=false |
+| TC-RUL-002 | N42-17 / P1 | tab indentation, duplicate YAML key | YAMLError, vị trí dòng/cột nếu thư viện cung cấp; không partial success |
+| TC-RUL-003 | N42-17 / P1 | threshold0 | ValidationError loc=(rules,0,threshold); yêu cầu integer>0 |
+| TC-RUL-004 | N42-17 / P1 | window_seconds0 | ValidationError loc=(rules,0,window_seconds); yêu cầu integer>0 |
+| TC-RUL-005 | N42-17 / P2 | threshold="five"/"1"/true/1.5; window sai kiểu tương tự | ValidationError đúng loc; không coercion string/bool/float thành int |
+| TC-RUL-006 | N42-38 / P2 | bộ luật mới hợp lệ | BLOCKED/NOT RUN: atomic reload/version/hash; route và response target chờ contract N38 |
+| TC-RUL-007 | N42-38 / P1 | reload YAML không hợp lệ | BLOCKED/NOT RUN: giữ bộ active cũ và rollback/audit theo contract N38 |
 
-#### TC-RUL-002: Bắt lỗi khi trộn ký tự Tab (`\t`) trong YAML (IEC-RUL-01)
-- **Mã Jira:** `N42-17` (design), `N42-38` (implementation) | **Ưu tiên:** P1 (CRITICAL)
-- **Dữ liệu đầu vào:** File `rules_bad_tab.yaml` dùng ký tự Tab để thụt dòng.
-- **Kết quả mong đợi:**
-  - Trình nạp ném `yaml.scanner.ScannerError: found character '\t' that cannot start any token`.
+Không kiểm nguyên văn exception của một library version. Unit test thực thi:
+`python -m pytest tests/test_rules_config.py -q --junitxml=scratch/n42-17-config-junit.xml`.
+File thiếu/encoding hỏng, root sai, field thừa, empty match/catalog/group, identifier sai,
+ID/group trùng và YAML object tag không an toàn được kiểm bổ sung trong cùng module.
+Các nhóm lỗi có loc/file phù hợp trong contract; không tạo CLI/API mới chỉ để chạy test.
 
-#### TC-RUL-003: Bắt lỗi Threshold = 0 (BVA-07 Just Below)
-- **Mã Jira:** `N42-17` (design), `N42-38` (implementation) | **Ưu tiên:** P1 (CRITICAL)
-- **Dữ liệu đầu vào:** Luật có cấu hình `threshold: 0`.
-- **Kết quả mong đợi:**
-  - Pydantic ném lỗi: `ValidationError: threshold must be >= 1`.
-
-#### TC-RUL-004: Bắt lỗi Window Seconds = 0 (BVA-08 Just Below)
-- **Mã Jira:** `N42-17` (design), `N42-38` (implementation) | **Ưu tiên:** P1 (CRITICAL)
-- **Dữ liệu đầu vào:** `window_seconds: 0`.
-- **Kết quả mong đợi:**
-  - Pydantic ném lỗi: `ValidationError: window_seconds must be >= 1`.
-
-#### TC-RUL-005: Bắt lỗi Threshold có kiểu dữ liệu là chuỗi
-- **Mã Jira:** `N42-17` (design), `N42-38` (implementation) | **Ưu tiên:** P2 (HIGH)
-- **Dữ liệu đầu vào:** `threshold: "five"`.
-- **Kết quả mong đợi:**
-  - Pydantic ném lỗi kiểu dữ liệu: `value is not a valid integer`.
-
-#### TC-RUL-006: Hot-reload bộ luật thành công không gián đoạn
-- **Mã Jira:** `N42-38` | **Ưu tiên:** P2 (HIGH)
-- **Các bước thực hiện:**
-  1. Thêm luật mới vào `rules.yaml`.
-  2. Gửi request: `POST /api/v1/rules/reload`.
-- **Kết quả mong đợi:**
-  - HTTP `200 OK`. Bộ luật mới áp dụng tức thì mà không cần restart server.
-
-#### TC-RUL-007: Rollback tự động khi Hot-reload gặp file YAML lỗi
-- **Mã Jira:** `N42-38` | **Ưu tiên:** P1 (CRITICAL)
-- **Các bước thực hiện:** Chỉnh sửa file `rules.yaml` cố tình gây lỗi cú pháp, sau đó bấm Reload.
-- **Kết quả mong đợi:**
-  - Reload thất bại, giữ nguyên bộ luật cũ đang hoạt động. Zero downtime.
+Fixture review `tests/fixtures/rules/review-cases.json` dùng synthetic fields proposed:
+LF-01–07, PSU-01–07, BGP-01/02. Expected này chưa được engine thực thi, QA review pending.
+Catalog ứng viên0.1.1/MAJOR nằm riêng tại `tests/fixtures/rules/candidate-0.1.1.yaml`;
+catalog ứng dụng đã0.1.1/MAJOR theo ủy quyền user, QA/TL xác nhận sau. Nguồn kép cần QA chốt distinct slots,
+không dùng single-hit KB02 thay cho dual-PSU. Mọi execution record cần HEAD + working-tree
+hash, phiên bản config/fixture/dependencies, timestamp và JUnit thực tế.
 
 ---
+
+### N42-17: ca bổ sung TC-RUL-008–011 (triển khai trước approval theo ủy quyền user)
+
+| TC | Input | Expected |
+|---|---|---|
+| TC-RUL-008 | window86400/86401; threshold10000/10001; text tại/vượt caps | tại caps hợp lệ; vượt caps ValidationError đúng field |
+| TC-RUL-009 | severity CRITICAL/MAJOR/MINOR/WARNING/INFO và MAJRO | enum hợp lệ được nạp; typo bị ValidationError ở action.incident_severity |
+| TC-RUL-010 | enabled thiếu contract/thiếu field/có đủ field match,group,count | thiếu contract hoặc field bị ValidationError; đủ field nạp được; disabled nhận proposed field |
+| TC-RUL-011 | expected_sha256 đúng/sai/sai format; thêm comment giữ version | digest đúng nạp; mismatch/malformed ValueError; thay exactbytes bị phát hiện khi pin |
+
+Owner BE3; trace local FR15/AC05, spec amendment ngày12/11. Expected do trợ lý quyết định
+theo ủy quyền người dùng, QA/TL phê duyệt sau. Không có claim activation/detector PASS.
 
 ### 6.5 Query và Dashboard (TC-UI)
 
@@ -617,6 +620,7 @@ Giá trị field mapping (đặc biệt normalized severity label/number và tê
   - Truy vấn tham số hóa (Parameterized Query) an toàn, trả về danh sách rỗng, bảng CSDL nguyên vẹn.
 
 #### TC-UI-005: Cập nhật Incident thời gian thực qua WebSocket
+- **Điều kiện chạy:** N42-51/N42-53 có phạm vi được duyệt và build hỗ trợ transport. Khi thiếu điều kiện, ghi BLOCKED và nêu dependency.
 - **Mã Jira:** `N42-51`, `N42-53` | **Ưu tiên:** P1 (CRITICAL)
 - **Thực hiện:** Đang mở màn hình Dashboard, Correlation Engine kích hoạt 1 Incident mới.
 - **Kết quả mong đợi:**
@@ -756,6 +760,7 @@ Giá trị field mapping (đặc biệt normalized severity label/number và tê
   - Latency tổng (từ lúc gửi UDP đến lúc hiển thị trên FE) < 3 giây.
 
 #### TC-INT-002: Luồng tích hợp hoàn chỉnh: Link Flap → Incident → WebSocket → Dashboard Alert
+- **Điều kiện chạy:** Ghi phiên bản luật DEC-03 và build. Phần WebSocket chỉ chạy khi transport đã được duyệt; ghi riêng kết quả tạo incident và kết quả truyền tới Dashboard.
 - **Mã Jira:** `N42-44` → `N42-46` → `N42-51` → `N42-53` | **Ưu tiên:** P1 (CRITICAL)
 - **Mục tiêu:** Kiểm chứng chuỗi xử lý từ sự kiện thô → tương quan → tạo sự cố → giao diện.
 - **Các bước thực hiện:**
@@ -1126,77 +1131,13 @@ class TestLinkFlapCorrelation:
         # Chỉ có 1 incident, event_count = 20
 ```
 
-### 7.3 Script kiểm thử Rule Validation (Dành cho BE3 — Nguyễn Duy Minh)
+### 7.3 Kiểm thử Rule Validation — N42-17
 
-```python
-# tests/test_rule_validation.py
-"""
-Test cases cho BE3 — Rule Validator (Pydantic + YAML 1.2).
-Chạy: pytest tests/test_rule_validation.py -v
-"""
-import yaml
-import pytest
-# from app.services.rule_validator import validate_rules, RuleSchema
-
-VALID_RULE_YAML = """
-version: "1.2.0"
-rules:
-  - rule_id: "RULE-NET-01"
-    name: "Link Flap Detection"
-    enabled: true
-    window_seconds: 60
-    threshold: 5
-    group_by:
-      - "device_name"
-      - "interface_name"
-    condition:
-      field: "event_type"
-      operator: "EQUALS"
-      value: "LINK_UPDOWN"
-    action:
-      create_incident:
-        severity: "MAJOR"
-        title: "Interface Link Flapping"
-"""
-
-class TestRuleValidation:
-    """TC-RUL-001 → TC-RUL-007: Kiểm thử Thẩm định cú pháp YAML & Pydantic."""
-
-    def test_rul_001_valid_yaml_passes(self):
-        """TC-RUL-001: File YAML hợp lệ qua Pydantic thành công."""
-        data = yaml.safe_load(VALID_RULE_YAML)
-        assert data["version"] == "1.2.0"
-        assert len(data["rules"]) == 1
-        rule = data["rules"][0]
-        assert rule["threshold"] >= 1
-        assert rule["window_seconds"] >= 1
-        assert isinstance(rule["group_by"], list) and len(rule["group_by"]) > 0
-
-    def test_rul_002_tab_character_raises_error(self):
-        """TC-RUL-002: Ký tự Tab trong YAML gây lỗi ScannerError."""
-        bad_yaml = "rules:\n\t- name: test\n\t  threshold: 5"
-        with pytest.raises(yaml.scanner.ScannerError):
-            yaml.safe_load(bad_yaml)
-
-    def test_rul_003_threshold_zero_invalid(self):
-        """TC-RUL-003: threshold = 0 phải bị reject."""
-        data = yaml.safe_load(VALID_RULE_YAML)
-        data["rules"][0]["threshold"] = 0
-        assert data["rules"][0]["threshold"] < 1  # Pydantic sẽ bắt lỗi này
-        # validate_rules(data) sẽ ném ValidationError
-
-    def test_rul_004_window_zero_invalid(self):
-        """TC-RUL-004: window_seconds = 0 phải bị reject."""
-        data = yaml.safe_load(VALID_RULE_YAML)
-        data["rules"][0]["window_seconds"] = 0
-        assert data["rules"][0]["window_seconds"] < 1
-
-    def test_rul_005_threshold_string_type_error(self):
-        """TC-RUL-005: threshold = 'five' phải báo lỗi kiểu dữ liệu."""
-        bad_yaml = VALID_RULE_YAML.replace("threshold: 5", 'threshold: "five"')
-        data = yaml.safe_load(bad_yaml)
-        assert not isinstance(data["rules"][0]["threshold"], int)
-```
+Mã thực thi chuẩn nằm tại [tests/test_rules_config.py](../tests/test_rules_config.py).
+Dùng loader thật và Pydantic thật, không dùng phác thảo `yaml.safe_load` hoặc assertion
+trên dữ liệu sai để thay cho validation. Lệnh và mapping TC-RUL-001–005 ở §6.4.
+TC-RUL-006/007 vẫn thuộc N42-38 và chưa chạy. Kết quả cụ thể nằm trong evidence theo
+snapshot, không ghi số PASS cố định vào đặc tả này.
 
 ### 7.4 Script kiểm thử Security Scan (Dành cho QA — Ngô Châu Kiệt)
 
@@ -1455,29 +1396,29 @@ Ma trận dưới đây là ánh xạ kế hoạch giữa FR/NFR, Jira và ca ki
 
 | Mã Yêu cầu | Tên Yêu cầu Nghiệp vụ / Kỹ thuật | Thẻ Jira | Các Ca Kiểm thử Đại diện (Test Cases) | Phụ trách Chính |
 | :---: | :--- | :---: | :--- | :---: |
-| **FR-01** | Nhận diện Syslog UDP Socket 5514 | `N42-13` | TC-ING-001, 002, 003, 004, 005, 006, 014, 015 | Long (BE1) |
-| **FR-02** | REST API Ingest tiếp nhận bản tin | `N42-14` | TC-ING-007, 008, 009, 010 | Long (BE1) |
-| **FR-03** | Batch Log File Import từ ổ đĩa | `N42-14` | TC-ING-011, 012, 013, TC-SEC-006 | Long (BE1) |
-| **FR-04** | Parser chuẩn hóa đa vendor Cisco/Huawei/Juniper/Fortinet | `N42-15..17` | TC-PAR-001, 002, 003, 004, 005, 006, 007, 008, 009, 012 | Thành (BE2) |
-| **FR-05** | Fallback RAW cho bản tin dị dạng/hỏng | `N42-18` | TC-PAR-010, 011, TC-ING-003 | Thành (BE2) |
-| **FR-06** | Lưu trữ sự kiện bền vững vào PostgreSQL | `N42-15` | TC-DB-001, 002, 003, TC-INT-001, 003 | Thành (BE2) |
-| **FR-07** | Tìm kiếm, lọc và phân trang sự kiện | `N42-19` | TC-UI-002, 003, TC-SEC-004, TC-PERF-008 | Thành / Huy |
-| **FR-08** | Thống kê số lượng sự kiện theo khung giờ/thiết bị | `N42-19` | TC-UI-001, TC-DB-003 | Thành / Huy |
-| **FR-09** | Tương quan sự cố đa cảnh báo (Correlation Engine) | `N42-44, 45` | TC-COR-001, 002, 003, 004, 005, 006, 007, 008, 009, 010, 011 | Minh (BE3) |
-| **FR-10** | Quản lý vòng đời sự cố (Incident Lifecycle & FSM) | `N42-44` | TC-COR-007, 012, TC-INT-002, TC-DB-004 | Minh (BE3) |
-| **FR-11** | Dashboard hiển thị cảnh báo thời gian thực | `N42-20` | TC-UI-001–006, TC-INT-002, TC-SEC-005 | Huy (FE) |
-| **FR-12** | Health check & giám sát metrics hệ thống | `N42-33` | TC-HLT-001, 002, 003, 004 | BE1 / QA theo ticket |
-| **FR-13** | Replay deterministic theo scenario/seed | Jira cần đối chiếu | TC-REP-001 | Kiệt (QA) |
-| **FR-14** | Export theo filter, escaping và giới hạn | Jira cần đối chiếu | TC-EXP-001 | FE / BE liên quan |
-| **FR-15** | Thẩm định và Hot-reload cấu hình rules.yaml | `N42-46` | TC-RUL-001, 002, 003, 004, 005, 006, 007 | Minh (BE3) |
-| **NFR-01** | Tải danh định $\ge 1.000$ msg/s liên tục | `N42-47` | TC-PERF-001 (10p), TC-PERF-002 (1h), TC-PERF-004 (1.500 msg/s) | Kiệt (QA) |
-| **NFR-02** | Độ trễ xử lý $P_{50} < 50$ms, $P_{99} < 200$ms | `N42-47` | TC-PERF-003 | Kiệt (QA) |
-| **NFR-03** | Tỷ lệ rớt gói UDP Socket đạt tuyệt đối $0.00\%$ | `N42-32, 47` | TC-ING-014, TC-PERF-001, 002 | Long / Kiệt |
-| **NFR-04** | Tiêu thụ tài nguyên CPU $\le 60\%$, RAM $\le 1.5$ GB | `N42-47` | TC-PERF-001, 002, 005 (Memory Leak) | QA + BE owner theo metric |
-| **NFR-05** | Truy vấn 1 triệu bản ghi dưới 2 giây | `N42-47` | TC-PERF-008, TC-DB-003 | Thành / Kiệt |
-| **NFR-06** | 100% dữ liệu giả lập, không lộ Secret / IP thật | `N42-33` | TC-SEC-001, 002, 003, TC-HLT-003 | QA + code owners; TL điều phối hồ sơ |
-| **NFR-07** | Cài đặt và phục hồi theo handover target | Jira cần đối chiếu | TC-INT-003, TC-PERF-007, TC-OPS-001, 003 | QA / BE1 / BE2 |
-| **NFR-08** | Bounded memory và policy khi saturation | Jira cần đối chiếu | TC-ING-014, TC-PERF-004, 006, TC-OPS-003 | BE1 / BE2 / QA |
+| **FR-01** | Nhận diện Syslog UDP Socket 5514 | [N42-13](https://nhutp2945-1793259952237.atlassian.net/browse/N42-13), [N42-32](https://nhutp2945-1793259952237.atlassian.net/browse/N42-32) | TC-ING-001, 002, 003, 004, 005, 006, 014, 015 | Long (BE1) |
+| **FR-02** | REST API Ingest tiếp nhận bản tin | [N42-14](https://nhutp2945-1793259952237.atlassian.net/browse/N42-14) | TC-ING-007, 008, 009, 010 | Long (BE1) |
+| **FR-03** | Batch Log File Import từ ổ đĩa | [N42-22](https://nhutp2945-1793259952237.atlassian.net/browse/N42-22) | TC-ING-011, 012, 013, TC-SEC-006 | Long (BE1) |
+| **FR-04** | Parser chuẩn hóa đa vendor Cisco/Huawei/Juniper/Fortinet | [N42-15](https://nhutp2945-1793259952237.atlassian.net/browse/N42-15), [N42-23](https://nhutp2945-1793259952237.atlassian.net/browse/N42-23), [N42-24](https://nhutp2945-1793259952237.atlassian.net/browse/N42-24), [N42-25](https://nhutp2945-1793259952237.atlassian.net/browse/N42-25) | TC-PAR-001, 002, 003, 004, 005, 006, 007, 008, 009, 012 | Thành (BE2) |
+| **FR-05** | Fallback RAW cho bản tin dị dạng/hỏng | [N42-15](https://nhutp2945-1793259952237.atlassian.net/browse/N42-15) | TC-PAR-010, 011, TC-ING-003 | Thành (BE2) |
+| **FR-06** | Lưu trữ sự kiện bền vững vào PostgreSQL | [N42-16](https://nhutp2945-1793259952237.atlassian.net/browse/N42-16), [N42-30](https://nhutp2945-1793259952237.atlassian.net/browse/N42-30), [N42-31](https://nhutp2945-1793259952237.atlassian.net/browse/N42-31), [N42-55](https://nhutp2945-1793259952237.atlassian.net/browse/N42-55) | TC-DB-001, 002, 003, TC-INT-001, 003 | Thành (BE2) |
+| **FR-07** | Tìm kiếm, lọc và phân trang sự kiện | [N42-28](https://nhutp2945-1793259952237.atlassian.net/browse/N42-28), [N42-34](https://nhutp2945-1793259952237.atlassian.net/browse/N42-34), [N42-67](https://nhutp2945-1793259952237.atlassian.net/browse/N42-67) | TC-UI-002, 003, TC-SEC-004, TC-PERF-008 | Thành / Huy |
+| **FR-08** | Thống kê số lượng sự kiện theo khung giờ/thiết bị | [N42-39](https://nhutp2945-1793259952237.atlassian.net/browse/N42-39), [N42-41](https://nhutp2945-1793259952237.atlassian.net/browse/N42-41) | TC-UI-001, TC-DB-003 | Thành / Huy |
+| **FR-09** | Tương quan sự cố đa cảnh báo (Correlation Engine) | [N42-18](https://nhutp2945-1793259952237.atlassian.net/browse/N42-18), [N42-37](https://nhutp2945-1793259952237.atlassian.net/browse/N42-37), [N42-44](https://nhutp2945-1793259952237.atlassian.net/browse/N42-44), [N42-45](https://nhutp2945-1793259952237.atlassian.net/browse/N42-45), [N42-48](https://nhutp2945-1793259952237.atlassian.net/browse/N42-48), [N42-64](https://nhutp2945-1793259952237.atlassian.net/browse/N42-64), [N42-65](https://nhutp2945-1793259952237.atlassian.net/browse/N42-65), [N42-66](https://nhutp2945-1793259952237.atlassian.net/browse/N42-66) | TC-COR-001, 002, 003, 004, 005, 006, 007, 008, 009, 010, 011 | Minh (BE3) |
+| **FR-10** | Quản lý vòng đời sự cố (Incident Lifecycle & FSM) | [N42-33](https://nhutp2945-1793259952237.atlassian.net/browse/N42-33), [N42-44](https://nhutp2945-1793259952237.atlassian.net/browse/N42-44), [N42-46](https://nhutp2945-1793259952237.atlassian.net/browse/N42-46), [N42-47](https://nhutp2945-1793259952237.atlassian.net/browse/N42-47) | TC-COR-007, 012, TC-INT-002, TC-DB-004 | Minh (BE3) |
+| **FR-11** | Dashboard hiển thị cảnh báo thời gian thực | [N42-20](https://nhutp2945-1793259952237.atlassian.net/browse/N42-20), [N42-28](https://nhutp2945-1793259952237.atlassian.net/browse/N42-28), [N42-34](https://nhutp2945-1793259952237.atlassian.net/browse/N42-34), [N42-41](https://nhutp2945-1793259952237.atlassian.net/browse/N42-41), [N42-47](https://nhutp2945-1793259952237.atlassian.net/browse/N42-47), [N42-53](https://nhutp2945-1793259952237.atlassian.net/browse/N42-53) | TC-UI-001–006, TC-INT-002, TC-SEC-005 | Huy (FE) |
+| **FR-12** | Health check & giám sát metrics hệ thống | [N42-13](https://nhutp2945-1793259952237.atlassian.net/browse/N42-13) | TC-HLT-001, 002, 003, 004 | BE1 / QA theo ticket |
+| **FR-13** | Replay deterministic theo scenario/seed | [N42-11](https://nhutp2945-1793259952237.atlassian.net/browse/N42-11), [N42-54](https://nhutp2945-1793259952237.atlassian.net/browse/N42-54) | TC-REP-001 | Kiệt (QA) |
+| **FR-14** | Export theo filter, escaping và giới hạn | [N42-63](https://nhutp2945-1793259952237.atlassian.net/browse/N42-63) | TC-EXP-001 | FE / BE liên quan |
+| **FR-15** | Thẩm định/startup N17; Hot-reload N38 (chờ QA/TL nghiệm thu) | [N42-17](https://nhutp2945-1793259952237.atlassian.net/browse/N42-17), [N42-38](https://nhutp2945-1793259952237.atlassian.net/browse/N42-38) | TC-RUL-001–005, 008–012 (N17); TC-RUL-006/007 (N38) | Minh (BE3) |
+| **NFR-01** | Tải danh định $\ge 1.000$ msg/s liên tục | [N42-57](https://nhutp2945-1793259952237.atlassian.net/browse/N42-57) | TC-PERF-001 (10p), TC-PERF-002 (1h), TC-PERF-004 (1.500 msg/s) | Kiệt (QA) |
+| **NFR-02** | Độ trễ xử lý $P_{50} < 50$ms, $P_{99} < 200$ms | [N42-52](https://nhutp2945-1793259952237.atlassian.net/browse/N42-52), [N42-57](https://nhutp2945-1793259952237.atlassian.net/browse/N42-57) | TC-PERF-003 | Kiệt (QA) |
+| **NFR-03** | Tỷ lệ rớt gói UDP Socket đạt tuyệt đối $0.00\%$ | [N42-32](https://nhutp2945-1793259952237.atlassian.net/browse/N42-32), [N42-57](https://nhutp2945-1793259952237.atlassian.net/browse/N42-57) | TC-ING-014, TC-PERF-001, 002 | Long / Kiệt |
+| **NFR-04** | Tiêu thụ tài nguyên CPU $\le 60\%$, RAM $\le 1.5$ GB | [N42-57](https://nhutp2945-1793259952237.atlassian.net/browse/N42-57), [N42-58](https://nhutp2945-1793259952237.atlassian.net/browse/N42-58) | TC-PERF-001, 002, 005 (Memory Leak) | QA + BE owner theo metric |
+| **NFR-05** | Truy vấn 1 triệu bản ghi dưới 2 giây | [N42-23](https://nhutp2945-1793259952237.atlassian.net/browse/N42-23), [N42-24](https://nhutp2945-1793259952237.atlassian.net/browse/N42-24), [N42-25](https://nhutp2945-1793259952237.atlassian.net/browse/N42-25), [N42-30](https://nhutp2945-1793259952237.atlassian.net/browse/N42-30), [N42-67](https://nhutp2945-1793259952237.atlassian.net/browse/N42-67) | TC-PERF-008, TC-DB-003 | Thành / Kiệt |
+| **NFR-06** | 100% dữ liệu giả lập, không lộ Secret / IP thật | [N42-10](https://nhutp2945-1793259952237.atlassian.net/browse/N42-10), [N42-50](https://nhutp2945-1793259952237.atlassian.net/browse/N42-50), [N42-60](https://nhutp2945-1793259952237.atlassian.net/browse/N42-60) | TC-SEC-001, 002, 003, TC-HLT-003 | QA + code owners; TL điều phối hồ sơ |
+| **NFR-07** | Cài đặt và phục hồi theo handover target | [N42-55](https://nhutp2945-1793259952237.atlassian.net/browse/N42-55), [N42-59](https://nhutp2945-1793259952237.atlassian.net/browse/N42-59), [N42-61](https://nhutp2945-1793259952237.atlassian.net/browse/N42-61) | TC-INT-003, TC-PERF-007, TC-OPS-001, 003 | QA / BE1 / BE2 |
+| **NFR-08** | Bounded memory và policy khi saturation | [N42-13](https://nhutp2945-1793259952237.atlassian.net/browse/N42-13), [N42-14](https://nhutp2945-1793259952237.atlassian.net/browse/N42-14), [N42-31](https://nhutp2945-1793259952237.atlassian.net/browse/N42-31), [N42-32](https://nhutp2945-1793259952237.atlassian.net/browse/N42-32), [N42-57](https://nhutp2945-1793259952237.atlassian.net/browse/N42-57) | TC-ING-014, TC-PERF-004, 006, TC-OPS-003 | BE1 / BE2 / QA |
 
 ---
 
@@ -1504,3 +1445,12 @@ Tài liệu này là bản đặc tả làm việc. Chỉ ghi chữ ký và ngà
 | Đại diện BE1 | __________ | Chờ rà soát | __________ |
 | Đại diện BE2 | __________ | Chờ rà soát | __________ |
 | Đại diện BE3 | __________ | Chờ rà soát | __________ |
+
+
+## Startup integration — 12/11/2026
+
+FastAPI lifespan nạp rules.yaml bằng loader thật trước khi nhận request; lưu tại
+app.state.rule_configuration. Invalid config làm startup thất bại; không có API mới,
+engine hoặc reload. TC-RUL-012: startup hợp lệ nạp3mẫu tắt/version0.1.1, startup invalid
+catalog bị ValidationError. Test thực tế tests/test_rule_startup.py. Code owner BE3.
+Đây là tích hợp M5 theo ủy quyền triển khai, không suy field producer đã được phê duyệt.

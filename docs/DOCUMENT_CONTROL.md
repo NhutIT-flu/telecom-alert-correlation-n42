@@ -1,6 +1,6 @@
 # Quản lý tài liệu dự án N4.2
 
-**Baseline hiện hành:** 07/11/2026 · **Trạng thái:** bản làm việc đồng bộ · **Chủ sở hữu:** Team Leader
+**Baseline hiện hành:** 09/11/2026 · **Trạng thái:** bản làm việc nội bộ; hồ sơ Word/PDF cần qua đối chiếu manifest và kiểm tra trước phát hành · **Chủ sở hữu:** Team Leader
 
 ## 1. Cơ cấu nhóm hiện hành
 
@@ -23,15 +23,17 @@
 
 Tài liệu Word/PDF trong `vnpt-proposal/` là hồ sơ dẫn xuất; Markdown trong `vnpt-repos/n42/docs/` là nguồn chuẩn với tài liệu được sinh từ nguồn. Bản phát hành phải được tái sinh sau khi chốt nguồn và kiểm tra nội dung/layout. Theo yêu cầu ngày 07/11/2026, toàn bộ ZIP trong workspace đã được xóa; không có gói ZIP hiện hành.
 
-**Kết quả rà soát và điều khiển phát hành 07/11/2026:**
+**Kết quả rà soát và điều khiển phát hành 09/11/2026:**
 
 - `TEST_CASE_SPECIFICATION.md` là đặc tả kế hoạch chi tiết; mã test trong tài liệu không chứng minh đã tự động hóa hoặc đã chạy. RTM phải chỉ rõ coverage dự kiến, evidence và gap.
 - Phạm vi baseline nguồn vào là syslog UDP, REST ingest và file; TCP chỉ bổ sung qua quyết định phạm vi và cập nhật SRS/AC/RTM/Jira. Không tuyên bố coverage chức năng 100%. QA chủ trì test/coverage/CI; owner code viết unit test module mình.
-- Báo cáo W1 (01–07/11/2026) và biên bản kickoff W2 (09/11/2026) phải mang trạng thái dự thảo/mẫu cho đến khi kỳ kết thúc/cuộc họp diễn ra và được đối chiếu evidence; không ghi thành kết quả đã đạt.
+- Lưu lịch dự kiến 09/11 làm hồ sơ chuẩn bị. Kickoff thực tế ngày 06/11/2026. Sprint 1 bắt đầu ngày 09/11/2026. Ghi kết quả họp và báo cáo theo bằng chứng đã đối chiếu.
 - PDF phải được render và rà trực quan trước khi coi là bản phát hành; nội dung trích xuất chỉ là kiểm tra bổ sung, không thay QA bố cục.
 - Bản Word/PDF phát hành chỉ được xem là đồng bộ khi tên tệp khớp manifest, sinh từ nguồn cùng baseline, không còn bản tuần/biên bản sai tên, và đã qua kiểm tra nội dung/hình thức. ZIP đã bị xóa theo yêu cầu, không tái tạo.
 
-**Trạng thái bản phát hành sau cập nhật:** nguồn Markdown được dùng để sinh bộ Word/PDF; các tài liệu vận hành cấp cao nhất được tái sinh từ generator và PDF xuất lại từ Word. Tập kiểm thử có `TEST_CASE_SPECIFICATION` và `REQUIREMENTS_TRACEABILITY_MATRIX`; tập Lead phần kiểm thử phải gồm cả hai. Các bản thừa mang tên scenario cũ/W01 sai mốc cần loại khỏi thư mục phát hành để tránh nhầm phiên bản.
+**Trạng thái hồ sơ dẫn xuất:** Word/PDF được xem là bản phát hành chỉ sau khi đối chiếu từng tệp với manifest cùng baseline, rà nội dung và bố cục, rồi ghi người rà soát. Có Test Case Specification và RTM trong nguồn; các bản Lead của QA phải chứa cả hai và liên kết đúng phiên bản. Không kết luận bộ Word/PDF đã phát hành chỉ dựa trên việc tệp đã được sinh.
+
+**Đợt tái sinh 09/11/2026:** `Ho_so_Word` và `Ho_so_PDF` được sinh lại từ 27 tệp Markdown hiện có trong `vnpt-repos/n42/docs/` cùng các hồ sơ tham chiếu đã có; `Ho_so_Lead` được tái sinh thành bảng điều hành và 5 tập theo nhóm nội dung. Tổng cộng hiện có 48 cặp DOCX/PDF trong hai bộ hồ sơ. PDF được render và rà bằng contact sheet; sau khi cập nhật lịch Jira, `TEST_PLAN.pdf` và tập Lead kiểm thử được render/rà lại. Renderer DOCX không chạy được vì môi trường thiếu LibreOffice; do đó bố cục Word chưa được xác nhận độc lập, và các hồ sơ vẫn ở trạng thái bản làm việc chờ người rà nội dung/bố cục và sign-off. Danh mục tệp sinh là chỉ mục, không thay chữ ký phát hành.
 
 Toàn bộ ZIP trong workspace đã bị xóa theo yêu cầu của người dùng ngày 07/11/2026 và không được tái tạo. Hồ sơ phân tích–thiết kế có nguồn chuẩn trong `vnpt-repos/n42/docs/`; bản Word/PDF cấp cao nhất nằm trong `vnpt-proposal/` và được sinh bằng `generate_system_analysis.py`.
 
@@ -43,7 +45,7 @@ Toàn bộ ZIP trong workspace đã bị xóa theo yêu cầu của người dù
 - Báo cáo tuần/tháng đã gửi được giữ nguyên như hồ sơ; nếu phát hiện sai, thêm ghi chú đính chính có ngày, lý do và người xác nhận.
 - Trước khi phát hành DOCX/PDF, kiểm tra nội dung trích xuất, mục lục, bảng, đầu/chân trang và trang cuối.
 - Đặc tả Test Case và RTM do QA Lead chủ trì; owner nghiệp vụ/kỹ thuật cung cấp contract, dữ liệu kỳ vọng và xác nhận phạm vi. Repo hiện chưa có `.github/workflows/ci.yml`; QA Lead là owner dự kiến triển khai CI theo kế hoạch nhóm. Khi có workflow, QA/DevOps ghi nội dung check và run evidence; không tuyên bố CI PASS hoặc merge gate khi chưa có bằng chứng.
-- Manifest phát hành phải liệt kê từng nguồn, phiên bản/ngày, tệp Word/PDF tương ứng, phiên bản/ngày, tệp Word/PDF tương ứng, người rà nội dung và người rà hình thức. Chỉ đóng gói sau khi ma trận nguồn–bản dẫn xuất không còn thiếu.
+- Manifest phát hành phải liệt kê từng nguồn, phiên bản/ngày, tệp Word/PDF tương ứng, người rà nội dung và người rà hình thức. Chỉ phát hành sau khi ma trận nguồn–bản dẫn xuất không còn thiếu.
 
 ## 4. Bộ tài liệu dự án
 

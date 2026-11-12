@@ -1,13 +1,15 @@
 # ============================================================
-# N42 - Docker Compose: 1 lenh dung toan moi truong lab
-# Chi CSDL:                docker compose up -d
-# Health scaffold + CSDL: docker compose --profile full up -d --build
+# N42 - Docker Compose: Moi truong Lab & Ha tang CI/CD
+# Chi CSDL:                        docker compose up -d db
+# Chay CSDL + Jenkins + SonarQube: docker compose up -d
+# Chay toan bo (gom ca FastAPI):   docker compose --profile full up -d --build
 # ============================================================
 services:
   # M3/M4: TimescaleDB - luu tru canh bao theo thoi gian (BE2 thay the InMemoryEventStore)
   db:
     image: timescale/timescaledb:latest-pg16
     container_name: n42-db
+    restart: unless-stopped
     environment:
       POSTGRES_DB: n42
       POSTGRES_USER: n42
@@ -22,14 +24,71 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
+    networks:
+      - n42-network
 
   # Khung FastAPI W1; chi co health endpoint.
   app:
     profiles: ["full"]
     build: .
     container_name: n42-app
+    restart: unless-stopped
     ports:
       - "8080:8080"      # HTTP REST API & Swagger UI
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - n42-network
+
+  # Ha tang CI/CD Local: Jenkins LTS + Python 3
+  jenkins:
+    build:
+      context: .
+      dockerfile: Dockerfile.jenkins
+    container_name: n42-jenkins
+    restart: unless-stopped
+    ports:
+      - "8000:8080"      # Giao dien Jenkins Web UI tai http://localhost:8000
+    volumes:
+      - jenkins_data:/var/jenkins_home
+    depends_on:
+      - sonarqube
+    networks:
+      - n42-network
+
+  # Ha tang Phan tich Chat luong Ma nguon: SonarQube Community (dung PostgreSQL n42-db)
+  sonarqube:
+    image: sonarqube:community
+    container_name: n42-sonarqube
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      SONAR_JDBC_URL: jdbc:postgresql://db:5432/sonarqube
+      SONAR_JDBC_USERNAME: n42
+      SONAR_JDBC_PASSWORD: n42_local_dev   # chi dung lab; du lieu 100% gia lap
+    ports:
+      - "9000:9000"      # Giao dien SonarQube Web UI tai http://localhost:9000
+    volumes:
+      - sonar_data:/opt/sonarqube/data
+      - sonar_extensions:/opt/sonarqube/extensions
+      - sonar_logs:/opt/sonarqube/logs
+    networks:
+      - n42-network
+
+networks:
+  n42-network:
+    driver: bridge
 
 volumes:
   n42-db-data:
+  jenkins_data:
+    name: n42-cicd_jenkins_data
+  sonar_data:
+    name: n42-cicd_sonar_data
+  sonar_extensions:
+    name: n42-cicd_sonar_extensions
+  sonar_logs:
+    name: n42-cicd_sonar_logs

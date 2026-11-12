@@ -1,6 +1,6 @@
 # Mẫu báo cáo tiến độ dự án N4.2 W1
 
-**Kỳ báo cáo:** W1, 01–07/11/2026 · **Người lập:** Team Leader · **Trạng thái:** DỰ THẢO CHƯA PHÁT HÀNH
+**Kỳ báo cáo:** W1, 01–07/11/2026 · **Người lập:** Phạm Minh Nhựt — Team Leader · **Trạng thái:** MẪU DỰ THẢO, CHƯA PHÁT HÀNH
 
 Bản này là mẫu ghi nhận, không xác nhận Jira Done, cuộc họp đã diễn ra, test đã chạy hoặc KPI đã đạt. TL hoàn tất sau khi đối chiếu Jira, PR/commit và artifact; nếu chưa có bằng chứng ghi `Chưa xác minh` hoặc `Chưa thực hiện`, không tự điền kết quả. Kickoff dự kiến ngày 09/11 thuộc W2.
 
@@ -8,14 +8,14 @@ Bản này là mẫu ghi nhận, không xác nhận Jira Done, cuộc họp đã
 
 - Trạng thái chung: `[Cập nhật sau đối chiếu]`
 - Mốc dự kiến: `[Mốc trong W1]`
-- Việc bị trễ / forecast: `[Nêu tác động và owner]`
+- Việc bị trễ / forecast: `[Nêu tác động và biện pháp xử lý]`
 - Quyết định cần PM hỗ trợ: `[Nội dung hoặc Không có]`
 
 ## 2. Kết quả theo công việc
 
-| Jira | Owner | Kế hoạch | Kết quả thực tế | Trạng thái | Evidence |
-|---|---|---|---|---|---|
-| `[N42-xx]` | `[Tên]` | `[Mô tả]` | `[Chưa cập nhật]` | `[To Do/In Progress/Done/Blocked]` | `[PR/log/link hoặc chưa có]` |
+| Mã Jira | Kế hoạch & Mô tả công việc | Kết quả thực tế | Trạng thái | Minh chứng (Evidence) |
+|---|---|---|---|---|
+| `[N42-xx]` | `[Mô tả từ ticket]` | `[Chưa cập nhật; chỉ điền sau khi đối chiếu bằng chứng]` | `[Trạng thái Jira tại ngày báo cáo]` | `[PR/log/link hoặc chưa có]` |
 
 ## 3. Chất lượng và kiểm thử
 
@@ -28,15 +28,15 @@ Bản này là mẫu ghi nhận, không xác nhận Jira Done, cuộc họp đã
 
 ## 4. Rủi ro, blocker và hỗ trợ
 
-| Mô tả | Mức độ | Tác động | Owner | Hạn / hỗ trợ cần |
-|---|---|---|---|---|
-| `[Cập nhật từ Jira/Risk Register]` | `[H/M/L]` | `[Mốc/đầu việc]` | `[Tên]` | `[Yêu cầu]` |
+| Mô tả rủi ro / Blocker | Mức độ | Tác động | Hạn xử lý / Yêu cầu hỗ trợ |
+|---|---|---|---|
+| `[Cập nhật từ Jira/Risk Register]` | `[H/M/L]` | `[Mốc/đầu việc]` | `[Nội dung yêu cầu]` |
 
 ## 5. Kế hoạch kỳ tiếp theo
 
-| Ưu tiên | Jira | Owner | Kết quả dự kiến | Phụ thuộc |
-|---|---|---|---|---|
-| `[Điền sau khi thống nhất]` | `[N42-xx]` | `[Tên]` | `[Acceptance/evidence]` | `[Nếu có]` |
+| Mức ưu tiên | Mã Jira | Kết quả dự kiến | Phụ thuộc |
+|---|---|---|---|
+| `[Điền sau khi thống nhất]` | `[N42-xx]` | `[Acceptance/evidence]` | `[Key blocker Jira hoặc Không có]` |
 
 ## 6. Rà soát và gửi
 

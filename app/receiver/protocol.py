@@ -70,4 +70,3 @@ class SyslogUDPProtocol(asyncio.DatagramProtocol):
         if exc:
             self.metrics.udp_errors += 1
             logger.error("UDP connection lost with error: %s", exc)
-

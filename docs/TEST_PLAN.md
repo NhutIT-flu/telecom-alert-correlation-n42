@@ -77,13 +77,14 @@ Các 4 giai đoạn trên là bài kiểm tra ramp-up/checkpoint. Chúng không 
 
 ---
 
-## 5.1 ĐỐI CHIẾU TIẾN ĐỘ JIRA (ẢNH CHỤP 09/11/2026)
+## 5. PHỤ THUỘC KIỂM THỬ TRÊN JIRA
 
-Đối chiếu Jira sau khi xếp lịch các ticket còn thiếu: `N42-62` (BE2, hợp đồng API/Event) ở Sprint 1 vì đang chặn `N42-14`; Sprint 1 có 14 work items, 48 SP đã ước lượng và 1 ticket chưa estimate. `N42-64/65/66` (BE3, rule KB-04/05/06) ở Sprint 4; Sprint 4 có 10 work items, 33 SP đã ước lượng và 3 ticket chưa estimate. `N42-63` (FE, export) ở Sprint 6 sau `N42-34` (Sprint 3) và `N42-46` (Sprint 5); Sprint 6 có 7 work items, 28 SP đã ước lượng và 1 ticket chưa estimate. Cả 5 ticket mới vẫn `To Do`; không suy ra đã triển khai hoặc kiểm thử. Sprint assignment là kế hoạch tạm thời cho tới khi team refinement xác nhận estimate và capacity.
+Đối chiếu Jira ngày 11/11/2026 ghi nhận 59 Task và 90 quan hệ Blocks giữa các Task. Tra sprint và người phụ trách trên Jira.
 
-**Chuẩn mã KB đã thống nhất:** KB-02 = Power Supply Failure; KB-03 = SYN Flood; KB-04 = IP Conflict. Jira API đọc lại ngày 09/11/2026: summary và Description của `N42-27` đều khớp KB-03/KB-04 và trỏ đến đúng scenario/TC/RTM; trạng thái vẫn `To Do`. `N42-12` cũng vẫn `To Do`, nhưng Description đã ghi đúng KB-01 Link Flap và KB-02 Power Supply Failure. `To Do` không chứng minh đặc tả đã chạy hay QA đã nghiệm thu.
+N42-62 và N42-30 là đầu vào cho N42-67. N42-34 tích hợp Dashboard sau khi API sẵn sàng. N42-31 bàn giao worker ghi dữ liệu cho N42-35 chạy E2E, rồi dùng báo cáo E2E ở mốc N42-36.
 
-## 5. PHÂN CÔNG THEO VAI TRÒ
+N42-12 phụ trách KB-01 và KB-02. N42-27 phụ trách KB-03 và KB-04. QA ghi commit và route khi kiểm REST. N42-14 kiểm ACK vào RAM và queue đầy. Ca ACK sau commit phụ thuộc hợp đồng N42-62. N42-22 đối soát kết quả theo dòng khi nhập file.
+## 6. PHÂN CÔNG THEO VAI TRÒ
 - **Implementation và unit/component test:** BE1/BE2/BE3/FE theo cột Code owner ở trên; người viết code tự chịu trách nhiệm kiểm thử module của mình và cung cấp build/commit, log, kết quả.
 - **Khung và hồ sơ dự án:** **Phạm Minh Nhựt — TL/PM** quản lý baseline tài liệu, điều phối yêu cầu/quyết định, gán và theo dõi ticket, tổng hợp review/sign-off. TL không tự xác định contract, ngưỡng nghiệp vụ hay expected result kỹ thuật.
 - **Test specification, fixture, coverage, kiểm thử tích hợp/replay và evidence:** **Ngô Châu Kiệt — QA Lead**, theo ticket Jira được giao, sau khi dependencies được merge và môi trường sẵn sàng. QA chủ trì test design và kết quả kiểm thử tích hợp; không thay implementation nghiệp vụ của BE/FE.

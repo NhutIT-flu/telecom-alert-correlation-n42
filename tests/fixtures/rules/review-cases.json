@@ -1,0 +1,808 @@
+{
+  "fixture_version": "1.0.0",
+  "synthetic": true,
+  "status": "implemented_config_pending_QA_TL",
+  "catalog": {
+    "application": {
+      "path": "app/services/rules.yaml",
+      "version": "0.1.1",
+      "link_flap_severity": "MAJOR"
+    },
+    "candidate": {
+      "path": "tests/fixtures/rules/candidate-0.1.1.yaml",
+      "version": "0.1.1",
+      "link_flap_severity": "MAJOR",
+      "approval": "pending"
+    }
+  },
+  "notice_semantics": "first transition notice counts one; consecutive same-state notice adds zero; snapshots excluded",
+  "expected_is_not_execution": true,
+  "cases": [
+    {
+      "fixture_id": "LF-01",
+      "version": "1.0.0",
+      "synthetic": true,
+      "rule_id": "RULE_LINK_FLAP_01",
+      "source_format": "normalized synthetic proposal",
+      "normalized_fields_status": "proposed",
+      "input": [
+        {
+          "event_id": "synthetic-lf-0",
+          "t_seconds": 0,
+          "hostname": "lab-a",
+          "interface": "Gi0/1",
+          "link_state": "DOWN",
+          "vendor": "cisco",
+          "mnemonic": "LINK-3-UPDOWN",
+          "message_kind": "transition_notice"
+        },
+        {
+          "event_id": "synthetic-lf-1",
+          "t_seconds": 10,
+          "hostname": "lab-a",
+          "interface": "Gi0/1",
+          "link_state": "UP",
+          "vendor": "cisco",
+          "mnemonic": "LINK-3-UPDOWN",
+          "message_kind": "transition_notice"
+        },
+        {
+          "event_id": "synthetic-lf-2",
+          "t_seconds": 20,
+          "hostname": "lab-a",
+          "interface": "Gi0/1",
+          "link_state": "DOWN",
+          "vendor": "cisco",
+          "mnemonic": "LINK-3-UPDOWN",
+          "message_kind": "transition_notice"
+        },
+        {
+          "event_id": "synthetic-lf-3",
+          "t_seconds": 30,
+          "hostname": "lab-a",
+          "interface": "Gi0/1",
+          "link_state": "UP",
+          "vendor": "cisco",
+          "mnemonic": "LINK-3-UPDOWN",
+          "message_kind": "transition_notice"
+        },
+        {
+          "event_id": "synthetic-lf-4",
+          "t_seconds": 40,
+          "hostname": "lab-a",
+          "interface": "Gi0/1",
+          "link_state": "DOWN",
+          "vendor": "cisco",
+          "mnemonic": "LINK-3-UPDOWN",
+          "message_kind": "transition_notice"
+        }
+      ],
+      "expected_review": {
+        "count": 5,
+        "first_notice_count": 1,
+        "threshold_met": true
+      },
+      "dependency_tickets": [
+        "N42-23",
+        "N42-26",
+        "N42-44",
+        "N42-62"
+      ],
+      "actual_engine": "not_run",
+      "qa_review": "pending"
+    },
+    {
+      "fixture_id": "LF-02",
+      "version": "1.0.0",
+      "synthetic": true,
+      "rule_id": "RULE_LINK_FLAP_01",
+      "source_format": "normalized synthetic proposal",
+      "normalized_fields_status": "proposed",
+      "input": [
+        {
+          "event_id": "synthetic-lf-0",
+          "t_seconds": 0,
+          "hostname": "lab-a",
+          "interface": "Gi0/1",
+          "link_state": "DOWN",
+          "vendor": "cisco",
+          "mnemonic": "LINK-3-UPDOWN",
+          "message_kind": "transition_notice"
+        },
+        {
+          "event_id": "synthetic-lf-1",
+          "t_seconds": 10,
+          "hostname": "lab-a",
+          "interface": "Gi0/1",
+          "link_state": "UP",
+          "vendor": "cisco",
+          "mnemonic": "LINK-3-UPDOWN",
+          "message_kind": "transition_notice"
+        },
+        {
+          "event_id": "synthetic-lf-2",
+          "t_seconds": 20,
+          "hostname": "lab-a",
+          "interface": "Gi0/1",
+          "link_state": "DOWN",
+          "vendor": "cisco",
+          "mnemonic": "LINK-3-UPDOWN",
+          "message_kind": "transition_notice"
+        },
+        {
+          "event_id": "synthetic-lf-3",
+          "t_seconds": 30,
+          "hostname": "lab-a",
+          "interface": "Gi0/1",
+          "link_state": "UP",
+          "vendor": "cisco",
+          "mnemonic": "LINK-3-UPDOWN",
+          "message_kind": "transition_notice"
+        }
+      ],
+      "expected_review": {
+        "count": 4,
+        "threshold_met": false
+      },
+      "dependency_tickets": [
+        "N42-23",
+        "N42-26",
+        "N42-44",
+        "N42-62"
+      ],
+      "actual_engine": "not_run",
+      "qa_review": "pending"
+    },
+    {
+      "fixture_id": "LF-03",
+      "version": "1.0.0",
+      "synthetic": true,
+      "rule_id": "RULE_LINK_FLAP_01",
+      "source_format": "normalized synthetic proposal",
+      "normalized_fields_status": "proposed",
+      "input": [
+        {
+          "event_id": "synthetic-lf-0",
+          "t_seconds": 0,
+          "hostname": "lab-a",
+          "interface": "Gi0/1",
+          "link_state": "DOWN",
+          "vendor": "cisco",
+          "mnemonic": "LINK-3-UPDOWN",
+          "message_kind": "transition_notice"
+        },
+        {
+          "event_id": "synthetic-lf-1",
+          "t_seconds": 10,
+          "hostname": "lab-a",
+          "interface": "Gi0/1",
+          "link_state": "DOWN",
+          "vendor": "cisco",
+          "mnemonic": "LINK-3-UPDOWN",
+          "message_kind": "transition_notice"
+        },
+        {
+          "event_id": "synthetic-lf-2",
+          "t_seconds": 20,
+          "hostname": "lab-a",
+          "interface": "Gi0/1",
+          "link_state": "UP",
+          "vendor": "cisco",
+          "mnemonic": "LINK-3-UPDOWN",
+          "message_kind": "transition_notice"
+        }
+      ],
+      "expected_review": {
+        "count": 2,
+        "duplicate_state_increment": 0,
+        "threshold_met": false
+      },
+      "dependency_tickets": [
+        "N42-23",
+        "N42-26",
+        "N42-44",
+        "N42-62"
+      ],
+      "actual_engine": "not_run",
+      "qa_review": "pending"
+    },
+    {
+      "fixture_id": "LF-04",
+      "version": "1.0.0",
+      "synthetic": true,
+      "rule_id": "RULE_LINK_FLAP_01",
+      "source_format": "normalized synthetic proposal",
+      "normalized_fields_status": "proposed",
+      "input": [
+        {
+          "event_id": "synthetic-lf-0",
+          "t_seconds": 0,
+          "hostname": "lab-a",
+          "interface": "Gi0/1",
+          "link_state": "DOWN",
+          "vendor": "cisco",
+          "mnemonic": "LINK-3-UPDOWN",
+          "message_kind": "transition_notice"
+        },
+        {
+          "event_id": "synthetic-lf-1",
+          "t_seconds": 15,
+          "hostname": "lab-a",
+          "interface": "Gi0/1",
+          "link_state": "UP",
+          "vendor": "cisco",
+          "mnemonic": "LINK-3-UPDOWN",
+          "message_kind": "transition_notice"
+        },
+        {
+          "event_id": "synthetic-lf-2",
+          "t_seconds": 30,
+          "hostname": "lab-a",
+          "interface": "Gi0/1",
+          "link_state": "DOWN",
+          "vendor": "cisco",
+          "mnemonic": "LINK-3-UPDOWN",
+          "message_kind": "transition_notice"
+        },
+        {
+          "event_id": "synthetic-lf-3",
+          "t_seconds": 45,
+          "hostname": "lab-a",
+          "interface": "Gi0/1",
+          "link_state": "UP",
+          "vendor": "cisco",
+          "mnemonic": "LINK-3-UPDOWN",
+          "message_kind": "transition_notice"
+        },
+        {
+          "event_id": "synthetic-lf-4",
+          "t_seconds": 60,
+          "hostname": "lab-a",
+          "interface": "Gi0/1",
+          "link_state": "DOWN",
+          "vendor": "cisco",
+          "mnemonic": "LINK-3-UPDOWN",
+          "message_kind": "transition_notice"
+        }
+      ],
+      "expected_review": {
+        "count": 5,
+        "boundary_seconds": 60,
+        "inclusive": true,
+        "threshold_met": true,
+        "time_policy": "pending N42-44"
+      },
+      "dependency_tickets": [
+        "N42-23",
+        "N42-26",
+        "N42-44",
+        "N42-62"
+      ],
+      "actual_engine": "not_run",
+      "qa_review": "pending"
+    },
+    {
+      "fixture_id": "LF-05",
+      "version": "1.0.0",
+      "synthetic": true,
+      "rule_id": "RULE_LINK_FLAP_01",
+      "source_format": "normalized synthetic proposal",
+      "normalized_fields_status": "proposed",
+      "input": [
+        {
+          "event_id": "synthetic-lf-0",
+          "t_seconds": 0,
+          "hostname": "lab-a",
+          "interface": "Gi0/1",
+          "link_state": "DOWN",
+          "vendor": "cisco",
+          "mnemonic": "LINK-3-UPDOWN",
+          "message_kind": "transition_notice"
+        },
+        {
+          "event_id": "synthetic-lf-1",
+          "t_seconds": 10,
+          "hostname": "lab-a",
+          "interface": "Gi0/1",
+          "link_state": "UP",
+          "vendor": "cisco",
+          "mnemonic": "LINK-3-UPDOWN",
+          "message_kind": "transition_notice"
+        },
+        {
+          "event_id": "synthetic-lf-2",
+          "t_seconds": 20,
+          "hostname": "lab-a",
+          "interface": "Gi0/1",
+          "link_state": "DOWN",
+          "vendor": "cisco",
+          "mnemonic": "LINK-3-UPDOWN",
+          "message_kind": "transition_notice"
+        },
+        {
+          "event_id": "synthetic-lf-3",
+          "t_seconds": 30,
+          "hostname": "lab-a",
+          "interface": "Gi0/1",
+          "link_state": "UP",
+          "vendor": "cisco",
+          "mnemonic": "LINK-3-UPDOWN",
+          "message_kind": "transition_notice"
+        },
+        {
+          "event_id": "synthetic-lf-4",
+          "t_seconds": 61,
+          "hostname": "lab-a",
+          "interface": "Gi0/1",
+          "link_state": "DOWN",
+          "vendor": "cisco",
+          "mnemonic": "LINK-3-UPDOWN",
+          "message_kind": "transition_notice"
+        }
+      ],
+      "expected_review": {
+        "count_at_last_event": 4,
+        "threshold_met": false
+      },
+      "dependency_tickets": [
+        "N42-23",
+        "N42-26",
+        "N42-44",
+        "N42-62"
+      ],
+      "actual_engine": "not_run",
+      "qa_review": "pending"
+    },
+    {
+      "fixture_id": "LF-06",
+      "version": "1.0.0",
+      "synthetic": true,
+      "rule_id": "RULE_LINK_FLAP_01",
+      "source_format": "normalized synthetic proposal",
+      "normalized_fields_status": "proposed",
+      "input": [
+        {
+          "event_id": "synthetic-lf-0",
+          "t_seconds": 0,
+          "hostname": "lab-a",
+          "interface": "Gi0/1",
+          "link_state": "DOWN",
+          "vendor": "cisco",
+          "mnemonic": "LINK-3-UPDOWN",
+          "message_kind": "transition_notice"
+        },
+        {
+          "event_id": "synthetic-lf-1",
+          "t_seconds": 10,
+          "hostname": "lab-a",
+          "interface": "Gi0/2",
+          "link_state": "UP",
+          "vendor": "cisco",
+          "mnemonic": "LINK-3-UPDOWN",
+          "message_kind": "transition_notice"
+        },
+        {
+          "event_id": "synthetic-lf-2",
+          "t_seconds": 20,
+          "hostname": "lab-a",
+          "interface": "Gi0/1",
+          "link_state": "DOWN",
+          "vendor": "cisco",
+          "mnemonic": "LINK-3-UPDOWN",
+          "message_kind": "transition_notice"
+        },
+        {
+          "event_id": "synthetic-lf-3",
+          "t_seconds": 30,
+          "hostname": "lab-a",
+          "interface": "Gi0/2",
+          "link_state": "UP",
+          "vendor": "cisco",
+          "mnemonic": "LINK-3-UPDOWN",
+          "message_kind": "transition_notice"
+        },
+        {
+          "event_id": "synthetic-lf-4",
+          "t_seconds": 40,
+          "hostname": "lab-a",
+          "interface": "Gi0/1",
+          "link_state": "DOWN",
+          "vendor": "cisco",
+          "mnemonic": "LINK-3-UPDOWN",
+          "message_kind": "transition_notice"
+        }
+      ],
+      "expected_review": {
+        "threshold_met": false,
+        "groups_separate": true,
+        "reason": "no group has five notices; same-state notices do not increment"
+      },
+      "dependency_tickets": [
+        "N42-23",
+        "N42-26",
+        "N42-44",
+        "N42-62"
+      ],
+      "actual_engine": "not_run",
+      "qa_review": "pending"
+    },
+    {
+      "fixture_id": "LF-07",
+      "version": "1.0.0",
+      "synthetic": true,
+      "rule_id": "RULE_LINK_FLAP_01",
+      "source_format": "normalized synthetic proposal",
+      "normalized_fields_status": "proposed",
+      "input": [
+        {
+          "event_id": "synthetic-lf-0",
+          "t_seconds": 0,
+          "hostname": "lab-a",
+          "interface": "Gi0/1",
+          "link_state": "DOWN",
+          "vendor": "cisco",
+          "mnemonic": "LINK-3-UPDOWN",
+          "message_kind": "snapshot"
+        }
+      ],
+      "expected_review": {
+        "eligible": false,
+        "reason": "snapshot excluded from transition-notice corpus"
+      },
+      "dependency_tickets": [
+        "N42-23",
+        "N42-26",
+        "N42-44",
+        "N42-62"
+      ],
+      "actual_engine": "not_run",
+      "qa_review": "pending"
+    },
+    {
+      "fixture_id": "PSU-01",
+      "version": "1.0.0",
+      "synthetic": true,
+      "rule_id": "RULE_DUAL_PSU_FAILURE_01",
+      "source_format": "normalized synthetic proposal",
+      "normalized_fields_status": "proposed",
+      "input": [
+        {
+          "event_id": "synthetic-psu-0",
+          "t_seconds": 0,
+          "hostname": "lab-a",
+          "vendor": "huawei",
+          "mnemonic": "POWER_SUPPLY_FAILED",
+          "psu_slot": "1"
+        },
+        {
+          "event_id": "synthetic-psu-1",
+          "t_seconds": 10,
+          "hostname": "lab-a",
+          "vendor": "huawei",
+          "mnemonic": "POWER_SUPPLY_FAILED",
+          "psu_slot": "1"
+        }
+      ],
+      "expected_review": {
+        "distinct": 1,
+        "threshold_met": false
+      },
+      "dependency_tickets": [
+        "N42-24",
+        "N42-26",
+        "N42-45",
+        "N42-62"
+      ],
+      "actual_engine": "not_run",
+      "qa_review": "pending"
+    },
+    {
+      "fixture_id": "PSU-02",
+      "version": "1.0.0",
+      "synthetic": true,
+      "rule_id": "RULE_DUAL_PSU_FAILURE_01",
+      "source_format": "normalized synthetic proposal",
+      "normalized_fields_status": "proposed",
+      "input": [
+        {
+          "event_id": "synthetic-psu-0",
+          "t_seconds": 0,
+          "hostname": "lab-a",
+          "vendor": "huawei",
+          "mnemonic": "POWER_SUPPLY_FAILED",
+          "psu_slot": "1"
+        },
+        {
+          "event_id": "synthetic-psu-1",
+          "t_seconds": 10,
+          "hostname": "lab-a",
+          "vendor": "huawei",
+          "mnemonic": "POWER_SUPPLY_FAILED",
+          "psu_slot": "2"
+        }
+      ],
+      "expected_review": {
+        "distinct": 2,
+        "threshold_met": true
+      },
+      "dependency_tickets": [
+        "N42-24",
+        "N42-26",
+        "N42-45",
+        "N42-62"
+      ],
+      "actual_engine": "not_run",
+      "qa_review": "pending"
+    },
+    {
+      "fixture_id": "PSU-03",
+      "version": "1.0.0",
+      "synthetic": true,
+      "rule_id": "RULE_DUAL_PSU_FAILURE_01",
+      "source_format": "normalized synthetic proposal",
+      "normalized_fields_status": "proposed",
+      "input": [
+        {
+          "event_id": "synthetic-psu-0",
+          "t_seconds": 0,
+          "hostname": "lab-a",
+          "vendor": "huawei",
+          "mnemonic": "POWER_SUPPLY_FAILED",
+          "psu_slot": "1"
+        },
+        {
+          "event_id": "synthetic-psu-1",
+          "t_seconds": 10,
+          "hostname": "lab-b",
+          "vendor": "huawei",
+          "mnemonic": "POWER_SUPPLY_FAILED",
+          "psu_slot": "2"
+        }
+      ],
+      "expected_review": {
+        "distinct_per_host": {
+          "lab-a": 1,
+          "lab-b": 1
+        },
+        "threshold_met": false
+      },
+      "dependency_tickets": [
+        "N42-24",
+        "N42-26",
+        "N42-45",
+        "N42-62"
+      ],
+      "actual_engine": "not_run",
+      "qa_review": "pending"
+    },
+    {
+      "fixture_id": "PSU-04",
+      "version": "1.0.0",
+      "synthetic": true,
+      "rule_id": "RULE_DUAL_PSU_FAILURE_01",
+      "source_format": "normalized synthetic proposal",
+      "normalized_fields_status": "proposed",
+      "input": [
+        {
+          "event_id": "synthetic-psu-0",
+          "t_seconds": 0,
+          "hostname": "lab-a",
+          "vendor": "huawei",
+          "mnemonic": "POWER_SUPPLY_FAILED"
+        }
+      ],
+      "expected_review": {
+        "status": "blocked_field_contract",
+        "default_slot": false,
+        "missing_field_policy": "pending N42-45/62"
+      },
+      "dependency_tickets": [
+        "N42-24",
+        "N42-26",
+        "N42-45",
+        "N42-62"
+      ],
+      "actual_engine": "not_run",
+      "qa_review": "pending"
+    },
+    {
+      "fixture_id": "PSU-05",
+      "version": "1.0.0",
+      "synthetic": true,
+      "rule_id": "RULE_DUAL_PSU_FAILURE_01",
+      "source_format": "normalized synthetic proposal",
+      "normalized_fields_status": "proposed",
+      "input": [
+        {
+          "event_id": "synthetic-psu-0",
+          "t_seconds": 0,
+          "hostname": "lab-a",
+          "vendor": "huawei",
+          "mnemonic": "POWER_SUPPLY_FAILED",
+          "psu_slot": "1"
+        },
+        {
+          "event_id": "synthetic-psu-1",
+          "t_seconds": 61,
+          "hostname": "lab-a",
+          "vendor": "huawei",
+          "mnemonic": "POWER_SUPPLY_FAILED",
+          "psu_slot": "2"
+        }
+      ],
+      "expected_review": {
+        "distinct_at_last_event": 1,
+        "threshold_met": false,
+        "window_seconds": 60,
+        "window_status": "illustrative"
+      },
+      "dependency_tickets": [
+        "N42-24",
+        "N42-26",
+        "N42-45",
+        "N42-62"
+      ],
+      "actual_engine": "not_run",
+      "qa_review": "pending"
+    },
+    {
+      "fixture_id": "PSU-06",
+      "version": "1.0.0",
+      "synthetic": true,
+      "rule_id": "RULE_DUAL_PSU_FAILURE_01",
+      "source_format": "KB02 ISO published synthetic raw; preserved unchanged",
+      "normalized_fields_status": "proposed",
+      "input": [
+        {
+          "raw": "<131>2026-11-06T15:01:00+07:00 ne40e-bras-01 %%01DEVM/2/POWER_SUPPLY_FAILED(l): Power supply module 2 was failed.",
+          "source_page_id": "3408107",
+          "source_page_version": 6
+        }
+      ],
+      "expected_review": {
+        "parser_snapshot": "aa6dc2f",
+        "parser_observed": "unsupported_format",
+        "engine": "not_run"
+      },
+      "dependency_tickets": [
+        "N42-24",
+        "N42-26",
+        "N42-45",
+        "N42-62"
+      ],
+      "actual_engine": "not_run",
+      "qa_review": "pending"
+    },
+    {
+      "fixture_id": "PSU-07",
+      "version": "1.0.0",
+      "synthetic": true,
+      "rule_id": "RULE_DUAL_PSU_FAILURE_01",
+      "source_format": "normalized synthetic proposal",
+      "normalized_fields_status": "proposed",
+      "input": [
+        {
+          "event_id": "synthetic-psu-0",
+          "t_seconds": 0,
+          "hostname": "lab-a",
+          "vendor": "huawei",
+          "mnemonic": "POWER_SUPPLY_FAILED",
+          "psu_slot": "1"
+        }
+      ],
+      "expected_review": {
+        "distinct": 1,
+        "threshold_met": false,
+        "single_hit_scope": "separate approval; not dual PSU"
+      },
+      "dependency_tickets": [
+        "N42-24",
+        "N42-26",
+        "N42-45",
+        "N42-62"
+      ],
+      "actual_engine": "not_run",
+      "qa_review": "pending"
+    },
+    {
+      "fixture_id": "BGP-01",
+      "version": "1.0.0",
+      "synthetic": true,
+      "rule_id": "RULE_BGP_FLAP_01",
+      "source_format": "normalized synthetic proposal",
+      "normalized_fields_status": "proposed",
+      "input": [
+        {
+          "event_id": "synthetic-bgp-0",
+          "t_seconds": 0,
+          "hostname": "lab-a",
+          "peer": "10.10.0.2",
+          "session_state": "DOWN",
+          "mnemonic": "BGP_SESSION_STATE_CHANGE",
+          "message_kind": "transition_notice"
+        },
+        {
+          "event_id": "synthetic-bgp-1",
+          "t_seconds": 10,
+          "hostname": "lab-a",
+          "peer": "10.10.0.2",
+          "session_state": "UP",
+          "mnemonic": "BGP_SESSION_STATE_CHANGE",
+          "message_kind": "transition_notice"
+        },
+        {
+          "event_id": "synthetic-bgp-2",
+          "t_seconds": 20,
+          "hostname": "lab-a",
+          "peer": "10.10.0.2",
+          "session_state": "DOWN",
+          "mnemonic": "BGP_SESSION_STATE_CHANGE",
+          "message_kind": "transition_notice"
+        }
+      ],
+      "expected_review": {
+        "count": 3,
+        "threshold_met": true,
+        "parameters": "3/120s illustrative only",
+        "neighbor_down_retry": "separate KB05/N42-65 scope"
+      },
+      "dependency_tickets": [
+        "N42-26",
+        "N42-62",
+        "N42-65"
+      ],
+      "actual_engine": "not_run",
+      "qa_review": "pending"
+    },
+    {
+      "fixture_id": "BGP-02",
+      "version": "1.0.0",
+      "synthetic": true,
+      "rule_id": "RULE_BGP_FLAP_01",
+      "source_format": "normalized synthetic proposal",
+      "normalized_fields_status": "proposed",
+      "input": [
+        {
+          "event_id": "synthetic-bgp-0",
+          "t_seconds": 0,
+          "hostname": "lab-a",
+          "peer": "10.10.0.2",
+          "session_state": "DOWN",
+          "mnemonic": "BGP_SESSION_STATE_CHANGE",
+          "message_kind": "transition_notice"
+        },
+        {
+          "event_id": "synthetic-bgp-1",
+          "t_seconds": 10,
+          "hostname": "lab-a",
+          "peer": "10.10.0.2",
+          "session_state": "DOWN",
+          "mnemonic": "BGP_SESSION_STATE_CHANGE",
+          "message_kind": "transition_notice"
+        },
+        {
+          "event_id": "synthetic-bgp-2",
+          "t_seconds": 20,
+          "hostname": "lab-a",
+          "peer": "10.10.0.2",
+          "session_state": "DOWN",
+          "mnemonic": "BGP_SESSION_STATE_CHANGE",
+          "message_kind": "transition_notice"
+        }
+      ],
+      "expected_review": {
+        "count": 1,
+        "threshold_met": false,
+        "parameters": "3/120s illustrative only",
+        "neighbor_down_retry": "separate KB05/N42-65 scope"
+      },
+      "dependency_tickets": [
+        "N42-26",
+        "N42-62",
+        "N42-65"
+      ],
+      "actual_engine": "not_run",
+      "qa_review": "pending"
+    }
+  ]
+}

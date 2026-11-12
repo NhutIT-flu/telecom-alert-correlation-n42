@@ -2,6 +2,8 @@
 
 **Baseline:** 03/11/2026 · **Áp dụng:** W13 nghiệm thu sản phẩm; các lần đo trước là checkpoint · **Chủ trì:** Team Leader và QA Lead
 
+Khách hàng yêu cầu ít nhất hai nguồn hoặc định dạng mẫu, hoặc hai loại thiết bị giả lập. AC-01 theo dõi UDP, REST và file trong kế hoạch nội bộ. Chỉ tiêu định lượng dùng khi nghiệm thu khách hàng cần UTH và mentor VNPT xác nhận sau khi đo baseline.
+
 ## 1. Phạm vi nghiệm thu
 
 Đây là dự án doanh nghiệp UTH × VNPT NET nhằm xây dựng giải pháp hỗ trợ quy trình giám sát và phân tích cảnh báo mạng. Các tiêu chí dưới đây nghiệm thu phiên bản phát triển/kiểm chứng trong lab bằng dữ liệu giả lập; tích hợp production cần VNPT thẩm định và phê duyệt riêng. Sản phẩm nhận cảnh báo từ syslog, file và API; chuẩn hóa, lưu, truy vấn/thống kê, gom nhóm và tương quan, rồi hiển thị trên dashboard. Cơ cấu vai trò chuẩn nằm trong `DOCUMENT_CONTROL.md`.
