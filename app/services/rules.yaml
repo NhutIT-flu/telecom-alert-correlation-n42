@@ -2,7 +2,7 @@
 # match áp dụng đồng thời tất cả cặp trường/giá trị; group_by tạo khóa gom.
 # threshold áp dụng cho phép đếm count trong cửa sổ tính bằng giây.
 # Tên trường sự kiện là đề xuất để đối chiếu với hợp đồng AlertEvent.
-version: "0.1.0"
+version: "0.1.1"
 rules:
   # KB-01: 4 lần không đủ ngưỡng; lần thứ 5 đúng giây 60 được tính.
   - rule_id: "RULE_LINK_FLAP_01"
@@ -22,8 +22,8 @@ rules:
       field: link_state
     action:
       create_incident: true
-      # Giá trị theo ví dụ Jira N42-17; TC-COR-001 ghi MAJOR, chờ QA đối chiếu.
-      incident_severity: CRITICAL
+      # Chọn MAJOR theo clarify và ủy quyền triển khai; QA/TL phê duyệt sau.
+      incident_severity: MAJOR
       title: "Cổng mạng đổi trạng thái liên tục"
 
   # KB-02 có một nguồn hỏng; cần hai slot khác nhau cho mẫu nguồn kép.

@@ -2,11 +2,13 @@
 
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, StringConstraints, field_validator
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints, ValidationInfo, field_validator, model_validator
 
 NonEmptyText = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
 EventField = Annotated[str, StringConstraints(pattern=r"^[a-zA-Z_][a-zA-Z0-9_]*$")]
-PositiveInt = Annotated[int, Field(gt=0)]
+WindowSeconds = Annotated[int, Field(gt=0, le=86400)]
+CountThreshold = Annotated[int, Field(gt=0, le=10000)]
+IncidentSeverity = Literal["CRITICAL", "MAJOR", "MINOR", "WARNING", "INFO"]
 
 
 class _ConfigModel(BaseModel):
@@ -20,21 +22,35 @@ class RuleCount(_ConfigModel):
 
 class RuleAction(_ConfigModel):
     create_incident: bool
-    incident_severity: NonEmptyText
-    title: NonEmptyText
+    incident_severity: IncidentSeverity
+    title: NonEmptyText = Field(max_length=200)
 
 
 class CorrelationRule(_ConfigModel):
-    rule_id: NonEmptyText
-    name: NonEmptyText
-    description: NonEmptyText | None = None
+    rule_id: NonEmptyText = Field(max_length=128)
+    name: NonEmptyText = Field(max_length=120)
+    description: NonEmptyText | None = Field(default=None, max_length=1000)
     enabled: bool = False
-    window_seconds: PositiveInt
-    threshold: PositiveInt
+    window_seconds: WindowSeconds
+    threshold: CountThreshold
     group_by: list[EventField] = Field(min_length=1)
     match: dict[EventField, NonEmptyText] = Field(min_length=1)
     count: RuleCount | None = None
     action: RuleAction
+
+    @model_validator(mode="after")
+    def validate_enabled_fields(self, info: ValidationInfo) -> "CorrelationRule":
+        if self.enabled:
+            supported = (info.context or {}).get("supported_event_fields")
+            if supported is None:
+                raise ValueError("enabled rules require supported_event_fields from the producer contract")
+            required = set(self.group_by) | set(self.match)
+            if self.count is not None:
+                required.add(self.count.field)
+            missing = required - set(supported)
+            if missing:
+                raise ValueError(f"enabled rule references unsupported event fields: {', '.join(sorted(missing))}")
+        return self
 
     @field_validator("group_by")
     @classmethod
@@ -45,7 +61,7 @@ class CorrelationRule(_ConfigModel):
 
 
 class RuleConfiguration(_ConfigModel):
-    version: NonEmptyText
+    version: NonEmptyText = Field(max_length=64)
     rules: list[CorrelationRule] = Field(min_length=1)
 
     @field_validator("rules")
