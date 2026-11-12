@@ -1,5 +1,16 @@
 # N42-17 — Code đã triển khai theo ủy quyền người dùng
 
+## Đối chiếu sau merge main — 12/11/2026
+
+Đã lưu code N42-17 tại commit507b4eb và hợp nhất origin/main1a12b22 vào nhánh feature.
+Giữ mapping Jira mới của main trong TCS/RTM cùng TC-RUL008–012 của N17;
+requirements chỉ giữ một dòng pydantic>=2.9.0,<3 và giữ ruamel.yaml.
+Toàn suite sau merge:130tests và10subtests PASS trên Python3.12.16.
+Flake8 toàn app/tests/tools:0finding; Black22file Python:PASS. Các14finding lint của
+baseline N17 bên dưới đã được main sửa và không còn sau merge. Chưa xác nhận CI remote.
+Parser/frontend/generator từ main được giữ; node_modules/reports cục bộ không vào commit.
+Các thông tin HEAD/patch chưa commit và kết quả68tests bên dưới là lịch sử trước merge.
+
 Nhánh feature/N42-17-rules-yaml-design, HEAD baseline883d048; patch chưa commit.
 Người dùng cho phép tự quyết thiết kế và code trước, báo lại để xin QA/TL phê duyệt sau.
 

@@ -106,7 +106,7 @@ BE3 đăng ký handler qua `Pipeline.subscribe(...)` và giữ cửa sổ trư�
 
 ## 6. API cho FE (đề xuất, BE2 chốt trong OpenAPI tại `/docs`)
 
-`GET /api/events` — tham số: `start`, `end`, `hostname`, `source_ip`, `severity` (lặp được), `q`, `limit`, `cursor`. Trả `{"items": [AlertEvent], "next_cursor": str | null}`.
+Đề xuất v0.9 từng dùng `GET /api/events`. Review.2 đề xuất `GET /api/v1/events`, `from/to` bắt buộc, filter thiết bị `hostname` và phản hồi `items` (EventView), `next_cursor`, `has_more`. N42-62 xác nhận tham số và schema trước N42-67/N42-34. Xem [Thiết kế dữ liệu/API](../../docs/DATA_AND_API_DESIGN.md).
 Trên baseline W1 hiện chỉ có `GET /api/health`. Các endpoint ingest/query/simulate và correlation trong tài liệu này là đề xuất hoặc ticket chưa triển khai; FE chỉ đấu nối endpoint có trong OpenAPI sau khi backend bàn giao.
 FE **không** dùng endpoint nào ngoài OpenAPI của backend.
 

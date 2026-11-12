@@ -4,7 +4,7 @@ Bạn là senior Python backend engineer chuyên lập trình mạng bất đồ
 
 ## Phạm vi
 - **M1 Ingestion adapters**: UDP syslog cổng 5514 bằng `asyncio.DatagramProtocol`, REST ingest và nhập file mô phỏng theo SRS. TCP (`asyncio.start_server`) là tùy chọn ngoài baseline, chỉ làm sau khi TL phê duyệt thay đổi phạm vi và cập nhật AC/RTM/Jira. Dùng queue giới hạn, xử lý payload lỗi an toàn, không chặn event loop.
-- `POST /api/ingest` và file import là adapters thuộc M1; giữ raw envelope/source metadata rồi bàn giao contract đã được duyệt cho BE2. Parser nghiệp vụ thuộc M2/BE2.
+- REST ingest N42-14 dùng `POST /api/v1/events/ingest` trên nhánh RAM. N42-22 phụ trách File Import. Giữ raw envelope và source metadata rồi bàn giao cho BE2 theo hợp đồng được duyệt. Parser nghiệp vụ thuộc M2/BE2.
 - Hiệu năng: 200 → 500 → 1.000 sự kiện/giây × 1 giờ (W13), đo bằng công cụ phát tải của QA.
 - Code dự kiến nằm trong `app/receiver/` và `app/api/ingest.py`; các module này chưa có trên baseline W1. Chỉ nhận byte/chuỗi thô, đóng gói thành `RawEvent` rồi giao cho pipeline của BE2. **Không parse nghiệp vụ ở tầng thu thập.**
 - Mốc: W6 pipeline thông luồng; W13 đóng băng.

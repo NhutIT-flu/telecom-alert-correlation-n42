@@ -268,6 +268,7 @@ Mô hình dưới đây là phác thảo. Quy tắc ≥5 event/60 giây có tron
 
 #### TC-ING-007: REST Ingest API hợp lệ (FR-02)
 - **Mã Jira:** `N42-14` | **Ưu tiên:** P1 (CRITICAL)
+- **Phạm vi:** Kiểm nhánh RAM với queue còn chỗ. Ca queue đầy kiểm HTTP `503` và nội dung queue giữ nguyên. ACK sau commit được kiểm riêng khi N42-62 chốt hợp đồng và có persistence.
 - **Dữ liệu đầu vào:** `POST /api/v1/events/ingest`
   ```json
   {"raw_message": "<134>Nov 06 15:10:00 fw-01 %SYS-5-CONFIG: Configured from console", "source": "REST_CLIENT"}
@@ -275,6 +276,14 @@ Mô hình dưới đây là phác thảo. Quy tắc ≥5 event/60 giây có tron
 - **Kết quả mong đợi:**
   - HTTP Status: `201 Created`.
   - Body: `{"status": "SUCCESS", "event_id": "<UUID>", "received_at": "<TIMESTAMP>"}`.
+
+#### TC-ING-016: REST ingest từ chối bản tin khi queue đầy
+
+- **Mã Jira:** [N42-14](https://nhutp2945-1793259952237.atlassian.net/browse/N42-14) · **Yêu cầu:** FR-02, NFR-08 · **Tiêu chí:** AC-01.
+- **Thiết lập:** Dùng queue cô lập, dung lượng nhỏ, nạp trước các RawEvent giả lập có nội dung và thứ tự xác định.
+- **Thực hiện:** Gửi một `raw_message` hợp lệ tới `POST /api/v1/events/ingest` khi queue đã đầy.
+- **Kết quả mong đợi:** HTTP `503` với `{"detail":"Ingest queue is full"}`. Phản hồi không chứa `SUCCESS` hoặc `event_id`. Các RawEvent đã có giữ nguyên số lượng, thứ tự và nội dung.
+- **Bằng chứng:** Gắn commit, kết quả `tests/test_api_ingest.py` và đối chiếu queue trước/sau. Trạng thái ca kiểm thử cập nhật theo kết quả chạy trên commit đã sửa.
 
 #### TC-ING-008: REST Ingest API - Thiếu trường bắt buộc (Negative)
 - **Mã Jira:** `N42-14` | **Ưu tiên:** P2 (HIGH)
@@ -298,6 +307,7 @@ Mô hình dưới đây là phác thảo. Quy tắc ≥5 event/60 giây có tron
 
 #### TC-ING-011: File Log Batch Import - 100 dòng hợp lệ (FR-03)
 - **Mã Jira:** `N42-22` | **Ưu tiên:** P2 (HIGH)
+- **Phạm vi:** Đối soát kết quả cuối của import run theo pipeline được duyệt. Với API bất đồng bộ, lấy các bộ đếm sau khi run hoàn tất.
 - **Dữ liệu đầu vào:** File `batch_100.log` chứa đúng 100 dòng Syslog chuẩn.
 - **Kết quả mong đợi:**
   - Tạo thành công 100 bản ghi trong CSDL.
@@ -451,9 +461,9 @@ Giá trị field mapping (đặc biệt normalized severity label/number và tê
   - $t = 52s$: `<134>Nov 06 15:40:52 sw-01 %LINK-3-UPDOWN: Interface Gi0/1, changed state to down`
 - **Kết quả mong đợi:**
   - Đúng thời điểm $t = 52s$, hệ thống sinh **1 Incident mới**.
-  - Tiêu đề Incident: `Interface Gi0/1 on sw-01 is flapping`. Mức độ: `MAJOR`.
+  - Tiêu đề Incident: `Interface Gi0/1 on sw-01 is flapping`. Severity đối chiếu rule version được duyệt tại DEC-03.
   - Danh sách `evidence_event_ids` chứa chính xác 5 UUID của 5 event trên.
-  - Kênh WebSocket phát bản tin cập nhật Incident mới tới FE.
+  - Đối soát incident và event IDs. Kênh WebSocket được kiểm riêng ở TC-UI-005 khi có hợp đồng transport và build.
 
 #### TC-COR-002: Kiểm tra biên dưới - 4 lần trong 60 giây (Không tạo Incident)
 - **Mã Jira:** `N42-44` | **Ưu tiên:** P1 (CRITICAL)
@@ -609,6 +619,7 @@ theo ủy quyền người dùng, QA/TL phê duyệt sau. Không có claim activ
   - Truy vấn tham số hóa (Parameterized Query) an toàn, trả về danh sách rỗng, bảng CSDL nguyên vẹn.
 
 #### TC-UI-005: Cập nhật Incident thời gian thực qua WebSocket
+- **Điều kiện chạy:** N42-51/N42-53 có phạm vi được duyệt và build hỗ trợ transport. Khi thiếu điều kiện, ghi BLOCKED và nêu dependency.
 - **Mã Jira:** `N42-51`, `N42-53` | **Ưu tiên:** P1 (CRITICAL)
 - **Thực hiện:** Đang mở màn hình Dashboard, Correlation Engine kích hoạt 1 Incident mới.
 - **Kết quả mong đợi:**
@@ -748,6 +759,7 @@ theo ủy quyền người dùng, QA/TL phê duyệt sau. Không có claim activ
   - Latency tổng (từ lúc gửi UDP đến lúc hiển thị trên FE) < 3 giây.
 
 #### TC-INT-002: Luồng tích hợp hoàn chỉnh: Link Flap → Incident → WebSocket → Dashboard Alert
+- **Điều kiện chạy:** Ghi phiên bản luật DEC-03 và build. Phần WebSocket chỉ chạy khi transport đã được duyệt; ghi riêng kết quả tạo incident và kết quả truyền tới Dashboard.
 - **Mã Jira:** `N42-44` → `N42-46` → `N42-51` → `N42-53` | **Ưu tiên:** P1 (CRITICAL)
 - **Mục tiêu:** Kiểm chứng chuỗi xử lý từ sự kiện thô → tương quan → tạo sự cố → giao diện.
 - **Các bước thực hiện:**
@@ -1383,29 +1395,29 @@ Ma trận dưới đây là ánh xạ kế hoạch giữa FR/NFR, Jira và ca ki
 
 | Mã Yêu cầu | Tên Yêu cầu Nghiệp vụ / Kỹ thuật | Thẻ Jira | Các Ca Kiểm thử Đại diện (Test Cases) | Phụ trách Chính |
 | :---: | :--- | :---: | :--- | :---: |
-| **FR-01** | Nhận diện Syslog UDP Socket 5514 | `N42-13` | TC-ING-001, 002, 003, 004, 005, 006, 014, 015 | Long (BE1) |
-| **FR-02** | REST API Ingest tiếp nhận bản tin | `N42-14` | TC-ING-007, 008, 009, 010 | Long (BE1) |
-| **FR-03** | Batch Log File Import từ ổ đĩa | `N42-14` | TC-ING-011, 012, 013, TC-SEC-006 | Long (BE1) |
-| **FR-04** | Parser chuẩn hóa đa vendor Cisco/Huawei/Juniper/Fortinet | `N42-15..17` | TC-PAR-001, 002, 003, 004, 005, 006, 007, 008, 009, 012 | Thành (BE2) |
-| **FR-05** | Fallback RAW cho bản tin dị dạng/hỏng | `N42-18` | TC-PAR-010, 011, TC-ING-003 | Thành (BE2) |
-| **FR-06** | Lưu trữ sự kiện bền vững vào PostgreSQL | `N42-15` | TC-DB-001, 002, 003, TC-INT-001, 003 | Thành (BE2) |
-| **FR-07** | Tìm kiếm, lọc và phân trang sự kiện | `N42-19` | TC-UI-002, 003, TC-SEC-004, TC-PERF-008 | Thành / Huy |
-| **FR-08** | Thống kê số lượng sự kiện theo khung giờ/thiết bị | `N42-19` | TC-UI-001, TC-DB-003 | Thành / Huy |
-| **FR-09** | Tương quan sự cố đa cảnh báo (Correlation Engine) | `N42-44, 45` | TC-COR-001, 002, 003, 004, 005, 006, 007, 008, 009, 010, 011 | Minh (BE3) |
-| **FR-10** | Quản lý vòng đời sự cố (Incident Lifecycle & FSM) | `N42-44` | TC-COR-007, 012, TC-INT-002, TC-DB-004 | Minh (BE3) |
-| **FR-11** | Dashboard hiển thị cảnh báo thời gian thực | `N42-20` | TC-UI-001–006, TC-INT-002, TC-SEC-005 | Huy (FE) |
-| **FR-12** | Health check & giám sát metrics hệ thống | `N42-33` | TC-HLT-001, 002, 003, 004 | BE1 / QA theo ticket |
-| **FR-13** | Replay deterministic theo scenario/seed | Jira cần đối chiếu | TC-REP-001 | Kiệt (QA) |
-| **FR-14** | Export theo filter, escaping và giới hạn | Jira cần đối chiếu | TC-EXP-001 | FE / BE liên quan |
-| **FR-15** | Thẩm định N17; Hot-reload N38 (crosswalk draft chờ QA/TL) | `N42-17` / `N42-38` | TC-RUL-001, 002, 003, 004, 005, 006, 007 | Minh (BE3) |
-| **NFR-01** | Tải danh định $\ge 1.000$ msg/s liên tục | `N42-47` | TC-PERF-001 (10p), TC-PERF-002 (1h), TC-PERF-004 (1.500 msg/s) | Kiệt (QA) |
-| **NFR-02** | Độ trễ xử lý $P_{50} < 50$ms, $P_{99} < 200$ms | `N42-47` | TC-PERF-003 | Kiệt (QA) |
-| **NFR-03** | Tỷ lệ rớt gói UDP Socket đạt tuyệt đối $0.00\%$ | `N42-32, 47` | TC-ING-014, TC-PERF-001, 002 | Long / Kiệt |
-| **NFR-04** | Tiêu thụ tài nguyên CPU $\le 60\%$, RAM $\le 1.5$ GB | `N42-47` | TC-PERF-001, 002, 005 (Memory Leak) | QA + BE owner theo metric |
-| **NFR-05** | Truy vấn 1 triệu bản ghi dưới 2 giây | `N42-47` | TC-PERF-008, TC-DB-003 | Thành / Kiệt |
-| **NFR-06** | 100% dữ liệu giả lập, không lộ Secret / IP thật | `N42-33` | TC-SEC-001, 002, 003, TC-HLT-003 | QA + code owners; TL điều phối hồ sơ |
-| **NFR-07** | Cài đặt và phục hồi theo handover target | Jira cần đối chiếu | TC-INT-003, TC-PERF-007, TC-OPS-001, 003 | QA / BE1 / BE2 |
-| **NFR-08** | Bounded memory và policy khi saturation | Jira cần đối chiếu | TC-ING-014, TC-PERF-004, 006, TC-OPS-003 | BE1 / BE2 / QA |
+| **FR-01** | Nhận diện Syslog UDP Socket 5514 | [N42-13](https://nhutp2945-1793259952237.atlassian.net/browse/N42-13), [N42-32](https://nhutp2945-1793259952237.atlassian.net/browse/N42-32) | TC-ING-001, 002, 003, 004, 005, 006, 014, 015 | Long (BE1) |
+| **FR-02** | REST API Ingest tiếp nhận bản tin | [N42-14](https://nhutp2945-1793259952237.atlassian.net/browse/N42-14) | TC-ING-007, 008, 009, 010 | Long (BE1) |
+| **FR-03** | Batch Log File Import từ ổ đĩa | [N42-22](https://nhutp2945-1793259952237.atlassian.net/browse/N42-22) | TC-ING-011, 012, 013, TC-SEC-006 | Long (BE1) |
+| **FR-04** | Parser chuẩn hóa đa vendor Cisco/Huawei/Juniper/Fortinet | [N42-15](https://nhutp2945-1793259952237.atlassian.net/browse/N42-15), [N42-23](https://nhutp2945-1793259952237.atlassian.net/browse/N42-23), [N42-24](https://nhutp2945-1793259952237.atlassian.net/browse/N42-24), [N42-25](https://nhutp2945-1793259952237.atlassian.net/browse/N42-25) | TC-PAR-001, 002, 003, 004, 005, 006, 007, 008, 009, 012 | Thành (BE2) |
+| **FR-05** | Fallback RAW cho bản tin dị dạng/hỏng | [N42-15](https://nhutp2945-1793259952237.atlassian.net/browse/N42-15) | TC-PAR-010, 011, TC-ING-003 | Thành (BE2) |
+| **FR-06** | Lưu trữ sự kiện bền vững vào PostgreSQL | [N42-16](https://nhutp2945-1793259952237.atlassian.net/browse/N42-16), [N42-30](https://nhutp2945-1793259952237.atlassian.net/browse/N42-30), [N42-31](https://nhutp2945-1793259952237.atlassian.net/browse/N42-31), [N42-55](https://nhutp2945-1793259952237.atlassian.net/browse/N42-55) | TC-DB-001, 002, 003, TC-INT-001, 003 | Thành (BE2) |
+| **FR-07** | Tìm kiếm, lọc và phân trang sự kiện | [N42-28](https://nhutp2945-1793259952237.atlassian.net/browse/N42-28), [N42-34](https://nhutp2945-1793259952237.atlassian.net/browse/N42-34), [N42-67](https://nhutp2945-1793259952237.atlassian.net/browse/N42-67) | TC-UI-002, 003, TC-SEC-004, TC-PERF-008 | Thành / Huy |
+| **FR-08** | Thống kê số lượng sự kiện theo khung giờ/thiết bị | [N42-39](https://nhutp2945-1793259952237.atlassian.net/browse/N42-39), [N42-41](https://nhutp2945-1793259952237.atlassian.net/browse/N42-41) | TC-UI-001, TC-DB-003 | Thành / Huy |
+| **FR-09** | Tương quan sự cố đa cảnh báo (Correlation Engine) | [N42-18](https://nhutp2945-1793259952237.atlassian.net/browse/N42-18), [N42-37](https://nhutp2945-1793259952237.atlassian.net/browse/N42-37), [N42-44](https://nhutp2945-1793259952237.atlassian.net/browse/N42-44), [N42-45](https://nhutp2945-1793259952237.atlassian.net/browse/N42-45), [N42-48](https://nhutp2945-1793259952237.atlassian.net/browse/N42-48), [N42-64](https://nhutp2945-1793259952237.atlassian.net/browse/N42-64), [N42-65](https://nhutp2945-1793259952237.atlassian.net/browse/N42-65), [N42-66](https://nhutp2945-1793259952237.atlassian.net/browse/N42-66) | TC-COR-001, 002, 003, 004, 005, 006, 007, 008, 009, 010, 011 | Minh (BE3) |
+| **FR-10** | Quản lý vòng đời sự cố (Incident Lifecycle & FSM) | [N42-33](https://nhutp2945-1793259952237.atlassian.net/browse/N42-33), [N42-44](https://nhutp2945-1793259952237.atlassian.net/browse/N42-44), [N42-46](https://nhutp2945-1793259952237.atlassian.net/browse/N42-46), [N42-47](https://nhutp2945-1793259952237.atlassian.net/browse/N42-47) | TC-COR-007, 012, TC-INT-002, TC-DB-004 | Minh (BE3) |
+| **FR-11** | Dashboard hiển thị cảnh báo thời gian thực | [N42-20](https://nhutp2945-1793259952237.atlassian.net/browse/N42-20), [N42-28](https://nhutp2945-1793259952237.atlassian.net/browse/N42-28), [N42-34](https://nhutp2945-1793259952237.atlassian.net/browse/N42-34), [N42-41](https://nhutp2945-1793259952237.atlassian.net/browse/N42-41), [N42-47](https://nhutp2945-1793259952237.atlassian.net/browse/N42-47), [N42-53](https://nhutp2945-1793259952237.atlassian.net/browse/N42-53) | TC-UI-001–006, TC-INT-002, TC-SEC-005 | Huy (FE) |
+| **FR-12** | Health check & giám sát metrics hệ thống | [N42-13](https://nhutp2945-1793259952237.atlassian.net/browse/N42-13) | TC-HLT-001, 002, 003, 004 | BE1 / QA theo ticket |
+| **FR-13** | Replay deterministic theo scenario/seed | [N42-11](https://nhutp2945-1793259952237.atlassian.net/browse/N42-11), [N42-54](https://nhutp2945-1793259952237.atlassian.net/browse/N42-54) | TC-REP-001 | Kiệt (QA) |
+| **FR-14** | Export theo filter, escaping và giới hạn | [N42-63](https://nhutp2945-1793259952237.atlassian.net/browse/N42-63) | TC-EXP-001 | FE / BE liên quan |
+| **FR-15** | Thẩm định/startup N17; Hot-reload N38 (chờ QA/TL nghiệm thu) | [N42-17](https://nhutp2945-1793259952237.atlassian.net/browse/N42-17), [N42-38](https://nhutp2945-1793259952237.atlassian.net/browse/N42-38) | TC-RUL-001–005, 008–012 (N17); TC-RUL-006/007 (N38) | Minh (BE3) |
+| **NFR-01** | Tải danh định $\ge 1.000$ msg/s liên tục | [N42-57](https://nhutp2945-1793259952237.atlassian.net/browse/N42-57) | TC-PERF-001 (10p), TC-PERF-002 (1h), TC-PERF-004 (1.500 msg/s) | Kiệt (QA) |
+| **NFR-02** | Độ trễ xử lý $P_{50} < 50$ms, $P_{99} < 200$ms | [N42-52](https://nhutp2945-1793259952237.atlassian.net/browse/N42-52), [N42-57](https://nhutp2945-1793259952237.atlassian.net/browse/N42-57) | TC-PERF-003 | Kiệt (QA) |
+| **NFR-03** | Tỷ lệ rớt gói UDP Socket đạt tuyệt đối $0.00\%$ | [N42-32](https://nhutp2945-1793259952237.atlassian.net/browse/N42-32), [N42-57](https://nhutp2945-1793259952237.atlassian.net/browse/N42-57) | TC-ING-014, TC-PERF-001, 002 | Long / Kiệt |
+| **NFR-04** | Tiêu thụ tài nguyên CPU $\le 60\%$, RAM $\le 1.5$ GB | [N42-57](https://nhutp2945-1793259952237.atlassian.net/browse/N42-57), [N42-58](https://nhutp2945-1793259952237.atlassian.net/browse/N42-58) | TC-PERF-001, 002, 005 (Memory Leak) | QA + BE owner theo metric |
+| **NFR-05** | Truy vấn 1 triệu bản ghi dưới 2 giây | [N42-23](https://nhutp2945-1793259952237.atlassian.net/browse/N42-23), [N42-24](https://nhutp2945-1793259952237.atlassian.net/browse/N42-24), [N42-25](https://nhutp2945-1793259952237.atlassian.net/browse/N42-25), [N42-30](https://nhutp2945-1793259952237.atlassian.net/browse/N42-30), [N42-67](https://nhutp2945-1793259952237.atlassian.net/browse/N42-67) | TC-PERF-008, TC-DB-003 | Thành / Kiệt |
+| **NFR-06** | 100% dữ liệu giả lập, không lộ Secret / IP thật | [N42-10](https://nhutp2945-1793259952237.atlassian.net/browse/N42-10), [N42-50](https://nhutp2945-1793259952237.atlassian.net/browse/N42-50), [N42-60](https://nhutp2945-1793259952237.atlassian.net/browse/N42-60) | TC-SEC-001, 002, 003, TC-HLT-003 | QA + code owners; TL điều phối hồ sơ |
+| **NFR-07** | Cài đặt và phục hồi theo handover target | [N42-55](https://nhutp2945-1793259952237.atlassian.net/browse/N42-55), [N42-59](https://nhutp2945-1793259952237.atlassian.net/browse/N42-59), [N42-61](https://nhutp2945-1793259952237.atlassian.net/browse/N42-61) | TC-INT-003, TC-PERF-007, TC-OPS-001, 003 | QA / BE1 / BE2 |
+| **NFR-08** | Bounded memory và policy khi saturation | [N42-13](https://nhutp2945-1793259952237.atlassian.net/browse/N42-13), [N42-14](https://nhutp2945-1793259952237.atlassian.net/browse/N42-14), [N42-31](https://nhutp2945-1793259952237.atlassian.net/browse/N42-31), [N42-32](https://nhutp2945-1793259952237.atlassian.net/browse/N42-32), [N42-57](https://nhutp2945-1793259952237.atlassian.net/browse/N42-57) | TC-ING-014, TC-PERF-004, 006, TC-OPS-003 | BE1 / BE2 / QA |
 
 ---
 

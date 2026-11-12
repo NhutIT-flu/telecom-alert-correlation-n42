@@ -27,9 +27,13 @@ wheels/
 # Testing & Linting
 .pytest_cache/
 .coverage
+coverage.xml
 htmlcov/
+reports/
+.scannerwork/
 .tox/
 .nox/
+*.tar.gz
 
 # IDE & OS
 .idea/
