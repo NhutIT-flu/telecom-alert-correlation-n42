@@ -2,6 +2,10 @@
 
 Ma trận này là kế hoạch bao phủ FR/NFR đến tiêu chí nghiệm thu, mã ca kiểm thử và evidence cần thu. Mã test trong ma trận là mã đặc tả trong `TEST_CASE_SPECIFICATION.md`; không đồng nghĩa đã tự động hóa hoặc đã chạy.
 
+N42-18 (13/11/2026): FR-09 / AC-06 → TDD mục 8 → TC-DED-001–008
+(`tests/test_deduplication.py`). BE3 sở hữu unit implementation/evidence; QA/TL
+review riêng. Module RAM độc lập, chưa chứng minh correlation tích hợp/KPI.
+
 ## 1. Quy ước trạng thái
 
 - **Đặc tả:** Có mô tả ca kiểm thử, chưa có bằng chứng chạy.

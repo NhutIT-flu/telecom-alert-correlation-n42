@@ -61,3 +61,35 @@ Không commit secret; dùng env có validation. Raw log có thể nhạy cảm n
 ## 7. Cấu hình chưa được ngầm coi là chốt
 
 Chunk interval, compression/retention, DB connection pool, socket buffer, queue/batch sizes, WebSocket heartbeat/reconnect, TLS và reverse proxy cần ADR, file config và phép đo trước khi ghi là quyết định. Nếu đã có trong config, ghi đúng file/version và xác minh khi chạy.
+
+## 8. N42-18 — Deduplication Window (13/11/2026)
+
+Quyết định triển khai theo ủy quyền người dùng, dựa trên N42-17 đã merge tại
+`0baa59f`; chưa đại diện QA/TL sign-off. FR-09 / AC-06; unit cases TC-DED-001–008
+trong `TEST_CASE_SPECIFICATION.md`, truy vết ở RTM.
+
+- Module độc lập nhận `AlertEvent` đã khớp rule. Không đánh giá match/threshold,
+  không tự bật luật mẫu; caller tương lai chịu trách nhiệm chọn rule hợp lệ.
+- Một instance theo `(rule_version, rule_id)`; khóa là tuple giá trị có kiểu theo
+  `rule.group_by`. Chỉ nhận field thực có trong AlertEvent; thiếu/null/rỗng báo lỗi.
+  Không tự thêm interface/link_state vào schema parser. Không group theo raw payload.
+- Cửa sổ cố định `[t0, t0 + dedup_window_seconds)`, tính bằng monotonic processing-time.
+  Event đúng hạn mở nhóm mới. Window cấu hình riêng, không lấy window Link Flap.
+- `repeat_count` = số event ID duy nhất trong nhóm, gồm event đầu tiên.
+  Retry cùng ID trong cùng nhóm đang sống trả snapshot cũ, không đổi last_seen.
+  Sau hết hạn, ID có thể xuất hiện trong episode mới; đây không phải durable idempotency.
+- `first_seen/last_seen` = min/max `received_at` UTC của các ID đã nhận vào nhóm;
+  `event_timestamp` trễ/đảo thứ tự không sửa cửa sổ. UTC hiển thị và clock hết hạn
+  là hai nguồn có mục đích riêng; không tính duration từ first/last_seen.
+- Khóa trong tiến trình bảo vệ prune/check/add/count; snapshot bất biến giữ UUID
+  evidence theo thứ tự nhận, không giữ hoặc sửa raw. Clock inject được cho unit test.
+- Mỗi lần thêm và `expire()` đều dọn nhóm hết hạn; expire trả snapshot để caller lưu.
+  Mặc định tối đa 10.000 event references đang hoạt động, vượt giới hạn báo
+  OverflowError trước khi thêm; caller phải giữ raw và xử lý lỗi, không silent drop.
+- Chưa nối pipeline/DB/API; RAM mất khi restart, không chia sẻ giữa nhiều worker.
+  Caller tương lai cần gọi expire định kỳ khi idle và lưu snapshot trả về nếu cần persistence.
+  Không dùng kết quả unit test làm bằng chứng KPI N42-48 hay QA nghiệm thu.
+
+Kiểm tra local 13/11/2026, Windows/Python 3.14: `pytest tests -q` cho 148 tests
+và 10 subtests pass (18 ca mới dedup); JUnit: `reports/n42-18-junit.xml`.
+Black/Flake8 toàn app/tests/tools pass. Chưa có run CI Linux/Python 3.12 trên nhánh này.

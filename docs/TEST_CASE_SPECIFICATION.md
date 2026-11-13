@@ -509,6 +509,23 @@ Giá trị field mapping (đặc biệt normalized severity label/number và tê
   - **Không tạo Incident nào**.
 
 #### TC-COR-007: Khử trùng lặp (Deduplication) khi bão sự kiện tiếp diễn
+
+Ca này thuộc Link Flap/N42-44 với event_count; không thay thế ca unit dedup
+N42-18 TC-DED-001–008 sau đây (FR-09/AC-06, BE3; thiết kế TDD mục 8).
+
+| TC | Input (synthetic, fake clock, window=10s) | Expected |
+|---|---|---|
+| TC-DED-001 | 100 UUID cùng khóa tại t=0..0.99 | 1 group, count=100; first/last received_at đúng, đủ evidence |
+| TC-DED-002 | Hai hostname khác nhau cùng thời điểm | 2 nhóm riêng, mỗi counter=1 |
+| TC-DED-003 | Cùng khóa tại t=0, 9.999, 10, 20.001 | Hai event đầu cùng nhóm; đúng hạn/sau hạn mở nhóm mới |
+| TC-DED-004 | Retry UUID đang sống, expire tại đúng hạn | Không tăng count/last_seen; expire trả snapshot và dọn state |
+| TC-DED-005 | 100 ID và retry đồng thời bằng threads | Count=100; không lost update; snapshot cũ bất biến |
+| TC-DED-006 | event_timestamp cũ, received_at đảo thứ tự | Không backdate expiry; first/last=min/max received_at |
+| TC-DED-007 | Field không hỗ trợ/null/raw, window/cap sai | ValueError trước khi thêm; input/raw không sửa |
+| TC-DED-008 | Cap=2, thử ID thứ 3, retry rồi expire | OverflowError; không partial add; retry hợp lệ; hết hạn nhận lại được |
+
+Fixture ở `tests/test_deduplication.py`; chưa chạy/QA chưa nghiệm thu lúc đặc tả.
+Không đổi semantics Link Flap hoặc lấy 60 giây làm window dedup mặc định.
 - **Mã Jira:** `N42-44` | **Ưu tiên:** P1 (CRITICAL)
 - **Dữ liệu kiểm thử:** Bơm liên tục 20 event flap trên `sw-01`, `Gi0/1` trong vòng 40 giây.
 - **Kết quả mong đợi:**

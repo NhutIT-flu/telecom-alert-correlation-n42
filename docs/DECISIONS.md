@@ -17,6 +17,14 @@
 
 ## Mẫu thêm dòng mới
 
+### N42-18 — 13/11/2026
+
+Theo ủy quyền của người dùng, chọn fixed window theo monotonic processing-time,
+biên phải mở, ID duy nhất theo nhóm; timestamps hiển thị dùng received_at UTC.
+Tái sử dụng group_by từ N42-17, không đổi schema/rules.yaml hay kích hoạt luật mẫu.
+Chi tiết/giới hạn ở TDD mục 8. Đây là quyết định triển khai trên nhánh N42-18,
+QA/TL sign-off riêng; không ghi thay phê duyệt của leader.
+
 | # | Ngày | Hoàn cảnh | Các phương án xét | Quyết định | Người quyết |
 |---|------|-----------|-------------------|-----------|-------------|
 |   |      |           |                   |           |             |
