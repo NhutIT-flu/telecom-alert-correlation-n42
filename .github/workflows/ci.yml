@@ -22,6 +22,8 @@ env:
   PYTHONUTF8: "1"
   PIP_DISABLE_PIP_VERSION_CHECK: "1"
   APP_ENV: testing
+  N42_UDP_HOST: "127.0.0.1"
+  N42_UDP_PORT: "0"
 
 jobs:
   quality:
@@ -81,12 +83,16 @@ jobs:
           persist-credentials: false
       - uses: ./.github/actions/setup-python-ci
         id: setup
+      - name: Prepare and verify UDP socket buffer
+        id: udp
+        timeout-minutes: 1
+        run: python tools/udp_buffer_preflight.py --prepare --allow-sudo 2>&1 | tee reports/udp-buffer.txt
       # Keep the unittest command explicitly requested in N42-10.
       # Pytest also collects unittest cases plus parser function tests.
       - name: Unittest
         run: python -m unittest discover -s tests -p "test_*.py" -v 2>&1 | tee reports/unittest.txt
       - name: Pytest & coverage
-        if: ${{ !cancelled() && steps.setup.outcome == 'success' }}
+        if: ${{ !cancelled() && steps.setup.outcome == 'success' && steps.udp.outcome == 'success' }}
         run: >-
           python -m pytest tests/ -v
           --junitxml=reports/junit-report.xml --cov=app
@@ -109,6 +115,9 @@ jobs:
         with:
           persist-credentials: false
       - uses: ./.github/actions/setup-python-ci
+      - name: Prepare and verify UDP socket buffer
+        timeout-minutes: 1
+        run: python tools/udp_buffer_preflight.py --prepare --allow-sudo 2>&1 | tee reports/udp-buffer.txt
       # No DB service: current tests have no persistence dependency.
       - name: Start API, verify health and stop API
         timeout-minutes: 2

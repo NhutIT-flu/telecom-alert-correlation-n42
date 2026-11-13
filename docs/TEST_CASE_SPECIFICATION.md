@@ -1,4 +1,6 @@
 # ĐẶC TẢ CA KIỂM THỬ — N4.2
+
+N42-10 / TC-OPS-002: [UB-01–10](UDP_BUFFER_PREFLIGHT.md) đặc tả QA preflight socket buffer; không thay đổi test/implementation N42-13 hoặc KPI tải. Execution report phải có SHA và môi trường.
 ## Bản làm việc: kiểm thử hộp đen, giá trị biên và truy vết yêu cầu
 
 > **Mã văn bản:** `N42-TCS-WORKING`  

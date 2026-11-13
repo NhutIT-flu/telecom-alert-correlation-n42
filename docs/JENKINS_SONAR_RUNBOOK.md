@@ -1,5 +1,7 @@
 # Jenkins và SonarQube — Python 3.12, tự chạy main và Quality Gate
 
+Bổ sung QA UDP preflight: sau Dependencies, stage `UDP Buffer Preflight` kiểm tra receiver thật trên loopback/cổng động. Agent chỉ dùng quyền hiện có (`--prepare`, không sudo); thiếu quyền/dung lượng thì fail với report để chủ lab chuẩn bị host/agent. Không tự cấp privileged hoặc sửa backend. Xem [hướng dẫn](UDP_BUFFER_PREFLIGHT.md).
+
 N42-10 · 12/11/2026 · yêu cầu do Ngô Châu Kiệt xác nhận, chờ review và triển khai.
 
 ## Cấu hình nguồn và giới hạn

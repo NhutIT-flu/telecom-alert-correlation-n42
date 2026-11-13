@@ -25,6 +25,8 @@ pipeline {
         PYTHONUTF8 = '1'
         PIP_DISABLE_PIP_VERSION_CHECK = '1'
         APP_ENV = 'testing'
+        N42_UDP_HOST = '127.0.0.1'
+        N42_UDP_PORT = '0'
     }
 
     stages {
@@ -59,6 +61,16 @@ python3.12 -m venv --clear .venv
 .venv/bin/python -m pip install -r requirements.txt
 .venv/bin/python -m pip check
 .venv/bin/python tools/ci_checks.py metadata --reports reports
+'''
+            }
+        }
+
+        stage('UDP Buffer Preflight') {
+            options { timeout(time: 1, unit: 'MINUTES') }
+            steps {
+                sh '''#!/usr/bin/env bash
+set -euo pipefail
+.venv/bin/python tools/udp_buffer_preflight.py --prepare 2>&1 | tee reports/udp-buffer.txt
 '''
             }
         }
