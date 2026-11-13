@@ -1,0 +1,69 @@
+{
+  "backend_revision": "191521ef0102f450bb4d5d9ea48ddc081aad8a03",
+  "backend_files_unchanged": {
+    "app/receiver/server.py": "8065406067753607fb71ca08d8644e96b5d1181b1e7ef666b87918a4b309ad41",
+    "tests/test_udp_ingestion.py": "e90ba72846f0c13838f67b720ed88b3cf8634320dd6a835dfa00d7ecc4033644"
+  },
+  "preflight_sha256": "b4a92b44f914686f6ee6e567b891a963322f73322c896e930c34883510ee4199",
+  "qa_tests": {
+    "unittest_passed": 60,
+    "pytest_passed": 158,
+    "subtests_passed": 644
+  },
+  "isolated_backend_tests": {
+    "pytest_passed": 32,
+    "subtests_passed": 9
+  },
+  "capability_test_note": "Linux container without root. Positive 4 MiB and deliberately rejected 8 MiB. No backend code/test changes; no host sysctl change. Sudo preparation is covered with mocked command outcomes, not claimed as exercised on GitHub with backend present.",
+  "cases": {
+    "buffer-4m.json": {
+      "recorded_at": "2026-11-13T11:39:26.315725+00:00",
+      "checkout_sha": "unknown",
+      "preflight_sha256": "b4a92b44f914686f6ee6e567b891a963322f73322c896e930c34883510ee4199",
+      "platform": "linux",
+      "backend_source_sha256": "8065406067753607fb71ca08d8644e96b5d1181b1e7ef666b87918a4b309ad41",
+      "override": false,
+      "checked": true,
+      "prepare_budget_bytes": 67108864,
+      "requested_bytes": 4194304,
+      "request_source": "backend default",
+      "readback_factor": 2,
+      "required_reported_bytes": 8388608,
+      "rmem_max_before": 4194304,
+      "rmem_max_after": 4194304,
+      "probe_reported_bytes": 8388608,
+      "receiver_reported_bytes": 8388608,
+      "receiver_requested_bytes": 4194304,
+      "bound_port": 58961,
+      "status": "READY",
+      "reason": "OS probe and real receiver accepted the requested buffer",
+      "receiver_stopped": true,
+      "exit_code": 0
+    },
+    "buffer-8m.json": {
+      "recorded_at": "2026-11-13T11:39:28.501473+00:00",
+      "checkout_sha": "unknown",
+      "preflight_sha256": "b4a92b44f914686f6ee6e567b891a963322f73322c896e930c34883510ee4199",
+      "platform": "linux",
+      "backend_source_sha256": "8065406067753607fb71ca08d8644e96b5d1181b1e7ef666b87918a4b309ad41",
+      "override": true,
+      "checked": true,
+      "prepare_budget_bytes": 67108864,
+      "requested_bytes": 8388608,
+      "request_source": "backend constructor",
+      "readback_factor": 2,
+      "required_reported_bytes": 16777216,
+      "rmem_max_before": 4194304,
+      "rmem_max_after": 4194304,
+      "probe_reported_bytes": 8388608,
+      "preparation": {
+        "attempted": false,
+        "reason": "No administrator permission; prepare the lab/agent first"
+      },
+      "status": "INSUFFICIENT_BUFFER",
+      "reason": "OS readback is below the requested socket capacity; tests were not weakened",
+      "guidance": "Prepare rmem_max on the lab host/agent with permission, then rerun this check",
+      "exit_code": 1
+    }
+  }
+}

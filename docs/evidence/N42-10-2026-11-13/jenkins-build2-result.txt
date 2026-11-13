@@ -1,0 +1,3 @@
+result=SUCCESS
+revision=825d8032c34bad538f62acd9d036ca3005c28a4a
+build=http://localhost:8000/job/N42-CI-Test-Feature/2/

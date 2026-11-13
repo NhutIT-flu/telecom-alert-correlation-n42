@@ -92,4 +92,3 @@ python tools/check_sensitive.py .
 ```
 
 Báo credential/token hardcode và IP public nằm ngoài dải RFC 1918 / RFC 5737. Chạy trước khi push.
-

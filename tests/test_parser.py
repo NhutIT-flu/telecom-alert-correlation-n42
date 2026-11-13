@@ -166,7 +166,12 @@ def test_n15_11_empty_input():
     ],
 )
 def test_n15_12_invalid_timestamp(invalid_time_raw):
-    event = parse_syslog_rfc3164(invalid_time_raw, DEFAULT_IP, received_at=DEFAULT_RECEIVED, source_timezone=DEFAULT_TZ)
+    event = parse_syslog_rfc3164(
+        invalid_time_raw,
+        DEFAULT_IP,
+        received_at=DEFAULT_RECEIVED,
+        source_timezone=DEFAULT_TZ,
+    )
     assert event.parse_status == "fallback"
     assert event.parse_error == "invalid_timestamp"
 
@@ -227,7 +232,12 @@ def test_n15_18_unicode_and_crlf_suffix():
     ],
 )
 def test_n15_19_control_char_and_internal_newline(corrupt_raw):
-    event = parse_syslog_rfc3164(corrupt_raw, DEFAULT_IP, received_at=DEFAULT_RECEIVED, source_timezone=DEFAULT_TZ)
+    event = parse_syslog_rfc3164(
+        corrupt_raw,
+        DEFAULT_IP,
+        received_at=DEFAULT_RECEIVED,
+        source_timezone=DEFAULT_TZ,
+    )
     assert event.parse_status == "fallback"
     assert event.parse_error == "malformed_header"
 

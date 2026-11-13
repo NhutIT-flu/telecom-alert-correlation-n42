@@ -1,0 +1,9 @@
+{
+  "checksums": "PASS",
+  "restored_jenkins_jobs": [
+    "N42-CI-Pipeline",
+    "N42-CI-Test-Feature"
+  ],
+  "sonarqube_tables": "185",
+  "n42_tables": "0"
+}

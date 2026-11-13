@@ -99,7 +99,12 @@ class SyslogGeneratorTests(unittest.TestCase):
         self.assertTrue(
             any(
                 tag in cisco_msg
-                for tag in ["%LINK-3-UPDOWN", "%LINEPROTO-5-UPDOWN", "%BGP-5-ADJCHANGE", "%IP-4-DUPADDR"]
+                for tag in [
+                    "%LINK-3-UPDOWN",
+                    "%LINEPROTO-5-UPDOWN",
+                    "%BGP-5-ADJCHANGE",
+                    "%IP-4-DUPADDR",
+                ]
             )
         )
 
@@ -454,7 +459,20 @@ class SyslogGeneratorTests(unittest.TestCase):
 
     def test_cli_parse_args_and_main_all_modes(self) -> None:
         """Kiểm tra hàm parse_args và luồng thực thi CLI main() trên cả 3 chế độ (file, udp, http)."""
-        args_int = parse_args(["--mode", "udp", "--rate", "500", "--vendor", "mixed", "--count", "10", "--seed", "123"])
+        args_int = parse_args(
+            [
+                "--mode",
+                "udp",
+                "--rate",
+                "500",
+                "--vendor",
+                "mixed",
+                "--count",
+                "10",
+                "--seed",
+                "123",
+            ]
+        )
         self.assertEqual(args_int.mode, "udp")
         self.assertEqual(args_int.rate, 500)
         self.assertEqual(args_int.vendor, "mixed")

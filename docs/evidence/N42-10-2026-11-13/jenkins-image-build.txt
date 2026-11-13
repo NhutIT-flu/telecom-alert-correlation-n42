@@ -1,0 +1,71 @@
+docker :  Image telecom-alert-correlation-n42-jenkins Building
+At line:2 char:1
++ docker compose --progress plain build jenkins 2>&1 | Tee-Object -File ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: ( Image telecom-...nkins Building :String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+
+#1 [internal] load local bake definitions
+#1 reading from stdin 645B done
+#1 DONE 0.0s
+
+#2 [internal] load build definition from Dockerfile.jenkins
+#2 transferring dockerfile: 698B 0.0s done
+#2 DONE 0.0s
+
+#3 [internal] load metadata for docker.io/jenkins/jenkins:lts-jdk21@sha256:74401de6a6f92e1afe1b02d1c8e3d0c33f263bfb5275dd8813f9150355f2367b
+#3 ...
+
+#4 [auth] jenkins/jenkins:pull token for registry-1.docker.io
+#4 DONE 0.0s
+
+#5 [internal] load metadata for docker.io/library/python:3.12.16-slim-trixie@sha256:5e2bdb1b0d542d5039cffb8181c65930093949194a65c365dfb1b0fe13a4fa5b
+#5 ...
+
+#3 [internal] load metadata for docker.io/jenkins/jenkins:lts-jdk21@sha256:74401de6a6f92e1afe1b02d1c8e3d0c33f263bfb5275dd8813f9150355f2367b
+#3 DONE 1.8s
+
+#5 [internal] load metadata for docker.io/library/python:3.12.16-slim-trixie@sha256:5e2bdb1b0d542d5039cffb8181c65930093949194a65c365dfb1b0fe13a4fa5b
+#5 ...
+
+#6 [auth] library/python:pull token for registry-1.docker.io
+#6 DONE 0.0s
+
+#5 [internal] load metadata for docker.io/library/python:3.12.16-slim-trixie@sha256:5e2bdb1b0d542d5039cffb8181c65930093949194a65c365dfb1b0fe13a4fa5b
+#5 DONE 3.1s
+
+#7 [internal] load .dockerignore
+#7 transferring context: 340B 0.0s done
+#7 DONE 0.0s
+
+#8 [python312 1/1] FROM docker.io/library/python:3.12.16-slim-trixie@sha256:5e2bdb1b0d542d5039cffb8181c65930093949194a65c365dfb1b0fe13a4fa5b
+#8 resolve docker.io/library/python:3.12.16-slim-trixie@sha256:5e2bdb1b0d542d5039cffb8181c65930093949194a65c365dfb1b0fe13a4fa5b 0.0s done
+#8 DONE 0.0s
+
+#9 [stage-1 1/4] FROM docker.io/jenkins/jenkins:lts-jdk21@sha256:74401de6a6f92e1afe1b02d1c8e3d0c33f263bfb5275dd8813f9150355f2367b
+#9 resolve docker.io/jenkins/jenkins:lts-jdk21@sha256:74401de6a6f92e1afe1b02d1c8e3d0c33f263bfb5275dd8813f9150355f2367b 0.0s done
+#9 DONE 0.0s
+
+#10 [stage-1 2/4] RUN apt-get update &&     apt-get install -y --no-install-recommends     git libbz2-1.0 libexpat1 libffi8 liblzma5 libncursesw6     libreadline8t64 libsqlite3-0 libssl3t64 zlib1g &&     rm -rf /var/lib/apt/lists/*
+#10 CACHED
+
+#11 [stage-1 3/4] COPY --from=python312 /usr/local/ /usr/local/
+#11 CACHED
+
+#12 [stage-1 4/4] RUN python3.12 -c 'import ssl, sqlite3, bz2, lzma, ctypes, venv; import sys; assert sys.version_info[:2] == (3, 12)'
+#12 CACHED
+
+#13 exporting to image
+#13 exporting layers done
+#13 exporting manifest sha256:9ffbeac741e64a39b20e72c71dfdae9cee60299fe8d30e8ec67f44cdb7e1acfe done
+#13 exporting config sha256:9dca44de15bf533e134c430f3467d7ac7c6e043d36502687b3d1fe85a3087f4d done
+#13 exporting attestation manifest sha256:508a40470b1bb217c2e5041dea6cdab3f424743b0d8af16d8deb04f4ffc77bfb
+#13 exporting attestation manifest sha256:508a40470b1bb217c2e5041dea6cdab3f424743b0d8af16d8deb04f4ffc77bfb 0.1s done
+#13 exporting manifest list sha256:b501a7dd0585e8416d2aff75accf79a694a8baca487b00cc84aebd304c3e49e3 0.0s done
+#13 naming to docker.io/library/telecom-alert-correlation-n42-jenkins:latest done
+#13 unpacking to docker.io/library/telecom-alert-correlation-n42-jenkins:latest done
+#13 DONE 0.2s
+
+#14 resolving provenance for metadata file
+#14 DONE 0.0s
+ Image telecom-alert-correlation-n42-jenkins Built
