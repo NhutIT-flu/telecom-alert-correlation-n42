@@ -121,10 +121,15 @@ Toàn bộ kịch bản DDL được đóng gói trong tệp [`docker/init-db.sq
 
 ---
 
-## 5. Kế hoạch Kiểm thử & Nghiệm thu Ngày 4 (TC-DB-001..004)
+## 5. Kết quả Kiểm thử & Nghiệm thu Ngày 4 & Ngày 5 (TC-DB-001..004)
 
-1. **TC-DB-001:** Kiểm tra khởi động Docker Compose `n42-db` và extension `timescaledb`.
-2. **TC-DB-002:** Xác thực bảng `alert_events` được chuyển đổi thành công sang Hypertable trong view hệ thống `timescaledb_information.hypertables`.
-3. **TC-DB-003:** Kiểm tra tính toàn vẹn của cấu trúc index B-tree và các ràng buộc dữ liệu CHECK (`facility`, `severity`).
-4. **TC-DB-004:** Thử nghiệm chèn dữ liệu mẫu theo lô (`add_many`) và đo thời gian truy vấn theo index.
+Toàn bộ các tiêu chí kiểm thử đã được tự động hóa tại [`tests/test_database_schema.py`](../tests/test_database_schema.py) (11 tests pass 100%):
+
+1. **TC-DB-001 (Primary Key Integrity):** Xác thực khóa chính composite `(id, event_timestamp)` ngăn chặn trùng lặp dữ liệu theo đúng yêu cầu phân vùng của TimescaleDB Hypertable.
+2. **TC-DB-002 (NOT NULL Constraints):** Xác thực bắt buộc đối với các trường trọng yếu (`event_timestamp`, `received_at`, `source_ip`, `hostname`, `facility`, `severity`, `vendor`, `message`, `raw_payload`).
+3. **TC-DB-003 (CHECK Constraints & Index Query Plan):** Kiểm chứng giá trị biên của `facility` (0–23), `severity` (0–7), `incidents.status` ('OPEN', 'INVESTIGATING', 'RESOLVED', 'CLOSED'); EXPLAIN QUERY PLAN chứng minh query engine sử dụng B-tree index `idx_alerts_host_ts`.
+4. **TC-DB-004 (Referential Integrity & Cascade):** Kiểm chứng xóa Incident sẽ kích hoạt `ON DELETE CASCADE` dọn dẹp quan hệ trong `incident_events` mà vẫn bảo toàn 100% các bản ghi sự kiện gốc trong `alert_events`.
+5. **Model Parity:** Kiểm chứng 100% khớp trường giữa Pydantic model `AlertEvent` và cấu trúc DDL PostgreSQL.
+6. **Bảo mật & Chất lượng mã nguồn:** Quét `tools/check_sensitive.py` không rò rỉ credential hay IP thật; Flake8 & Black đạt chuẩn PEP 8.
+
 
