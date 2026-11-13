@@ -12,6 +12,8 @@ pipeline {
     parameters {
         booleanParam(name: 'SONAR_REVIEW', defaultValue: false,
             description: 'Run Sonar on the isolated N42-10 validation project (feature only).')
+        string(name: 'SONAR_REVIEW_TIMEOUT_SECONDS', defaultValue: '600',
+            description: 'Review only: wait deadline 10..600 seconds. Main always uses 600 seconds.')
     }
 
     triggers {
@@ -126,8 +128,16 @@ test -s reports/coverage.xml
             steps {
                 script {
                     def status = 'WAITING'
+                    def waitSeconds = 600
+                    if (env.CI_BRANCH != 'main') {
+                        def requested = params.SONAR_REVIEW_TIMEOUT_SECONDS ?: '600'
+                        if (!(requested ==~ /\d{1,3}/) || requested.toInteger() < 10 || requested.toInteger() > 600) {
+                            error('SONAR_REVIEW_TIMEOUT_SECONDS must be 10..600')
+                        }
+                        waitSeconds = requested.toInteger()
+                    }
                     try {
-                        timeout(time: 10, unit: 'MINUTES') {
+                        timeout(time: waitSeconds, unit: 'SECONDS') {
                             def gate = waitForQualityGate()
                             status = gate.status ?: 'UNKNOWN'
                         }

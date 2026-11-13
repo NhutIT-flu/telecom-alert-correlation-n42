@@ -52,3 +52,10 @@ Xem `restore-verification.json` trong thư mục backup. Không ghi đè volume 
 
 Job chính `N42-CI-Pipeline` giữ `*/main`, Sonar/Gate theo main; feature thông thường bỏ qua Sonar nếu không bật SONAR_REVIEW.
 Required check GitHub phải do tài khoản có quyền repo thiết lập; quyền quản trị Docker không cấp quyền quản trị GitHub.
+
+
+## Phi?n qu?n tr? ???c cho ph?p (b? sung)
+
+Ng??i d?ng ?? cho ph?p token Jenkins t?m, s? d?ng credential Sonar ch? trong b? nh?, kh?ng xu?t Sonar token ra file/log; thu h?i Jenkins token khi xong.
+?? t?o N42-CI-N42-10-Review v? project n42-telecom-alert-ci-validation. Credential hi?n c? validate=true v? t?o project ???c, nh?ng API qu?n tr? Quality Gate/webhook tr? 403. C?n user token c? quy?n qu?n tr? Quality Gate v? qu?n tr? project validation, ho?c admin th?c hi?n UI.
+Jenkinsfile c? SONAR_REVIEW_TIMEOUT_SECONDS 10..600 gi?y cho review; main lu?n 600. Kh?ng h? timeout main ?? th? l?i.
