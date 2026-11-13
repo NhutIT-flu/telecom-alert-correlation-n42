@@ -1,7 +1,5 @@
 # Jenkins và SonarQube — Python 3.12, tự chạy main và Quality Gate
 
-Bổ sung QA UDP preflight: sau Dependencies, stage `UDP Buffer Preflight` kiểm tra receiver thật trên loopback/cổng động. Agent chỉ dùng quyền hiện có (`--prepare`, không sudo); thiếu quyền/dung lượng thì fail với report để chủ lab chuẩn bị host/agent. Không tự cấp privileged hoặc sửa backend. Xem [hướng dẫn](UDP_BUFFER_PREFLIGHT.md).
-
 N42-10 · 12/11/2026 · yêu cầu do Ngô Châu Kiệt xác nhận, chờ review và triển khai.
 
 ## Cấu hình nguồn và giới hạn
@@ -14,7 +12,7 @@ N42-10 · 12/11/2026 · yêu cầu do Ngô Châu Kiệt xác nhận, chờ revie
 
 ## Pipeline mới
 
-Checkout → Python 3.12/dependencies → lint/AI kit → scan → unittest/pytest/coverage → health smoke → Sonar analysis main → Quality Gate main.
+Checkout → Python 3.12/dependencies → UDP preflight → lint/AI kit → scan → unittest/pytest/coverage → health smoke → Sonar analysis main → Quality Gate main.
 
 `requirements.txt` là file dependency duy nhất. Pipeline không tự upgrade pip hoặc đổi phiên bản package ngoài file này. `.venv` được tạo lại bằng `python3.12 -m venv --clear` trong workspace riêng của job; virtualenv Python 3.13 cũ được thay thế, không xóa volume Jenkins.
 Build tối đa 30 phút, cài dependency tối đa 10 phút, smoke tối đa 2 phút, analysis và Gate mỗi bước tối đa 10 phút (còn chịu timeout tổng). Build đồng thời của cùng job được xếp hàng. Giữ tối đa 20 build.
@@ -53,7 +51,7 @@ SonarQube project → Project Settings → Webhooks → Create:
 
 URL nội bộ trên dành cho **Sonar → Jenkins** và vẫn cần dù Jenkins lấy code bằng polling. Không dùng localhost: localhost trong container Sonar là chính container Sonar. Xem Last Delivery của webhook có 2xx, task ID phải thuộc analysis cùng build.
 Với Community Build v26.11.0.134175 trong lab này, validation chặn URL nội bộ. Người dùng đã tắt **Enable local webhooks validation** (`sonar.validateWebhooks`) trong Administration → Configuration → General Settings → Security và tạo webhook thành công. Thiết lập này áp dụng toàn instance và cho phép webhook tới mạng nội bộ; chỉ giữ trong lab do nhóm quản trị. Chưa có bằng chứng Last Delivery hoặc Quality Gate của pipeline mới. Xem [giải thích của SonarSource](https://community.sonarsource.com/t/validating-webhooks-breaks-our-ci/189245).
-Jenkins gọi `waitForQualityGate()`, chỉ `OK` mới tiếp tục; status khác gọi `error()` nên build FAILURE. Webhook thiếu/hỏng có thể khiến chờ đến timeout và build ABORTED; vẫn không được xanh. Không thêm `sonar.qualitygate.wait=true` đồng thời vì pipeline đã có bước chờ riêng.
+Jenkins gọi `waitForQualityGate()`, chỉ `OK` mới tiếp tục; status khác gọi `error()` nên build FAILURE. Webhook thiếu/hỏng có thể khiến chờ đến timeout; pipeline lưu TIMEOUT và kết thúc FAILURE. Hủy thủ công giữ ABORTED. Không thêm `sonar.qualitygate.wait=true` đồng thời vì pipeline đã có bước chờ riêng.
 Không tự hạ Quality Gate để làm xanh build. Ảnh cũ Passed nhưng Security D/2 issues cần đọc Issues và điều kiện gate/new code; Passed không có nghĩa không có issue bảo mật.
 
 ## Checklist kiểm chứng sau triển khai
@@ -71,15 +69,10 @@ Log người dùng gửi ngày 12/11 là build commit 8f8b7a6, Python 3.13.5, 6 
 - [Pipeline syntax](https://www.jenkins.io/doc/book/pipeline/syntax/): trigger/options/timeout/checkout/concurrency.
 - [SonarQube Community pipeline pause](https://docs.sonarsource.com/sonarqube-community-build/analyzing-source-code/ci-integration/jenkins-integration/pipeline-pause): withSonarQubeEnv, webhook bắt buộc và waitForQualityGate.
 
+## Cập nhật triển khai 13/11/2026
 
-## C?p nh?t tri?n khai 13/11/2026
-
-Xem [v?n h?nh v? backup](N42-10_OPERATIONS.md), [k? ho?ch/ca nghi?m thu](N42-10_UPGRADE_PLAN.md).
-Jenkinsfile hi?n c? SONAR_REVIEW (m?c ??nh false); feature review ch? d?ng project n42-telecom-alert-ci-validation, main d?ng project ch?nh.
-Gate timeout ???c b?t v? l?u TIMEOUT/FAILURE; h?y th? c?ng v?n ABORTED. Runtime Gate OK/non-OK/timeout ch?a ???c ki?m ch?ng tr?n Jenkins m?i.
-Docker backup ?? restore c?ch ly th?nh c?ng; b? ki?m tra Linux ??t unittest/pytest/lint/scan/smoke, kh?ng thay th? Jenkins job/Sonar evidence.
-T? ??ng t?o phi?n API qu?n tr? b? automatic approval review t? ch?i do thao t?c v?i credential ch?a ???c ?y quy?n c? th?. Ch?a t?o job/project ho?c ch?y Gate.
-Required checks v?n c?n ch? repo; kh?ng t? merge PR. Kh?ng d?ng evidence b502ad1 nh? k?t qu? revision m?i.
-
-
-**Tr?ng th?i m?i sau ?y quy?n qu?n tr?:** job review v? project validation ?? t?o. Linter Jenkins ??t. Review #2 tr?n b349700 ki?m ch?ng TIMEOUT/FAILURE th?t; #3 ki?m ch?ng OK/SUCCESS sau restart/resume. Sonar token ch? d?ng trong b? nh? v? ch?a c? quy?n t?o Gate/webhook (403); kh?ng coi restart/resume l? b?ng ch?ng webhook delivery. C?n thi?u Gate non-OK. Getter boolean isActualInterruption ph?i ???c admin approve c? th? nh? runbook v?n h?nh, kh?ng t?t sandbox.
+Xem [vận hành và backup](N42-10_OPERATIONS.md), [kế hoạch/ca nghiệm thu](N42-10_UPGRADE_PLAN.md) và [nhật ký thực thi theo revision](N42-10_EXECUTION_2026-11-13.md).
+Jenkinsfile có SONAR_REVIEW (mặc định false); feature review chỉ dùng project n42-telecom-alert-ci-validation, main dùng project chính. Build feature bỏ qua Sonar không được dùng làm minh chứng Gate.
+Gate timeout được bắt và lưu TIMEOUT/FAILURE; hủy thủ công giữ ABORTED. Review #2/#4 trên b349700 đã kiểm chứng timeout/hủy; review #10/#11 trên d249e57 kiểm chứng ERROR/FAILURE và OK/SUCCESS, có webhook HTTP 200 đúng task ID.
+Backup đã restore cách ly thành công. Snapshot local mới nhất chạy đầy đủ pipeline với 64 unittest, 162 pytest và 644 subtest đạt, Gate OK; kết quả snapshot không thay thế run của commit sắp push.
+Job chính vẫn lấy Jenkinsfile từ main và cần xác minh bản nâng cấp sau merge. Required checks còn cần chủ repo; không tự merge PR hoặc dùng evidence cũ như kết quả revision mới.

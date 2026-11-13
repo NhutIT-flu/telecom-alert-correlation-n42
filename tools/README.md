@@ -1,9 +1,5 @@
 # Công cụ trong thư mục `tools/`
 
-## `udp_buffer_preflight.py` — QA kiểm tra buffer trước CI
-
-Đọc request từ constructor receiver trong checkout, probe OS và receiver thật; xuất JSON/log với READY, NOT_APPLICABLE hoặc lỗi rõ ràng. Có thể chuẩn bị rmem_max khi được phép; không đổi backend/assertion. Xem [hướng dẫn và các ca UB-01–10](../docs/UDP_BUFFER_PREFLIGHT.md).
-
 ## `generator.py` — Bộ sinh dữ liệu giả lập Syslog (N42-11, Module M8)
 
 Phát cảnh báo giả lập Cisco / Huawei / Fortinet qua 3 nguồn baseline: **UDP**, **HTTP REST** và **file log**.

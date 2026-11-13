@@ -53,12 +53,10 @@ Xem `restore-verification.json` trong thư mục backup. Không ghi đè volume 
 Job chính `N42-CI-Pipeline` giữ `*/main`, Sonar/Gate theo main; feature thông thường bỏ qua Sonar nếu không bật SONAR_REVIEW.
 Required check GitHub phải do tài khoản có quyền repo thiết lập; quyền quản trị Docker không cấp quyền quản trị GitHub.
 
+## Phiên quản trị được cho phép
 
-## Phi?n qu?n tr? ???c cho ph?p (b? sung)
+Người dùng cho phép token Jenkins tạm và sử dụng credential Sonar chỉ trong bộ nhớ, không xuất Sonar token ra file/log; thu hồi token quản trị tạm khi xong.
+Đã tạo N42-CI-N42-10-Review và project n42-telecom-alert-ci-validation. Global Analysis Token hiện có chạy analysis được nhưng API quản trị Quality Gate/webhook trả 403. User Token tạm có quyền phù hợp đã được dùng để kiểm chứng Gate ERROR/FAILURE và khôi phục OK/SUCCESS trên project validation, sau đó thu hồi và gỡ credential tạm; giữ token pipeline cũ.
+Jenkinsfile có SONAR_REVIEW_TIMEOUT_SECONDS 10..600 giây cho review; main luôn 600. Không hạ timeout main để thử lỗi.
 
-Ng??i d?ng ?? cho ph?p token Jenkins t?m, s? d?ng credential Sonar ch? trong b? nh?, kh?ng xu?t Sonar token ra file/log; thu h?i Jenkins token khi xong.
-?? t?o N42-CI-N42-10-Review v? project n42-telecom-alert-ci-validation. Credential hi?n c? validate=true v? t?o project ???c, nh?ng API qu?n tr? Quality Gate/webhook tr? 403. C?n user token c? quy?n qu?n tr? Quality Gate v? qu?n tr? project validation, ho?c admin th?c hi?n UI.
-Jenkinsfile c? SONAR_REVIEW_TIMEOUT_SECONDS 10..600 gi?y cho review; main lu?n 600. Kh?ng h? timeout main ?? th? l?i.
-
-
-Jenkins sandbox c?n ph? duy?t duy nh?t ch? k? `method org.jenkinsci.plugins.workflow.steps.FlowInterruptedException isActualInterruption` ?? ph?n bi?t h?y th? c?ng/timeout. ??y l? getter boolean; kh?ng t?t sandbox ho?c approve script r?ng. L??t review #1 ?? ph?t hi?n thi?u approval, ch?a ???c t?nh PASS; sau approval, review #2 ghi TIMEOUT/FAILURE ??ng y?u c?u tr?n task th?t IN_PROGRESS.
+Jenkins sandbox chỉ phê duyệt chữ ký `method org.jenkinsci.plugins.workflow.steps.FlowInterruptedException isActualInterruption` để phân biệt hủy thủ công/timeout. Đây là getter boolean; không tắt sandbox hoặc approve script rộng. Review #1 phát hiện thiếu approval, không tính PASS; sau approval, review #2 ghi TIMEOUT/FAILURE đúng yêu cầu trên task thật đang xử lý.

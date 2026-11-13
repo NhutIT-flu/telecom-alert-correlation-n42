@@ -40,7 +40,7 @@ Commit message: "chore: them deadline review de kiem chung Gate timeout (N42-10)
 [Pipeline] waitForQualityGate
 [2026-11-13T10:12:08.351Z] Checking status of SonarQube task '2db68ade-1f12-4525-bc1a-07c9acf03832' on server 'SonarQube-N42'
 [2026-11-13T10:12:08.365Z] SonarQube task '2db68ade-1f12-4525-bc1a-07c9acf03832' status is 'IN_PROGRESS'
-Aborted by NGÃ” CHÃ‚U KIá»†T
+Aborted by NGÔ CHÂU KIỆT
 [Pipeline] // timeout
 [Pipeline] // timeout
 Finished: ABORTED

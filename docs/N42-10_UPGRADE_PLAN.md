@@ -1,24 +1,23 @@
-# N42-10 ? n?ng c?p ng?y 13/11/2026
+# N42-10 — nâng cấp ngày 13/11/2026
 
-Owner: Ng? Ch?u Ki?t (QA). Ng??i d?ng cho ph?p tri?n khai 9 h?ng m?c v? d?ng lab ?? sao l?u. Ch? TL review tr??c merge. Ngu?n: Jira N42-10, TC-OPS-002, AC-07/08 v? review PR #17.
+Owner: Ngô Châu Kiệt (QA). Người dùng cho phép triển khai 9 hạng mục và dừng lab để sao lưu. Chờ TL review trước merge. Nguồn: Jira N42-10, TC-OPS-002, AC-07/08 và review PR #17.
 
-## Ca nghi?m thu b? sung (??c t? tr??c tri?n khai)
+## Ca nghiệm thu bổ sung (đặc tả trước triển khai)
 
-| ID | Input/?i?u ki?n | Expected |
+| ID | Input/điều kiện | Expected |
 |---|---|---|
-| CI-09 | Push feature ho?c PR main c? test m?i trong tests/test_*.py | Checkout revision nh?nh/merge ref, ch?y to?n b? unittest + pytest; JUnit/coverage g?n SHA |
-| CI-10 | M?t test backend th?t b?i | tests/check t?ng h?p ??; merge ch? b? ch?n khi required check ?? b?t |
-| JK-01 | Build main ho?c job review d?ng project validation c? ??nh | Scanner v? Gate c?ng task/revision, kh?ng ghi ?? project ch?nh t? feature |
-| JK-02 | Gate tr? OK / ERROR | SUCCESS / FAILURE v? artifact Gate |
-| JK-03 | B??c wait th?c s? h?t deadline | FAILURE, artifact TIMEOUT; h?y th? c?ng v?n ABORTED |
-| OPS-04 | Backup khi Jenkins/Sonar d?ng, PostgreSQL dump, archive volume | Ki?m checksum, danh m?c archive v? restore th? database/Jenkins tr?n volume c?ch ly |
-| OPS-05 | Restart stack v?i volume ?? x?c minh | Job/config/project/database c?n; kh?ng t? t?o volume tr?ng |
+| CI-09 | Push feature hoặc PR main có test mới trong tests/test_*.py | Checkout revision nhánh/merge ref, chạy toàn bộ unittest + pytest; JUnit/coverage gắn SHA |
+| CI-10 | Một test backend thất bại | Job tests và check tổng hợp thất bại; merge chỉ bị chặn khi required check đã bật |
+| JK-01 | Build main hoặc job review dùng project validation cố định | Scanner và Gate cùng task/revision, không ghi đè project chính từ feature |
+| JK-02 | Gate trả OK / ERROR | SUCCESS / FAILURE và artifact Gate |
+| JK-03 | Bước wait thực sự hết deadline | FAILURE, artifact TIMEOUT; hủy thủ công vẫn ABORTED |
+| OPS-04 | Backup khi Jenkins/Sonar dừng, PostgreSQL dump, archive volume | Kiểm checksum, danh mục archive và restore thử database/Jenkins trên volume cách ly |
+| OPS-05 | Restart stack với volume đã xác minh | Job/config/project/database còn; không tự tạo volume trống |
 
-## Ph?m vi quy?n
+## Phạm vi quyền
 
-Kh?ng t? merge PR, ??i policy owner, ??ng Jira ho?c tuy?n b? required checks ho?t ??ng khi thi?u quy?n. Gi? c?c stash N42-12. Main polling ch? x?c minh sau merge ???c duy?t. Kh?ng th?m t? ??ng g?i Jira/email.
+Không tự merge PR, đổi policy owner, đóng Jira hoặc tuyên bố required checks hoạt động khi thiếu quyền. Giữ các stash N42-12. Việc job main chạy pipeline mới qua polling cần nghiệm thu sau merge được duyệt. Không thêm tự động gửi Jira/email.
 
+## JK-04 — deadline review (bổ sung sau ủy quyền quản trị)
 
-## JK-04 ? deadline review (b? sung sau ?y quy?n qu?n tr?)
-
-SONAR_REVIEW_TIMEOUT_SECONDS ch? ?p d?ng feature review, m?c ??nh 600, nh?n s? nguy?n 10..600; main lu?n 600 gi?y. Input 9/601/kh?ng ph?i s? ph?i b? t? ch?i. Ki?m c? ph?p b?ng declarative linter Jenkins; ki?m runtime timeout d?ng deadline 15 gi?y tr?n project validation kh?ng webhook. Ch? ghi PASS khi log cho th?y waitForQualityGate ?? th?c s? ??i v? h?t h?n.
+SONAR_REVIEW_TIMEOUT_SECONDS chỉ áp dụng feature review, mặc định 600, nhận số nguyên 10..600; main luôn 600 giây. Input 9/601/không phải số phải bị từ chối. Kiểm cú pháp bằng declarative linter Jenkins; kiểm runtime timeout dùng deadline 15 giây trên project validation không webhook. Chỉ ghi PASS khi log cho thấy waitForQualityGate đã thực sự đợi và hết hạn.

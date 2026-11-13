@@ -17,16 +17,6 @@
 
 ## Mẫu thêm dòng mới
 
-**Cập nhật N42-10 ngày 12/11/2026 — xác nhận trong phiên làm việc với QA:**
-
-- Ngô Châu Kiệt chốt Python **3.12** để đồng bộ local/GitHub Actions/Jenkins; image Jenkins mới cung cấp Python 3.12 và pipeline kiểm tra phiên bản trước khi tạo lại `.venv`.
-- Job Jenkins chính theo dõi `main`, tự kiểm tra khi nhánh có cập nhật qua SCM polling khoảng 5 phút. Người dùng xác nhận chỉ chạy Docker localhost; không yêu cầu public Jenkins hoặc webhook GitHub.
-- SonarQube Quality Gate không `OK` phải làm job chính **FAILURE**. Chỉ analysis từ `main` cập nhật project SonarQube chính; feature job dùng để thử CI và không ghi đè báo cáo chính.
-- Đây là yêu cầu được người dùng xác nhận để chuẩn bị thay đổi; chờ TL review PR và evidence chạy thật. Không xác nhận webhook, lịch tự chạy hay Quality Gate mới đã hoạt động trên dịch vụ.
-
 | # | Ngày | Hoàn cảnh | Các phương án xét | Quyết định | Người quyết |
 |---|------|-----------|-------------------|-----------|-------------|
 |   |      |           |                   |           |             |
-
-
-**N42-10, 13/11/2026 ? ng??i d?ng cho ph?p tri?n khai:** gi? Docker/volume ?? kh?i ph?c, m?t Compose chu?n; backup tr??c thay ??i; ghim image digest. Gi? unittest theo ticket v? pytest ?? thu test h?m/coverage. Black ph? tr?ch ??nh d?ng, gi? b? qua W391. Feature c? th? b?t Sonar review tr?n project validation c? ??nh; main gi? project ch?nh. Timeout Gate l? FAILURE, h?y th? c?ng ABORTED. Ch? TL review v? evidence runtime; kh?ng ??i quy?n GitHub ho?c tr?ng th?i Jira.

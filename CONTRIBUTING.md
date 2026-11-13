@@ -10,7 +10,7 @@ Tài liệu này mô tả quy ước phát triển nội bộ của nhóm N4.2. 
 ## 1. Thiết lập Môi trường Phát triển (Local Setup)
 
 ### 1.1. Yêu cầu Tiên quyết
-- **Python**: Phiên bản 3.12.x, đồng bộ với GitHub Actions và Jenkins.
+- **Python**: Phiên bản 3.12 trở lên.
 - **Docker & Docker Compose**: Để chạy cơ sở dữ liệu chuỗi thời gian PostgreSQL + TimescaleDB.
 - **Node.js**: Phiên bản 20+ LTS (dành cho kỹ sư Frontend React).
 
@@ -28,6 +28,7 @@ source .venv/bin/activate
 # 3. Cài đặt các gói phụ thuộc
 pip install --upgrade pip
 pip install -r requirements.txt
+pip install flake8 black
 ```
 
 ### 1.3. Khởi chạy Dịch vụ CSDL
@@ -83,21 +84,10 @@ git commit -m "test: Bo sung 10 test case phan tach RFC 3164 cho Cisco va Huawei
 
 Trước khi khởi tạo Pull Request, kỹ sư bắt buộc tự kiểm tra trên máy cục bộ:
 
-1. **Định dạng và kiểm tra mã nguồn** — chạy từ thư mục gốc repo, bằng Python của môi trường đã cài `requirements.txt`:
+1. **Chuẩn phong cách (PEP 8 Style Guide)**:
    ```bash
-   python -m black app tests tools
-   python -m black --check --diff app tests tools
-   python -m flake8 app tests tools --count --statistics
+   flake8 app tests tools --count --max-line-length=120
    ```
-   Black tự sửa định dạng ở lệnh đầu; hai lệnh sau chỉ kiểm tra. Xem `git diff` trước khi commit. CI chạy hai lệnh kiểm tra và không tự sửa/commit code.
-
-   Cấu hình chung: Black đọc `pyproject.toml` (120 ký tự, Python 3.12); Flake8 đọc `.flake8` (120 ký tự, bỏ qua W391/E203/E701). `.editorconfig` đồng bộ độ dài dòng và kiểu xuống dòng LF. Không truyền `--line-length` hoặc `--max-line-length` khác trong lệnh riêng của thành viên/CI.
-
-   W391 cho phép dòng trắng dư cuối file; Black vẫn có thể loại bỏ chúng khi format. File vẫn cần ký tự xuống dòng kết thúc dòng cuối. E203/E701 được bỏ qua để tương thích cách Black định dạng; các kiểm tra khác của Flake8 giữ nguyên. Black không luôn rút ngắn được mọi chuỗi/comment dài, nên nếu còn E501 thì xem và sửa dòng đó thay vì bỏ qua toàn bộ E501.
-
-   **VS Code:** cài extension **Black Formatter** của Microsoft (`ms-python.black-formatter`), chọn **Format Document With → Configure Default Formatter → Black Formatter**, bật **Editor: Format On Save** cho Python. Chọn đúng Python 3.12 của môi trường dự án và đặt **Black Formatter: Import Strategy** thành `fromEnvironment` để ưu tiên phiên bản Black đã ghim. Nếu extension thông báo fallback sang Black đi kèm, cài lại `requirements.txt` trong interpreter đã chọn. Xóa đối số độ dài dòng riêng nếu đã cấu hình trong IDE; cấu hình chuẩn nằm trong repo. Không cần thêm pre-commit ở đợt này.
-
-   Tham chiếu: [Black với Flake8](https://black.readthedocs.io/en/stable/guides/using_black_with_other_tools.html), [Black Formatter cho VS Code](https://github.com/microsoft/vscode-black-formatter).
 2. **Kiểm thử Đơn vị (Automated Unit Testing)**:
    Mọi module mới bắt buộc phải có tệp kiểm thử tương ứng trong thư mục `tests/`:
    ```bash
@@ -137,21 +127,9 @@ Dự án vận hành trên nguyên tắc an toàn dữ liệu viễn thông tuy�
    - Điền đầy đủ mô tả công việc, bằng chứng thực thi (kết quả test) và dẫn liên kết thẻ Jira tương ứng.
    - Gắn nhãn (Labels) phù hợp (`backend`, `frontend`, `qa`, `devops`).
 2. **Điều kiện Hợp nhất (Merge Criteria)**:
-   - CI dùng `.github/workflows/ci.yml`; check tổng hợp dự kiến bắt buộc là **Code Quality & Automated Tests**. Chỉ coi merge gate hoạt động sau khi xác minh required checks và thử PR lỗi bị chặn theo [hồ sơ N42-10](docs/N42-10_HANDOVER.md).
-   - Secret scan phải đạt và trả exit status phù hợp. Bộ kiểm thử CI xác minh scanner trả khác 0 khi gặp fixture nhạy cảm giả lập; không suy rộng đây là công cụ phát hiện mọi loại secret.
+   - Policy nhóm đặt CI xanh làm mục tiêu merge gate. Hiện repo chưa có workflow GitHub Actions; QA Lead dự kiến triển khai checks, ghi run evidence và phối hợp xác minh required checks/branch protection trước khi coi đây là gate đang hoạt động.
+   - Secret scan phải chạy bằng công cụ có exit status phù hợp; hiện công cụ cần được sửa/kiểm chứng trước khi dùng làm required check.
    - Nhận được ít nhất **01 phê duyệt (Approval)** chính thức từ **Team Leader (Phạm Minh Nhựt)** hoặc **QA Lead (Ngô Châu Kiệt)**.
 3. **Cập nhật Tiến độ Jira**:
    - Khi mở PR: Kéo thẻ từ `In Progress` sang `Code Review`.
-   - Chỉ chuyển thẻ sang `Done` sau review, CI xanh, merge, kiểm chứng Docker, cập nhật docs và demo theo DoD của nhóm; merge đơn lẻ chưa đủ xác nhận hoàn thành.
-
-
-## Unit test theo nh?nh backend (N42-10, 13/11/2026)
-
-M?i ticket d?ng nh?nh `feature/N42-<id>-<mo-ta>` v? k?m test trong `tests/test_*.py`.
-Test c? th? d?ng `unittest.TestCase` ho?c h?m pytest; kh?ng c?n s?a workflow cho t?ng ticket.
-Push nh?nh feature v? PR ??ch main ch?y to?n b? test c?a checkout ??, g?m h?i quy ?? c?.
-PR c? th? d?ng merge ref: ??i chi?u `environment.json`, kh?ng coi SHA head lu?n l? SHA checkout.
-Gi? unittest theo ticket N42-10 v? pytest ?? thu c? test h?m, JUnit/coverage; m?t s? case ch?y hai l??t c? ch? ??ch.
-Test t?ch h?p c?n DB/d?ch v? ngo?i ph?i c? fixture/m?i tr??ng c? l?p; kh?ng g?i thi?t b? production.
-JUnit/coverage n?m trong artifact tests; failure l?m job tests v? check t?ng h?p ??.
-Ch? kh?ng ??nh ch?n merge sau khi ch? repo ??t required check v? th? PR l?i.
+   - Sau khi PR được merge vào `main`: Kéo thẻ sang `Done` và đóng thẻ.

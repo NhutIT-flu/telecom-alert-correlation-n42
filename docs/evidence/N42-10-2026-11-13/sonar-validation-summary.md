@@ -1,4 +1,4 @@
-# Sonar runtime validation ? b349700
+# Sonar runtime validation — b349700
 
 | Review build | Input | Result | Evidence |
 |---|---|---|---|

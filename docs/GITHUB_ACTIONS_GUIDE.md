@@ -31,8 +31,6 @@ Hiện tests và ứng dụng không kết nối DB. Bỏ service TimescaleDB v�
 
 ## Dependency và định dạng
 
-UDP preflight N42-10: job tests/smoke đọc request từ receiver của checkout qua `tools/udp_buffer_preflight.py`, thử chuẩn bị rmem_max bằng sudo -n trên runner dùng một lần và đo lại. Thiếu quyền/dung lượng làm job thất bại, không nới test backend. Nhánh chưa có receiver ghi NOT_APPLICABLE. Xem [UB-01–10 và hướng dẫn](UDP_BUFFER_PREFLIGHT.md). Pytest chỉ chạy khi setup/preflight thành công; nếu unittest lỗi thì pytest vẫn được chạy để thu kết quả.
-
 `.github/actions/setup-python-ci/action.yml` dùng chung Python, cache, cài `requirements.txt`, chạy `pip check`, ghi môi trường. Cache key theo file requirements duy nhất này.
 `requirements.txt` gồm dependency ứng dụng, kiểm thử, coverage và kiểm tra chất lượng; dùng chung cho local, Docker, Jenkins và GitHub Actions. Do dùng một file, Docker cũng cài các công cụ QA/CI. Các dependency trực tiếp được ghim theo bộ đã chạy trên Python 3.12; **chưa phải lock toàn bộ dependency bắc cầu**. `environment.json` ghi các phiên bản thực tế để điều tra sai khác; không thu env tùy ý hoặc secret. Muốn tái lập đầy đủ sau này cần lock Linux/Windows có quy trình cập nhật riêng.
 

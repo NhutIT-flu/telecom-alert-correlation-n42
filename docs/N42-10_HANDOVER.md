@@ -75,12 +75,10 @@ Log local trong `reports/` bị Git ignore theo thiết kế. Đính kèm log/�
 - [GitHub Actions của dự án](GITHUB_ACTIONS_GUIDE.md).
 - [Runbook Jenkins/Sonar](JENKINS_SONAR_RUNBOOK.md).
 
+## Cập nhật triển khai 13/11/2026
 
-## C?p nh?t tri?n khai 13/11/2026
-
-Xem [v?n h?nh v? backup](N42-10_OPERATIONS.md), [k? ho?ch/ca nghi?m thu](N42-10_UPGRADE_PLAN.md).
-Jenkinsfile hi?n c? SONAR_REVIEW (m?c ??nh false); feature review ch? d?ng project n42-telecom-alert-ci-validation, main d?ng project ch?nh.
-Gate timeout ???c b?t v? l?u TIMEOUT/FAILURE; h?y th? c?ng v?n ABORTED. Runtime Gate OK/non-OK/timeout ch?a ???c ki?m ch?ng tr?n Jenkins m?i.
-Docker backup ?? restore c?ch ly th?nh c?ng; b? ki?m tra Linux ??t unittest/pytest/lint/scan/smoke, kh?ng thay th? Jenkins job/Sonar evidence.
-T? ??ng t?o phi?n API qu?n tr? b? automatic approval review t? ch?i do thao t?c v?i credential ch?a ???c ?y quy?n c? th?. Ch?a t?o job/project ho?c ch?y Gate.
-Required checks v?n c?n ch? repo; kh?ng t? merge PR. Kh?ng d?ng evidence b502ad1 nh? k?t qu? revision m?i.
+Xem [vận hành và backup](N42-10_OPERATIONS.md), [kế hoạch/ca nghiệm thu](N42-10_UPGRADE_PLAN.md) và [nhật ký thực thi theo revision](N42-10_EXECUTION_2026-11-13.md).
+Jenkinsfile có SONAR_REVIEW (mặc định false); feature review chỉ dùng project n42-telecom-alert-ci-validation, main dùng project chính. Build feature bỏ qua Sonar không được dùng làm minh chứng Gate.
+Gate timeout được bắt và lưu TIMEOUT/FAILURE; hủy thủ công giữ ABORTED. Review #2/#4 trên b349700 đã kiểm chứng timeout/hủy; review #10/#11 trên d249e57 kiểm chứng ERROR/FAILURE và OK/SUCCESS, có webhook HTTP 200 đúng task ID.
+Backup đã restore cách ly thành công. Snapshot local mới nhất chạy đầy đủ pipeline với 64 unittest, 162 pytest và 644 subtest đạt, Gate OK; kết quả snapshot không thay thế run của commit sắp push.
+Job chính vẫn lấy Jenkinsfile từ main và cần xác minh bản nâng cấp sau merge. Required checks còn cần chủ repo; không tự merge PR hoặc dùng evidence cũ như kết quả revision mới.

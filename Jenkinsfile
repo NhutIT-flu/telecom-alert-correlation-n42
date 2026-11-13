@@ -99,8 +99,16 @@ set -euo pipefail
             steps {
                 sh '''#!/usr/bin/env bash
 set -euo pipefail
-.venv/bin/python -m unittest discover -s tests -p 'test_*.py' -v 2>&1 | tee reports/unittest.txt
-.venv/bin/python -m pytest tests/ -v --junitxml=reports/junit-report.xml --cov=app --cov-report=xml:reports/coverage.xml --cov-report=html:reports/coverage-html 2>&1 | tee reports/pytest.txt
+# Collect both results before failing so unittest errors do not prevent JUnit/coverage.
+unittest_status=0
+.venv/bin/python -m unittest discover -s tests -p 'test_*.py' -v 2>&1 | tee reports/unittest.txt || unittest_status=$?
+pytest_status=0
+.venv/bin/python -m pytest tests/ -v --junitxml=reports/junit-report.xml --cov=app --cov-report=xml:reports/coverage.xml --cov-report=html:reports/coverage-html 2>&1 | tee reports/pytest.txt || pytest_status=$?
+printf 'unittest_exit=%s\npytest_exit=%s\n' "$unittest_status" "$pytest_status" | tee reports/test-results.txt
+if [ "$unittest_status" -ne 0 ] || [ "$pytest_status" -ne 0 ]; then
+    echo 'Test commands failed; inspect unittest.txt, pytest.txt and test-results.txt.'
+    exit 1
+fi
 '''
             }
         }
