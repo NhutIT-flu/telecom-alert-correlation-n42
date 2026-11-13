@@ -1,0 +1,51 @@
+ > git rev-parse --resolve-git-dir /var/jenkins_home/workspace/N42-CI-N42-10-Review@script/c692c898e7a93a5e429c4f855068a3909fedbb4fd4229adf7a63b984af84d8de/.git # timeout=10
+ > git config remote.origin.url https://github.com/NhutIT-flu/telecom-alert-correlation-n42.git # timeout=10
+ > git --version # timeout=10
+ > git fetch --tags --force --progress -- https://github.com/NhutIT-flu/telecom-alert-correlation-n42.git +refs/heads/*:refs/remotes/origin/* # timeout=10
+ > git rev-parse refs/remotes/origin/feature/N42-10-ci-pipeline^{commit} # timeout=10
+ > git config core.sparsecheckout # timeout=10
+ > git checkout -f b349700b6dd265977233149ba9aca1247f58c051 # timeout=10
+Commit message: "chore: them deadline review de kiem chung Gate timeout (N42-10)"
+ > git rev-list --no-walk b349700b6dd265977233149ba9aca1247f58c051 # timeout=10
+[Pipeline] timeout
+[2026-11-13T10:08:15.638Z] Timeout set to expire in 30 min
+[2026-11-13T10:08:15.925Z]  > git rev-parse --resolve-git-dir /var/jenkins_home/workspace/N42-CI-N42-10-Review/.git # timeout=10
+[2026-11-13T10:08:15.928Z]  > git config remote.origin.url https://github.com/NhutIT-flu/telecom-alert-correlation-n42.git # timeout=10
+[2026-11-13T10:08:15.931Z]  > git --version # timeout=10
+[2026-11-13T10:08:15.934Z]  > git fetch --tags --force --progress -- https://github.com/NhutIT-flu/telecom-alert-correlation-n42.git +refs/heads/*:refs/remotes/origin/* # timeout=10
+[2026-11-13T10:08:16.638Z]  > git rev-parse refs/remotes/origin/feature/N42-10-ci-pipeline^{commit} # timeout=10
+[2026-11-13T10:08:16.642Z]  > git config core.sparsecheckout # timeout=10
+[2026-11-13T10:08:16.645Z]  > git checkout -f b349700b6dd265977233149ba9aca1247f58c051 # timeout=10
+[2026-11-13T10:08:16.651Z] Commit message: "chore: them deadline review de kiem chung Gate timeout (N42-10)"
+[Pipeline] timeout
+[2026-11-13T10:08:17.334Z] Timeout set to expire in 10 min
+[Pipeline] // timeout
+[2026-11-13T10:08:32.329Z] test_timeout_terminates_then_kills_unresponsive_child (test_ci_checks.CISmokeTests.test_timeout_terminates_then_kills_unresponsive_child) ... ok
+[2026-11-13T10:08:39.032Z] test_timeout_or_partial_body_never_retries_post (test_generator.SyslogGeneratorTests.test_timeout_or_partial_body_never_retries_post) ... ok
+[2026-11-13T10:08:41.547Z] tests/test_ci_checks.py::CISmokeTests::test_timeout_terminates_then_kills_unresponsive_child PASSED [  7%]
+[2026-11-13T10:08:48.936Z] tests/test_generator.py::SyslogGeneratorTests::test_timeout_or_partial_body_never_retries_post 
+[2026-11-13T10:08:48.936Z] tests/test_generator.py::SyslogGeneratorTests::test_timeout_or_partial_body_never_retries_post PASSED [ 25%]
+[Pipeline] timeout
+[2026-11-13T10:08:51.618Z] Timeout set to expire in 2 min 0 sec
+[Pipeline] // timeout
+[Pipeline] timeout
+[2026-11-13T10:08:53.354Z] Timeout set to expire in 10 min
+[2026-11-13T10:09:13.672Z] 10:09:13.467 INFO  SCM revision ID 'b349700b6dd265977233149ba9aca1247f58c051'
+[2026-11-13T10:09:13.672Z] 10:09:13.633 INFO  ANALYSIS SUCCESSFUL, you can find the results at: http://sonarqube:9000/dashboard?id=n42-telecom-alert-ci-validation
+[2026-11-13T10:09:13.672Z] 10:09:13.633 INFO  More about the report processing at http://sonarqube:9000/api/ce/task?id=f485b662-d289-48e9-89f6-00378f3787c0
+[Pipeline] // timeout
+[Pipeline] { (Quality Gate)
+[Pipeline] timeout
+[2026-11-13T10:09:15.058Z] Timeout set to expire in 10 min
+[Pipeline] waitForQualityGate
+[2026-11-13T10:09:15.097Z] Checking status of SonarQube task 'f485b662-d289-48e9-89f6-00378f3787c0' on server 'SonarQube-N42'
+[2026-11-13T10:09:15.119Z] SonarQube task 'f485b662-d289-48e9-89f6-00378f3787c0' status is 'IN_PROGRESS'
+Resuming build at Fri Nov 13 10:10:16 UTC 2026 after Jenkins restart
+[2026-11-13T10:10:16.714Z] Timeout set to expire in 27 min
+[2026-11-13T10:10:16.723Z] Timeout set to expire in 8 min 58 sec
+[2026-11-13T10:10:16.724Z] Checking status of SonarQube task 'f485b662-d289-48e9-89f6-00378f3787c0' on server 'SonarQube-N42'
+[2026-11-13T10:10:16.825Z] SonarQube task 'f485b662-d289-48e9-89f6-00378f3787c0' status is 'SUCCESS'
+[2026-11-13T10:10:16.845Z] SonarQube task 'f485b662-d289-48e9-89f6-00378f3787c0' completed. Quality gate is 'OK'
+[Pipeline] // timeout
+[Pipeline] // timeout
+Finished: SUCCESS

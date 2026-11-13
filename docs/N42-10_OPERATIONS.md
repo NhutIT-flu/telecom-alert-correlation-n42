@@ -59,3 +59,6 @@ Required check GitHub phải do tài khoản có quyền repo thiết lập; quy
 Ng??i d?ng ?? cho ph?p token Jenkins t?m, s? d?ng credential Sonar ch? trong b? nh?, kh?ng xu?t Sonar token ra file/log; thu h?i Jenkins token khi xong.
 ?? t?o N42-CI-N42-10-Review v? project n42-telecom-alert-ci-validation. Credential hi?n c? validate=true v? t?o project ???c, nh?ng API qu?n tr? Quality Gate/webhook tr? 403. C?n user token c? quy?n qu?n tr? Quality Gate v? qu?n tr? project validation, ho?c admin th?c hi?n UI.
 Jenkinsfile c? SONAR_REVIEW_TIMEOUT_SECONDS 10..600 gi?y cho review; main lu?n 600. Kh?ng h? timeout main ?? th? l?i.
+
+
+Jenkins sandbox c?n ph? duy?t duy nh?t ch? k? `method org.jenkinsci.plugins.workflow.steps.FlowInterruptedException isActualInterruption` ?? ph?n bi?t h?y th? c?ng/timeout. ??y l? getter boolean; kh?ng t?t sandbox ho?c approve script r?ng. L??t review #1 ?? ph?t hi?n thi?u approval, ch?a ???c t?nh PASS; sau approval, review #2 ghi TIMEOUT/FAILURE ??ng y?u c?u tr?n task th?t IN_PROGRESS.
