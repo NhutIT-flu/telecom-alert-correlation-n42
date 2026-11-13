@@ -1,0 +1,72 @@
+[
+  {
+    "id": "a1b2c3d4-0001-0000-0000-000000000001",
+    "received_at": "2026-11-13T02:30:00.000Z",
+    "event_timestamp": "2026-11-13T02:29:59.800Z",
+    "source_ip": "10.10.1.1",
+    "hostname": "R1-CORE-HN",
+    "facility": 23,
+    "severity": 2,
+    "program": "BGP",
+    "message": "BGP session ngắt kết nối với láng giềng 203.0.113.5 (TEST-NET-3)",
+    "raw_payload": "%BGP-3-BGP_NEIGHBOR_DOWN: Neighbor 203.0.113.5 Down: Peer closed session",
+    "vendor": "CISCO",
+    "category": "routing"
+  },
+  {
+    "id": "a1b2c3d4-0002-0000-0000-000000000002",
+    "received_at": "2026-11-13T02:32:00.000Z",
+    "event_timestamp": "2026-11-13T02:31:59.850Z",
+    "source_ip": "10.10.10.1",
+    "hostname": "FW-PERIMETER-01",
+    "facility": 4,
+    "severity": 3,
+    "program": "ddos-guard",
+    "message": "Phát hiện SYN Flood lưu lượng lớn vào cổng 443 từ 203.0.113.99 (TEST-NET-3)",
+    "raw_payload": "<11>1 2026-11-13T02:31:59Z FW-PERIMETER-01 ddos-guard - - SYN Flood detected from 203.0.113.99",
+    "vendor": "RFC5424",
+    "category": "security"
+  },
+  {
+    "id": "a1b2c3d4-0003-0000-0000-000000000003",
+    "received_at": "2026-11-13T02:35:00.000Z",
+    "event_timestamp": "2026-11-13T02:34:59.500Z",
+    "source_ip": "10.10.2.10",
+    "hostname": "SW-DIST-01",
+    "facility": 23,
+    "severity": 4,
+    "program": "IFPDT",
+    "message": "Cổng GigabitEthernet0/0/12 tự phục hồi từ trạng thái error-down",
+    "raw_payload": "%%01IFPDT/4/IF_ERR_RECOVERY(l): The interface GigabitEthernet0/0/12 recovered from error-down state.",
+    "vendor": "HUAWEI",
+    "category": "interface"
+  },
+  {
+    "id": "a1b2c3d4-0004-0000-0000-000000000004",
+    "received_at": "2026-11-13T02:38:00.000Z",
+    "event_timestamp": "2026-11-13T02:37:59.700Z",
+    "source_ip": "10.10.1.2",
+    "hostname": "R2-PE-HCM",
+    "facility": 23,
+    "severity": 5,
+    "program": "SYS",
+    "message": "Quản trị viên vnp_admin cập nhật cấu hình thiết bị qua console",
+    "raw_payload": "%SYS-5-CONFIG_I: Configured from console by vnp_admin on vty0 (10.10.99.50)",
+    "vendor": "CISCO",
+    "category": "config-change"
+  },
+  {
+    "id": "a1b2c3d4-0005-0000-0000-000000000005",
+    "received_at": "2026-11-13T02:40:00.000Z",
+    "event_timestamp": "2026-11-13T02:39:59.900Z",
+    "source_ip": "10.10.5.8",
+    "hostname": "SW-ACCESS-08",
+    "facility": 23,
+    "severity": 1,
+    "program": "STP",
+    "message": "Root Bridge thay đổi đột ngột trên VLAN 100 — nguy cơ loop mạng",
+    "raw_payload": "<2>Nov 13 02:39:59 SW-ACCESS-08 STP: Root bridge changed on VLAN 100",
+    "vendor": "RFC3164",
+    "category": "stp"
+  }
+]
