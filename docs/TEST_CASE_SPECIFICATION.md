@@ -1454,3 +1454,6 @@ app.state.rule_configuration. Invalid config làm startup thất bại; không c
 engine hoặc reload. TC-RUL-012: startup hợp lệ nạp3mẫu tắt/version0.1.1, startup invalid
 catalog bị ValidationError. Test thực tế tests/test_rule_startup.py. Code owner BE3.
 Đây là tích hợp M5 theo ủy quyền triển khai, không suy field producer đã được phê duyệt.
+
+
+B? sung N42-10 (13/11/2026), TC-OPS-002 / AC-07/08: CI-09?10, JK-01?03, OPS-04?05 v? input/expected t?i [k? ho?ch n?ng c?p](N42-10_UPGRADE_PLAN.md). Tr?ng th?i th?c thi ghi ri?ng theo revision; ??c t? kh?ng ph?i PASS.

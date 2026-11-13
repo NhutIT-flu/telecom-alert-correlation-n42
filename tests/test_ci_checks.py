@@ -3,17 +3,30 @@
 from pathlib import Path
 from contextlib import redirect_stdout
 import io
+import json
 import itertools
 import subprocess
 import tempfile
 import unittest
 from unittest.mock import MagicMock, patch
 
-from tools.ci_checks import ROOT, check_health, check_results
+from tools.ci_checks import ROOT, check_health, check_results, record_metadata
 import sys
 
 
 class CISmokeTests(unittest.TestCase):
+    def test_metadata_records_revision_and_build_without_arbitrary_environment(self):
+        with tempfile.TemporaryDirectory() as directory:
+            reports = Path(directory)
+            with patch.dict(
+                "os.environ", {"BUILD_URL": "http://jenkins/job/review/1/", "SECRET_PROBE": "not-exported"}
+            ):
+                record_metadata(reports)
+            data = json.loads((reports / "environment.json").read_text(encoding="utf-8"))
+            self.assertRegex(data["checkout_sha"], r"^[0-9a-f]{40}$")
+            self.assertEqual(data["jenkins_build_url"], "http://jenkins/job/review/1/")
+            self.assertNotIn("not-exported", json.dumps(data))
+
     def test_aggregate_gate_requires_every_job_to_succeed(self):
         names = ("quality", "security", "tests", "smoke")
         for statuses in itertools.product(("success", "failure", "skipped", "cancelled", None), repeat=4):

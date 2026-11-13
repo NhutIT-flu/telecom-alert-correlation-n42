@@ -109,3 +109,6 @@ nhánh N17 baseline883d048 chưa có workflow. Không dùng số unit tests thay
 Local FR15/AC05 → TC-RUL008–011: bounded schema/severity, enabled field contract, optional SHA256 pin. Owner BE3; code/tests hiện có theo ủy quyền user, QA/TL sign-off sau. Không renumber nguồn; catalog0.1.1/MAJOR vẫn disabled.
 
 Local FR15/AC05 → TC-RUL012: startup dùng loader thật, valid→state catalog, invalid→startup fail; BE3; QA acceptance pending.
+
+
+B? sung N42-10 (13/11/2026), TC-OPS-002 / AC-07/08: CI-09?10, JK-01?03, OPS-04?05 v? input/expected t?i [k? ho?ch n?ng c?p](N42-10_UPGRADE_PLAN.md). Tr?ng th?i th?c thi ghi ri?ng theo revision; ??c t? kh?ng ph?i PASS.

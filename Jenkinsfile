@@ -2,10 +2,16 @@ pipeline {
     agent any
 
     options {
+        timestamps()
         skipDefaultCheckout(true)
         disableConcurrentBuilds()
         timeout(time: 30, unit: 'MINUTES')
         buildDiscarder(logRotator(numToKeepStr: '20'))
+    }
+
+    parameters {
+        booleanParam(name: 'SONAR_REVIEW', defaultValue: false,
+            description: 'Run Sonar on the isolated N42-10 validation project (feature only).')
     }
 
     triggers {
@@ -31,6 +37,11 @@ pipeline {
                     if (!env.CI_BRANCH) {
                         error('Cannot determine checked-out branch; refuse ambiguous Sonar analysis')
                     }
+                    env.CI_COMMIT = sh(script: 'git rev-parse HEAD', returnStdout: true).trim()
+                    env.CI_SONAR_PROJECT = env.CI_BRANCH == 'main' ? 'n42-telecom-alert' :
+                        (params.SONAR_REVIEW ? 'n42-telecom-alert-ci-validation' : '')
+                    currentBuild.displayName = "#${env.BUILD_NUMBER} ${env.CI_BRANCH} ${env.CI_COMMIT.take(8)}"
+                    currentBuild.description = "Revision ${env.CI_COMMIT}"
                 }
                 sh 'mkdir -p reports'
             }
@@ -87,8 +98,8 @@ set -euo pipefail
             }
         }
 
-        stage('SonarQube Analysis (main)') {
-            when { expression { env.CI_BRANCH == 'main' } }
+        stage('SonarQube Analysis') {
+            when { expression { env.CI_SONAR_PROJECT } }
             options { timeout(time: 10, unit: 'MINUTES') }
             steps {
                 script {
@@ -98,7 +109,11 @@ set -euo pipefail
                             sh '''#!/usr/bin/env bash
 set -euo pipefail
 test -s reports/coverage.xml
-"$SCANNER_HOME/bin/sonar-scanner"
+"$SCANNER_HOME/bin/sonar-scanner" \
+    "-Dsonar.projectKey=$CI_SONAR_PROJECT" \
+    "-Dsonar.scm.revision=$CI_COMMIT" \
+    "-Dsonar.projectVersion=build-$BUILD_NUMBER" \
+    "-Dsonar.buildString=$BUILD_URL"
 '''
                         }
                     }
@@ -106,16 +121,30 @@ test -s reports/coverage.xml
             }
         }
 
-        stage('Quality Gate (main)') {
-            when { expression { env.CI_BRANCH == 'main' } }
-            options { timeout(time: 10, unit: 'MINUTES') }
+        stage('Quality Gate') {
+            when { expression { env.CI_SONAR_PROJECT } }
             steps {
                 script {
-                    // Explicit error makes a non-OK gate FAILURE, rather than only UNSTABLE.
-                    def gate = waitForQualityGate()
-                    writeFile file: 'reports/quality-gate.txt', text: "status=${gate.status}\n"
-                    if (gate.status != 'OK') {
-                        error("SonarQube Quality Gate failed: ${gate.status}")
+                    def status = 'WAITING'
+                    try {
+                        timeout(time: 10, unit: 'MINUTES') {
+                            def gate = waitForQualityGate()
+                            status = gate.status ?: 'UNKNOWN'
+                        }
+                        if (status != 'OK') {
+                            error("SonarQube Quality Gate failed: ${status}")
+                        }
+                    } catch (org.jenkinsci.plugins.workflow.steps.FlowInterruptedException interrupted) {
+                        if (interrupted.isActualInterruption()) {
+                            status = 'ABORTED'
+                            throw interrupted
+                        }
+                        status = 'TIMEOUT'
+                        error('SonarQube Quality Gate wait timed out')
+                    } finally {
+                        writeFile file: 'reports/quality-gate.txt', text:
+                            "status=${status}\nrevision=${env.CI_COMMIT}\nproject=${env.CI_SONAR_PROJECT}\nbuild=${env.BUILD_URL}\n"
+                        currentBuild.description += " | Gate ${status}"
                     }
                 }
             }
@@ -130,12 +159,14 @@ test -s reports/coverage.xml
                         junit testResults: 'reports/junit-report.xml', allowEmptyResults: false
                     }
                 } finally {
+                    writeFile file: 'reports/build-result.txt', text:
+                        "result=${currentBuild.currentResult}\nrevision=${env.CI_COMMIT ?: 'unknown'}\nbuild=${env.BUILD_URL}\n"
                     archiveArtifacts artifacts: 'reports/**, .scannerwork/report-task.txt', allowEmptyArchive: true
                 }
             }
         }
         success {
-            echo 'Jenkins checks passed. SonarQube gate applies only to the main job.'
+            echo 'Jenkins checks passed. Sonar runs on main or the isolated review project.'
         }
         failure {
             echo 'Jenkins checks or SonarQube Quality Gate failed; inspect archived reports.'

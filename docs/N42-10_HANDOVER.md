@@ -74,3 +74,13 @@ Log local trong `reports/` bị Git ignore theo thiết kế. Đính kèm log/�
 - [Required status checks](https://docs.github.com/en/pull-requests/how-tos/merge-and-close-pull-requests/troubleshooting-required-status-checks).
 - [GitHub Actions của dự án](GITHUB_ACTIONS_GUIDE.md).
 - [Runbook Jenkins/Sonar](JENKINS_SONAR_RUNBOOK.md).
+
+
+## C?p nh?t tri?n khai 13/11/2026
+
+Xem [v?n h?nh v? backup](N42-10_OPERATIONS.md), [k? ho?ch/ca nghi?m thu](N42-10_UPGRADE_PLAN.md).
+Jenkinsfile hi?n c? SONAR_REVIEW (m?c ??nh false); feature review ch? d?ng project n42-telecom-alert-ci-validation, main d?ng project ch?nh.
+Gate timeout ???c b?t v? l?u TIMEOUT/FAILURE; h?y th? c?ng v?n ABORTED. Runtime Gate OK/non-OK/timeout ch?a ???c ki?m ch?ng tr?n Jenkins m?i.
+Docker backup ?? restore c?ch ly th?nh c?ng; b? ki?m tra Linux ??t unittest/pytest/lint/scan/smoke, kh?ng thay th? Jenkins job/Sonar evidence.
+T? ??ng t?o phi?n API qu?n tr? b? automatic approval review t? ch?i do thao t?c v?i credential ch?a ???c ?y quy?n c? th?. Ch?a t?o job/project ho?c ch?y Gate.
+Required checks v?n c?n ch? repo; kh?ng t? merge PR. Kh?ng d?ng evidence b502ad1 nh? k?t qu? revision m?i.

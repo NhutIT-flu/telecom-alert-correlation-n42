@@ -27,3 +27,6 @@
 | # | Ngày | Hoàn cảnh | Các phương án xét | Quyết định | Người quyết |
 |---|------|-----------|-------------------|-----------|-------------|
 |   |      |           |                   |           |             |
+
+
+**N42-10, 13/11/2026 ? ng??i d?ng cho ph?p tri?n khai:** gi? Docker/volume ?? kh?i ph?c, m?t Compose chu?n; backup tr??c thay ??i; ghim image digest. Gi? unittest theo ticket v? pytest ?? thu test h?m/coverage. Black ph? tr?ch ??nh d?ng, gi? b? qua W391. Feature c? th? b?t Sonar review tr?n project validation c? ??nh; main gi? project ch?nh. Timeout Gate l? FAILURE, h?y th? c?ng ABORTED. Ch? TL review v? evidence runtime; kh?ng ??i quy?n GitHub ho?c tr?ng th?i Jira.

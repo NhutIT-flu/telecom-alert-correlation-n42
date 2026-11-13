@@ -143,3 +143,15 @@ Dự án vận hành trên nguyên tắc an toàn dữ liệu viễn thông tuy�
 3. **Cập nhật Tiến độ Jira**:
    - Khi mở PR: Kéo thẻ từ `In Progress` sang `Code Review`.
    - Chỉ chuyển thẻ sang `Done` sau review, CI xanh, merge, kiểm chứng Docker, cập nhật docs và demo theo DoD của nhóm; merge đơn lẻ chưa đủ xác nhận hoàn thành.
+
+
+## Unit test theo nh?nh backend (N42-10, 13/11/2026)
+
+M?i ticket d?ng nh?nh `feature/N42-<id>-<mo-ta>` v? k?m test trong `tests/test_*.py`.
+Test c? th? d?ng `unittest.TestCase` ho?c h?m pytest; kh?ng c?n s?a workflow cho t?ng ticket.
+Push nh?nh feature v? PR ??ch main ch?y to?n b? test c?a checkout ??, g?m h?i quy ?? c?.
+PR c? th? d?ng merge ref: ??i chi?u `environment.json`, kh?ng coi SHA head lu?n l? SHA checkout.
+Gi? unittest theo ticket N42-10 v? pytest ?? thu c? test h?m, JUnit/coverage; m?t s? case ch?y hai l??t c? ch? ??ch.
+Test t?ch h?p c?n DB/d?ch v? ngo?i ph?i c? fixture/m?i tr??ng c? l?p; kh?ng g?i thi?t b? production.
+JUnit/coverage n?m trong artifact tests; failure l?m job tests v? check t?ng h?p ??.
+Ch? kh?ng ??nh ch?n merge sau khi ch? repo ??t required check v? th? PR l?i.

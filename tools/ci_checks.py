@@ -46,11 +46,13 @@ def write_json(path, data):
 def record_metadata(reports):
     reports.mkdir(parents=True, exist_ok=True)
     revision = subprocess.run(["git", "rev-parse", "HEAD"], cwd=ROOT, capture_output=True, text=True, timeout=10)
+    worktree = subprocess.run(["git", "status", "--porcelain"], cwd=ROOT, capture_output=True, text=True, timeout=10)
     write_json(
         reports / "environment.json",
         {
             "recorded_at": datetime.now(timezone.utc).isoformat(),
             "checkout_sha": revision.stdout.strip() if revision.returncode == 0 else "unknown",
+            "worktree_dirty": bool(worktree.stdout.strip()) if worktree.returncode == 0 else None,
             "github_sha": os.environ.get("GITHUB_SHA"),
             "run_id": os.environ.get("GITHUB_RUN_ID"),
             "run_attempt": os.environ.get("GITHUB_RUN_ATTEMPT"),
@@ -59,6 +61,8 @@ def record_metadata(reports):
             "jenkins_build": os.environ.get("BUILD_NUMBER"),
             "jenkins_git_commit": os.environ.get("GIT_COMMIT"),
             "jenkins_branch": os.environ.get("CI_BRANCH"),
+            "jenkins_build_url": os.environ.get("BUILD_URL"),
+            "sonar_project": os.environ.get("CI_SONAR_PROJECT"),
             "python": sys.version,
             "platform": platform.platform(),
             "packages": {

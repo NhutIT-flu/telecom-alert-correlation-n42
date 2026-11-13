@@ -68,3 +68,13 @@ Log người dùng gửi ngày 12/11 là build commit 8f8b7a6, Python 3.13.5, 6 
 
 - [Pipeline syntax](https://www.jenkins.io/doc/book/pipeline/syntax/): trigger/options/timeout/checkout/concurrency.
 - [SonarQube Community pipeline pause](https://docs.sonarsource.com/sonarqube-community-build/analyzing-source-code/ci-integration/jenkins-integration/pipeline-pause): withSonarQubeEnv, webhook bắt buộc và waitForQualityGate.
+
+
+## C?p nh?t tri?n khai 13/11/2026
+
+Xem [v?n h?nh v? backup](N42-10_OPERATIONS.md), [k? ho?ch/ca nghi?m thu](N42-10_UPGRADE_PLAN.md).
+Jenkinsfile hi?n c? SONAR_REVIEW (m?c ??nh false); feature review ch? d?ng project n42-telecom-alert-ci-validation, main d?ng project ch?nh.
+Gate timeout ???c b?t v? l?u TIMEOUT/FAILURE; h?y th? c?ng v?n ABORTED. Runtime Gate OK/non-OK/timeout ch?a ???c ki?m ch?ng tr?n Jenkins m?i.
+Docker backup ?? restore c?ch ly th?nh c?ng; b? ki?m tra Linux ??t unittest/pytest/lint/scan/smoke, kh?ng thay th? Jenkins job/Sonar evidence.
+T? ??ng t?o phi?n API qu?n tr? b? automatic approval review t? ch?i do thao t?c v?i credential ch?a ???c ?y quy?n c? th?. Ch?a t?o job/project ho?c ch?y Gate.
+Required checks v?n c?n ch? repo; kh?ng t? merge PR. Kh?ng d?ng evidence b502ad1 nh? k?t qu? revision m?i.
