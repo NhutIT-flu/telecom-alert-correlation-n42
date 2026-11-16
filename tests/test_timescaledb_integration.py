@@ -35,16 +35,6 @@ except ImportError:
     PgConnection = Any  # type: ignore
     HAS_PSYCOPG2 = False
 
-try:
-    import psycopg2
-    import psycopg2.errors
-    from psycopg2.extensions import connection as PgConnection
-    HAS_PSYCOPG2 = True
-except ImportError:
-    psycopg2 = None
-    PgConnection = Any  # type: ignore
-    HAS_PSYCOPG2 = False
-
 from app.store.database import (
     apply_init_ddl,
     get_hypertable_info,
@@ -72,7 +62,7 @@ pytestmark = pytest.mark.skipif(
 def timescale_container() -> Generator[PgConnection, None, None]:
     """Bước 2, 3, 4 & 6: Quản lý vòng đời container TimescaleDB bằng Testcontainers."""
     import os
-    from testcontainers.community.postgres import PostgresContainer
+    from testcontainers.postgres import PostgresContainer
 
     db_auth_secret = os.getenv("POSTGRES_PASSWORD", "n42_local_dev")
 
