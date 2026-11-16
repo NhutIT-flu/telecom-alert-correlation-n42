@@ -180,3 +180,24 @@ class TestBatchFileImport:
             )
             assert response.status_code == 400
             assert "Path Traversal" in response.json()["detail"]
+
+    def test_import_file_queue_full_records_failed_lines(self, monkeypatch):
+        """File Import khi queue đầy: tăng failed và ghi nhận error_lines thay vì success."""
+        small_queue: asyncio.Queue[RawEvent] = asyncio.Queue(maxsize=2)
+        monkeypatch.setattr("app.api.ingest.ingest_queue", small_queue)
+
+        lines = [f"<134>Nov 06 15:00:00 host-{i:03d} %LINK-3-UPDOWN: Line {i}" for i in range(1, 5)]
+        file_content = "\n".join(lines).encode("utf-8")
+
+        response = client.post(
+            "/api/v1/events/import-file",
+            files={"file": ("batch_overflow.log", file_content, "text/plain")},
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["total"] == 4
+        assert data["success"] == 2
+        assert data["failed"] == 2
+        assert data["error_lines"] == [3, 4]
+        assert small_queue.qsize() == 2

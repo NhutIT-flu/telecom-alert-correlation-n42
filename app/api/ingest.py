@@ -120,10 +120,11 @@ async def import_log_file(
 
             try:
                 ingest_queue.put_nowait(raw_event)
+                success += 1
             except asyncio.QueueFull:
                 logger.warning("Ingest queue full during batch file import at line %d", line_idx)
-
-            success += 1
+                failed += 1
+                error_lines.append(line_idx)
         except UnicodeDecodeError:
             failed += 1
             error_lines.append(line_idx)
