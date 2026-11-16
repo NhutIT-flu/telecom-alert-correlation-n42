@@ -1,0 +1,46 @@
+ > git rev-parse --resolve-git-dir /var/jenkins_home/workspace/N42-CI-N42-10-Review@script/c692c898e7a93a5e429c4f855068a3909fedbb4fd4229adf7a63b984af84d8de/.git # timeout=10
+ > git config remote.origin.url https://github.com/NhutIT-flu/telecom-alert-correlation-n42.git # timeout=10
+ > git --version # timeout=10
+ > git fetch --tags --force --progress -- https://github.com/NhutIT-flu/telecom-alert-correlation-n42.git +refs/heads/*:refs/remotes/origin/* # timeout=10
+ > git rev-parse refs/remotes/origin/feature/N42-10-ci-pipeline^{commit} # timeout=10
+ > git config core.sparsecheckout # timeout=10
+ > git checkout -f b349700b6dd265977233149ba9aca1247f58c051 # timeout=10
+Commit message: "chore: them deadline review de kiem chung Gate timeout (N42-10)"
+ > git rev-list --no-walk b349700b6dd265977233149ba9aca1247f58c051 # timeout=10
+[Pipeline] timeout
+[2026-11-13T10:11:07.823Z] Timeout set to expire in 30 min
+[2026-11-13T10:11:08.108Z]  > git rev-parse --resolve-git-dir /var/jenkins_home/workspace/N42-CI-N42-10-Review/.git # timeout=10
+[2026-11-13T10:11:08.112Z]  > git config remote.origin.url https://github.com/NhutIT-flu/telecom-alert-correlation-n42.git # timeout=10
+[2026-11-13T10:11:08.116Z]  > git --version # timeout=10
+[2026-11-13T10:11:08.120Z]  > git fetch --tags --force --progress -- https://github.com/NhutIT-flu/telecom-alert-correlation-n42.git +refs/heads/*:refs/remotes/origin/* # timeout=10
+[2026-11-13T10:11:08.863Z]  > git rev-parse refs/remotes/origin/feature/N42-10-ci-pipeline^{commit} # timeout=10
+[2026-11-13T10:11:08.869Z]  > git config core.sparsecheckout # timeout=10
+[2026-11-13T10:11:08.873Z]  > git checkout -f b349700b6dd265977233149ba9aca1247f58c051 # timeout=10
+[2026-11-13T10:11:08.878Z] Commit message: "chore: them deadline review de kiem chung Gate timeout (N42-10)"
+[Pipeline] timeout
+[2026-11-13T10:11:09.659Z] Timeout set to expire in 10 min
+[Pipeline] // timeout
+[2026-11-13T10:11:26.184Z] test_timeout_terminates_then_kills_unresponsive_child (test_ci_checks.CISmokeTests.test_timeout_terminates_then_kills_unresponsive_child) ... ok
+[2026-11-13T10:11:33.445Z] test_timeout_or_partial_body_never_retries_post (test_generator.SyslogGeneratorTests.test_timeout_or_partial_body_never_retries_post) ... ok
+[2026-11-13T10:11:35.960Z] tests/test_ci_checks.py::CISmokeTests::test_timeout_terminates_then_kills_unresponsive_child PASSED [  7%]
+[2026-11-13T10:11:43.369Z] tests/test_generator.py::SyslogGeneratorTests::test_timeout_or_partial_body_never_retries_post 
+[2026-11-13T10:11:43.369Z] tests/test_generator.py::SyslogGeneratorTests::test_timeout_or_partial_body_never_retries_post PASSED [ 25%]
+[Pipeline] timeout
+[2026-11-13T10:11:46.075Z] Timeout set to expire in 2 min 0 sec
+[Pipeline] // timeout
+[Pipeline] timeout
+[2026-11-13T10:11:47.374Z] Timeout set to expire in 10 min
+[2026-11-13T10:12:07.264Z] 10:12:07.174 INFO  SCM revision ID 'b349700b6dd265977233149ba9aca1247f58c051'
+[2026-11-13T10:12:07.515Z] 10:12:07.380 INFO  ANALYSIS SUCCESSFUL, you can find the results at: http://sonarqube:9000/dashboard?id=n42-telecom-alert-ci-validation
+[2026-11-13T10:12:07.515Z] 10:12:07.381 INFO  More about the report processing at http://sonarqube:9000/api/ce/task?id=2db68ade-1f12-4525-bc1a-07c9acf03832
+[Pipeline] // timeout
+[Pipeline] { (Quality Gate)
+[Pipeline] timeout
+[2026-11-13T10:12:08.305Z] Timeout set to expire in 10 min
+[Pipeline] waitForQualityGate
+[2026-11-13T10:12:08.351Z] Checking status of SonarQube task '2db68ade-1f12-4525-bc1a-07c9acf03832' on server 'SonarQube-N42'
+[2026-11-13T10:12:08.365Z] SonarQube task '2db68ade-1f12-4525-bc1a-07c9acf03832' status is 'IN_PROGRESS'
+Aborted by NGÔ CHÂU KIỆT
+[Pipeline] // timeout
+[Pipeline] // timeout
+Finished: ABORTED
