@@ -131,10 +131,10 @@ fi
                             sh '''#!/usr/bin/env bash
 set -euo pipefail
 test -s reports/coverage.xml
+# Release version is read from sonar-project.properties; build identity stays separate.
 "$SCANNER_HOME/bin/sonar-scanner" \
     "-Dsonar.projectKey=$CI_SONAR_PROJECT" \
     "-Dsonar.scm.revision=$CI_COMMIT" \
-    "-Dsonar.projectVersion=build-$BUILD_NUMBER" \
     "-Dsonar.buildString=$BUILD_URL"
 '''
                         }
