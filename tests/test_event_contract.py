@@ -162,4 +162,3 @@ def test_cursor_decode_invalid() -> None:
     with pytest.raises(ValueError, match="Invalid pagination cursor"):
         # Base64 hợp lệ nhưng không phải JSON
         decode_cursor("SGVsbG8gV29ybGQ=")
-

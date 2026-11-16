@@ -208,4 +208,3 @@ def decode_cursor(cursor_str: str) -> tuple[datetime, UUID]:
         return ts, event_id
     except Exception as e:
         raise ValueError(f"Invalid pagination cursor: {cursor_str}") from e
-
