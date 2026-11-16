@@ -4,6 +4,7 @@ from pathlib import Path
 from fastapi import FastAPI
 
 from app.api.health import router as health_router
+from app.api.ingest import router as ingest_router
 from app.services.rule_config_loader import load_rule_configuration
 
 RULES_PATH = Path(__file__).resolve().parent / "services" / "rules.yaml"
@@ -23,3 +24,4 @@ app = FastAPI(
 )
 
 app.include_router(health_router, prefix="/api", tags=["Health"])
+app.include_router(ingest_router, prefix="/api")
