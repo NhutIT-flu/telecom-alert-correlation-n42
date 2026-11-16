@@ -12,7 +12,10 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from psycopg2.extensions import connection as PgConnection
+try:
+    from psycopg2.extensions import connection as PgConnection
+except ImportError:
+    PgConnection = Any  # type: ignore
 
 INIT_DB_PATH = Path(__file__).resolve().parents[2] / "docker" / "init-db.sql"
 

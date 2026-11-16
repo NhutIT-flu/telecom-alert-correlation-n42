@@ -20,12 +20,30 @@ from __future__ import annotations
 import subprocess
 import uuid
 from datetime import datetime, timezone
-from typing import Generator
+from typing import Any, Generator
 
-import psycopg2
-import psycopg2.errors
 import pytest
-from psycopg2.extensions import connection as PgConnection
+
+try:
+    import psycopg2
+    import psycopg2.errors
+    from psycopg2.extensions import connection as PgConnection
+
+    HAS_PSYCOPG2 = True
+except ImportError:
+    psycopg2 = None
+    PgConnection = Any  # type: ignore
+    HAS_PSYCOPG2 = False
+
+try:
+    import psycopg2
+    import psycopg2.errors
+    from psycopg2.extensions import connection as PgConnection
+    HAS_PSYCOPG2 = True
+except ImportError:
+    psycopg2 = None
+    PgConnection = Any  # type: ignore
+    HAS_PSYCOPG2 = False
 
 from app.store.database import (
     apply_init_ddl,
@@ -43,10 +61,10 @@ def is_docker_available() -> bool:
         return False
 
 
-# Bỏ qua nếu môi trường không có Docker Daemon
+# Bỏ qua nếu môi trường không có psycopg2 hoặc không có Docker Daemon
 pytestmark = pytest.mark.skipif(
-    not is_docker_available(),
-    reason="Yêu cầu Docker Engine đang chạy để khởi tạo Testcontainers TimescaleDB",
+    not HAS_PSYCOPG2 or not is_docker_available(),
+    reason="Yêu cầu psycopg2 và Docker Engine đang chạy để khởi tạo Testcontainers TimescaleDB",
 )
 
 
