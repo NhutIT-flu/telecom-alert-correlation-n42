@@ -21,4 +21,3 @@ __all__ = [
     "encode_cursor",
     "decode_cursor",
 ]
-
