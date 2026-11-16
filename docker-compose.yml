@@ -7,7 +7,7 @@
 services:
   # M3/M4: TimescaleDB - luu tru canh bao theo thoi gian (BE2 thay the InMemoryEventStore)
   db:
-    image: timescale/timescaledb:latest-pg16
+    image: timescale/timescaledb:latest-pg16@sha256:322ae364eca3321cf2a48f1ef31213b87843413b3cf8feeebf54e999a26bb731
     container_name: n42-db
     restart: unless-stopped
     environment:
@@ -59,7 +59,7 @@ services:
 
   # Ha tang Phan tich Chat luong Ma nguon: SonarQube Community (dung PostgreSQL n42-db)
   sonarqube:
-    image: sonarqube:community
+    image: sonarqube:community@sha256:1ce197471f5f2bac347694a336862fd2c23e9f57c6edb46acebbfbe70f2c7d9c
     container_name: n42-sonarqube
     restart: unless-stopped
     depends_on:
@@ -84,11 +84,17 @@ networks:
 
 volumes:
   n42-db-data:
+    external: true
+    name: telecom-alert-correlation-n42_n42-db-data
   jenkins_data:
+    external: true
     name: n42-cicd_jenkins_data
   sonar_data:
+    external: true
     name: n42-cicd_sonar_data
   sonar_extensions:
+    external: true
     name: n42-cicd_sonar_extensions
   sonar_logs:
+    external: true
     name: n42-cicd_sonar_logs

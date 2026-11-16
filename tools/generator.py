@@ -142,7 +142,20 @@ class SyslogGenerator:
                 second = self._seq % 60
                 return f"Nov 10 12:{minute:02d}:{second:02d}"
             now = datetime.now()
-        month_abbr = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][now.month - 1]
+        month_abbr = [
+            "Jan",
+            "Feb",
+            "Mar",
+            "Apr",
+            "May",
+            "Jun",
+            "Jul",
+            "Aug",
+            "Sep",
+            "Oct",
+            "Nov",
+            "Dec",
+        ][now.month - 1]
         return f"{month_abbr} {now.day:2d} {now.strftime('%H:%M:%S')}"
 
     def _format_rfc5424_timestamp(self, now: Optional[datetime] = None) -> str:
