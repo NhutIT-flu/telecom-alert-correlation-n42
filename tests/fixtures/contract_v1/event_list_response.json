@@ -1,0 +1,24 @@
+{
+  "items": [
+    {
+      "id": "e0b0e5d4-4f0f-4886-b47a-c71c4c92b23a",
+      "event_timestamp": "2026-11-16T07:15:30Z",
+      "received_at": "2026-11-16T07:15:30.123456Z",
+      "source_ip": "192.0.2.1",
+      "hostname": "r-core-01",
+      "facility": 23,
+      "severity": 3,
+      "severity_label": "ERROR",
+      "vendor": "cisco",
+      "program": "LINK",
+      "mnemonic": "UPDOWN",
+      "category": "interface_status",
+      "message": "Interface GigabitEthernet0/0/1, changed state to down",
+      "parse_status": "parsed"
+    }
+  ],
+  "next_cursor": "eyJ0cyI6ICIyMDI2LTExLTE2VDA3OjE1OjMwWiIsICJpZCI6ICJlMGIwZTVkNC00ZjBmLTQ4ODYtYjQ3YS1jNzFjNGM5MmIyM2EifQ==",
+  "has_more": true,
+  "total_matched": 1
+}
+
