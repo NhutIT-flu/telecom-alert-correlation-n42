@@ -213,7 +213,11 @@ def parse_syslog_rfc3164(
         return _make_fallback(raw, source_ip, received_at, "invalid_timestamp")
 
     rec_in_src_tz = received_at.astimezone(source_timezone)
-    candidate_years = [rec_in_src_tz.year - 1, rec_in_src_tz.year, rec_in_src_tz.year + 1]
+    candidate_years = [
+        rec_in_src_tz.year - 1,
+        rec_in_src_tz.year,
+        rec_in_src_tz.year + 1,
+    ]
 
     candidates = []
     for y in candidate_years:

@@ -1,11 +1,17 @@
 
-FROM jenkins/jenkins:lts-jdk21
+FROM python:3.12.16-slim-trixie@sha256:5e2bdb1b0d542d5039cffb8181c65930093949194a65c365dfb1b0fe13a4fa5b AS python312
+
+FROM jenkins/jenkins:lts-jdk21@sha256:74401de6a6f92e1afe1b02d1c8e3d0c33f263bfb5275dd8813f9150355f2367b
 
 USER root
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-    python3 python3-venv python3-pip git && \
+    git libbz2-1.0 libexpat1 libffi8 liblzma5 libncursesw6 \
+    libreadline8t64 libsqlite3-0 libssl3t64 zlib1g && \
     rm -rf /var/lib/apt/lists/*
+
+COPY --from=python312 /usr/local/ /usr/local/
+RUN python3.12 -c 'import ssl, sqlite3, bz2, lzma, ctypes, venv; import sys; assert sys.version_info[:2] == (3, 12)'
 
 USER jenkins
