@@ -1,0 +1,13 @@
+{
+  "items": [
+    {
+      "raw_message": "<189>Nov 16 07:15:30 r-core-01 %LINK-3-UPDOWN: Interface GigabitEthernet0/0/1, changed state to down",
+      "source_ip": "192.0.2.1"
+    },
+    {
+      "raw_message": "<187>Nov 16 07:15:31 sw-access-02 %OSPF-5-ADJCHG: Process 1, Nbr 192.0.2.254 on Vlan10 from FULL to DOWN, Neighbor Down: Dead timer expired",
+      "source_ip": "192.0.2.2"
+    }
+  ]
+}
+

@@ -14,7 +14,7 @@ Ma trận này là kế hoạch bao phủ FR/NFR đến tiêu chí nghiệm thu,
 | Requirement | AC | Owner | Mã ca kiểm thử đặc tả | Evidence cần thu | Hiện trạng repo | Jira |
 |---|---|---|---|---|---|---|
 | FR-01 UDP ingest | AC-01 | BE1 | TC-ING-001–006, 014–015; TC-INT-001, 004 | Fixture/IDs gửi nhận, counters, raw/event đã lưu, log | Chỉ health endpoint; receiver chưa có | [N42-13](https://nhutp2945-1793259952237.atlassian.net/browse/N42-13), [N42-32](https://nhutp2945-1793259952237.atlassian.net/browse/N42-32) |
-| FR-02 REST ingest | AC-01 | BE1/BE2 | TC-ING-007–010, 016; TC-INT-004 | Request/response, status, event ID và persistence result | Nhánh N42-14 có route RAM. TC-ING-016 xác minh từ chối khi đầy; ACK sau commit chờ N42-62 | [N42-14](https://nhutp2945-1793259952237.atlassian.net/browse/N42-14) |
+| FR-02 REST ingest | AC-01 | BE1/BE2 | TC-ING-007–010, 016; TC-INT-004 | Request/response, status, event ID và persistence result | N42-62 hoàn thành chốt hợp đồng API v1 (Idempotency-Key, 201/202, DTO EventView). Nhánh N42-14 triển khai runtime | [N42-14](https://nhutp2945-1793259952237.atlassian.net/browse/N42-14), [N42-62](https://nhutp2945-1793259952237.atlassian.net/browse/N42-62) |
 | FR-03 File import | AC-01, AC-07 | BE1/QA | TC-ING-011–013; TC-SEC-006 | File fixture, report theo dòng, encoding/duplicate/path cases | Chưa có importer; quy tắc encoding/idempotency cần chốt | [N42-22](https://nhutp2945-1793259952237.atlassian.net/browse/N42-22) |
 | FR-04 Parser/normalization | AC-02 | BE2 | TC-PAR-001–009, 012 | Corpus ≥200 mẫu/format đã chốt; expected/actual từng field, error counts | Main có parser N42-15. Corpus nghiệm thu AC-02 cần kết quả riêng | [N42-15](https://nhutp2945-1793259952237.atlassian.net/browse/N42-15), [N42-23](https://nhutp2945-1793259952237.atlassian.net/browse/N42-23), [N42-24](https://nhutp2945-1793259952237.atlassian.net/browse/N42-24), [N42-25](https://nhutp2945-1793259952237.atlassian.net/browse/N42-25) |
 | FR-05 Parse fallback | AC-02 | BE2 | TC-PAR-010–011; TC-ING-003 | Malformed input, raw giữ nguyên, parse status, không crash | Main có fallback trong parser N42-15. Tích hợp và evidence theo build | [N42-15](https://nhutp2945-1793259952237.atlassian.net/browse/N42-15) |
@@ -79,3 +79,41 @@ Các mục sau không phải FR của sản phẩm, nhưng xuất hiện trong C
 ## 7. Cách duy trì
 
 Khi FR, API/schema, rule hoặc AC đổi, cập nhật SRS, thiết kế dữ liệu/API, acceptance criteria, test plan, test-case specification và ma trận trong cùng work item. Mỗi test phải truy ngược tới ít nhất một requirement; requirement chưa có test phải được ghi rõ là gap, owner và milestone.
+
+
+## N42-17: crosswalk review draft ngày 12/11/2026
+
+Giữ nguyên mã lịch sử; bảng sau là đề xuất ánh xạ theo hành vi, chờ TL/QA đồng bộ
+nguồn chuẩn. Không renumber toàn RTM. SRS Confluence page3375211 v13, RTM page3440729 v7,
+TCS page3375173 v11; corpus đủ61 trang trong báo cáo review cùng ngày.
+
+| Namespace / version | Requirement nguồn | Hành vi | AC / TC | Jira / evidence hoặc gap |
+|---|---|---|---|---|
+| SRS page3375211 v13 | FR21/FR22 | cấu hình/validation luật | AC05; TC-RUL001–005 | N42-17; loader/schema/tests; QA nguồn kép pending |
+| SRS page3375211 v13 | FR23 | reload luật | AC05; TC-RUL006/007 | N42-38; NOT RUN, không thuộc loader stateless |
+| RTM page3440729 v7 / Jira N42-17 | FR15 | config và reload đang gộp | AC05/06; TC-RUL001–007 | cần tách evidence N17/N38, chưa nghiệm thu toàn dòng |
+| Feature local 001-n42-rule-config | FR001–014, SC001–006 | contract/fixture/truy vết N17 | spec và manifest theo từng FR/SC | local evidence hoặc dependency, không phải ID SRS |
+
+N42-17 có 3 mẫu disabled; số5 luật/KPI detector là mục tiêu dự án. Field missing
+interface/link_state/psu_slot/peer/session_state chờ N23/24/26/62/65.
+Fixture review không chứng minh engine N44/45/65 hoặc reload N38 chạy đạt.
+Các dòng khác trong RTM là baseline lịch sử; không suy trạng thái của module khác từ
+checkout riêng N17. CI chỉ được xác nhận theo run/commit; cached main có workflow nhưng
+nhánh N17 baseline883d048 chưa có workflow. Không dùng số unit tests thay coverage nghiệp vụ.
+
+
+## Implementation amendment N42-17 — 12/11/2026
+
+Local FR15/AC05 → TC-RUL008–011: bounded schema/severity, enabled field contract, optional SHA256 pin. Owner BE3; code/tests hiện có theo ủy quyền user, QA/TL sign-off sau. Không renumber nguồn; catalog0.1.1/MAJOR vẫn disabled.
+
+Local FR15/AC05 → TC-RUL012: startup dùng loader thật, valid→state catalog, invalid→startup fail; BE3; QA acceptance pending.
+
+
+## Implementation amendment N42-62 — 16/11/2026
+
+Local FR-02/AC-01 & FR-07/AC-03 → TC-ING-007..010, TC-UI-002: Đã hoàn thành đóng băng tài liệu thiết kế Hợp đồng API & Sự kiện v1.0 tại `docs/N42-62_DESIGN.md`.
+- **DEC-01 (Entity/DTO):** Thống nhất chuẩn `AlertEvent` (UTC timestamp, `hostname`) và DTO `EventView` phục vụ Dashboard (lược bỏ `raw_payload`, bổ sung `severity_label`).
+- **DEC-02 (REST Ingest):** Chốt endpoint `POST /api/v1/events` (alias `/ingest`), header `Idempotency-Key`, phân định mã `201 Created` (durable commit) và `202 Accepted` (RAM queue), cùng các mã lỗi 400/409/422/503.
+- **DEC-03 (Query & Pagination):** Chốt endpoint `GET /api/v1/events` với Cursor-based pagination (`next_cursor` mã hóa Base64 cặp `(event_timestamp, id)`), đáp ứng truy vấn dưới 2 giây trên tập 1M bản tin.
+- **Hiện thực hóa & Kiểm thử:** Xây dựng Pydantic v2 schemas tại `app/schemas/event_contract.py`, bộ fixture mẫu tại `tests/fixtures/contract_v1/`, và bộ unit test xác thực tại `tests/test_event_contract.py` (9/9 passed). Owner: BE2 (Phạm Tấn Thành).
+
