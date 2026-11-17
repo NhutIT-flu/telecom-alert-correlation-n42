@@ -58,9 +58,10 @@ RE_CISCO = re.compile(
     re.DOTALL,
 )
 
-# Regex nhận diện định dạng Huawei (hỗ trợ cả suffix (l))
+# Regex nhận diện định dạng Huawei VRP (hỗ trợ version prefix %%01, %%10, %%, %, flags và sequence index)
 RE_HUAWEI = re.compile(
-    r"^%%01(?P<prog>[A-Za-z0-9_-]+)/(?P<sev>[0-7])/(?P<mnem>[A-Za-z0-9_-]+)(?:\(l\))?:\s?(?P<rest>.*)$",
+    r"^%%?(?:\d{2})?(?P<prog>[A-Za-z0-9_-]+)/(?P<sev>[0-7])/(?P<mnem>[A-Za-z0-9_-]+)"
+    r"(?:\([a-zA-Z]\))?(?:\[\d+\])?:\s?(?P<rest>.*)$",
     re.DOTALL,
 )
 
