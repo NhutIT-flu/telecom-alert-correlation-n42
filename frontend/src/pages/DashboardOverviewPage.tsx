@@ -9,10 +9,14 @@ import {
   ChevronDown,
   ChevronRight,
   Terminal,
+  AlertTriangle,
+  FolderOpen,
+  Keyboard,
 } from 'lucide-react';
 import type { AlertEvent } from '../types';
 import { SEVERITY_COLOR_GROUP } from '../types';
-import { alertService } from '../services';
+import { fixtureAdapter } from '../services';
+import type { FixtureMode } from '../services';
 import { SeverityBadge } from '../components/common';
 
 export const DashboardOverviewPage: React.FC = () => {
@@ -20,16 +24,19 @@ export const DashboardOverviewPage: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [fixtureMode, setFixtureMode] = useState<FixtureMode>('success');
 
-  const loadAlerts = async () => {
+  // Tải lại dữ liệu thủ công / Thử lại khi lỗi (AC 2: Retry không nhân bản dòng)
+  const handleReload = async (isRetry: boolean = false) => {
     setLoading(true);
     setError(null);
+
     try {
-      const data = await alertService.getEvents(50);
-      setEvents(data);
-    } catch (err) {
-      setError('Không thể tải danh sách cảnh báo từ máy chủ.');
-      console.error(err);
+      const data = await fixtureAdapter.getEvents({ mode: fixtureMode, delayMs: 400 });
+      setEvents((prev) => (isRetry ? fixtureAdapter.mergeEvents(prev, data) : data));
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Lỗi không xác định khi nạp dữ liệu.';
+      setError(msg);
     } finally {
       setLoading(false);
     }
@@ -37,41 +44,49 @@ export const DashboardOverviewPage: React.FC = () => {
 
   useEffect(() => {
     let ignore = false;
-    alertService
-      .getEvents(50)
+    fixtureAdapter
+      .getEvents({ mode: fixtureMode, delayMs: 400 })
       .then((data) => {
         if (!ignore) {
           setEvents(data);
+          setError(null);
           setLoading(false);
         }
       })
-      .catch((err) => {
+      .catch((err: unknown) => {
         if (!ignore) {
-          setError('Không thể tải danh sách cảnh báo từ máy chủ.');
+          const msg = err instanceof Error ? err.message : 'Lỗi không xác định khi nạp dữ liệu.';
+          setError(msg);
           setLoading(false);
-          console.error(err);
         }
       });
 
     return () => {
       ignore = true;
     };
-  }, []);
+  }, [fixtureMode]);
 
-  // Phân loại đếm severity theo RFC 5424 (D-01)
+  // Xử lý phím tắt mở rộng dòng bằng bàn phím (TC-UI-006: A11y Enter / Space)
+  const handleKeyDown = (e: React.KeyboardEvent, id: string) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      setExpandedId((prev) => (prev === id ? null : id));
+    }
+  };
+
+  // Tính toán 4 thẻ KPI theo chuẩn TC-UI-001
+  const kpi = fixtureAdapter.calculateKpis(events, !error);
+
+  // Thống kê phân bố mức độ RFC 5424 (D-01)
   const criticalCount = events.filter((e) => SEVERITY_COLOR_GROUP(e.severity) === 'critical').length;
   const majorCount    = events.filter((e) => SEVERITY_COLOR_GROUP(e.severity) === 'major').length;
   const warningCount  = events.filter((e) => SEVERITY_COLOR_GROUP(e.severity) === 'warning').length;
   const infoCount     = events.filter((e) => SEVERITY_COLOR_GROUP(e.severity) === 'info').length;
 
-  const toggleExpand = (id: string) => {
-    setExpandedId((prev) => (prev === id ? null : id));
-  };
-
   return (
     <div className="space-y-6">
-      {/* Tiêu đề điều hành NOC */}
-      <div className="flex items-center justify-between">
+      {/* Thanh tiêu đề & Bộ chuyển đổi Fixture Mode */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h2 className="text-xl font-bold text-white flex items-center space-x-2">
             <span>Dòng thời gian cảnh báo mạng viễn thông</span>
@@ -80,70 +95,105 @@ export const DashboardOverviewPage: React.FC = () => {
             </span>
           </h2>
           <p className="text-sm text-slate-400">
-            Giám sát cảnh báo thời gian thực từ Router, Switch, Firewall theo đặc tả Baseline 03/11/2026
+            Giám sát thời gian thực theo hợp đồng Fixture AlertEvent v0.9 (Thẻ N42-20)
           </p>
         </div>
 
-        <button
-          onClick={loadAlerts}
-          disabled={loading}
-          className="flex items-center space-x-2 px-3.5 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-sm font-medium border border-slate-700 transition"
-        >
-          <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-          <span>Làm mới</span>
-        </button>
+        {/* Thanh công cụ kiểm thử AC 1 & AC 2 */}
+        <div className="flex items-center space-x-2 bg-slate-900 p-1.5 rounded-lg border border-slate-800 text-xs">
+          <span className="text-slate-400 px-2 font-medium">Chế độ Fixture:</span>
+          <button
+            onClick={() => setFixtureMode('success')}
+            className={`px-2.5 py-1 rounded font-medium transition ${
+              fixtureMode === 'success'
+                ? 'bg-cyan-600 text-white shadow'
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            Hợp lệ v1.0
+          </button>
+          <button
+            onClick={() => setFixtureMode('empty')}
+            className={`px-2.5 py-1 rounded font-medium transition ${
+              fixtureMode === 'empty'
+                ? 'bg-cyan-600 text-white shadow'
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            Dữ liệu rỗng
+          </button>
+          <button
+            onClick={() => setFixtureMode('error')}
+            className={`px-2.5 py-1 rounded font-medium transition ${
+              fixtureMode === 'error'
+                ? 'bg-red-600 text-white shadow'
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            Giả lập lỗi
+          </button>
+          <button
+            onClick={() => handleReload(true)}
+            disabled={loading}
+            className="flex items-center space-x-1 px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 ml-2 transition"
+            title="Tải lại / Thử lại (Không nhân bản dòng)"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+            <span>Tải lại</span>
+          </button>
+        </div>
       </div>
 
-      {/* 4 THẺ KPI TỔNG QUAN THEO CHUẨN TC-UI-001 (Baseline 03/11/2026) */}
+      {/* 4 THẺ KPI TỔNG QUAN THEO CHUẨN TC-UI-001 */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        {/* KPI 1: Tổng sự kiện (Total Events) */}
+        {/* KPI 1: Tổng sự kiện */}
         <div className="p-4 rounded-xl bg-slate-900 border border-slate-800">
           <div className="flex items-center justify-between text-cyan-400 mb-2">
             <span className="text-xs font-semibold uppercase tracking-wider">Tổng sự kiện</span>
             <Activity className="w-5 h-5" />
           </div>
-          <div className="text-2xl font-bold font-mono text-white">{events.length}</div>
-          <div className="text-xs text-slate-400 mt-1">Sự kiện đã chuẩn hóa trong buffer</div>
+          <div className="text-2xl font-bold font-mono text-white">{kpi.totalEvents}</div>
+          <div className="text-xs text-slate-400 mt-1">Số bản tin đã chuẩn hóa trong buffer</div>
         </div>
 
-        {/* KPI 2: Sự cố đang mở (Open Incidents) */}
+        {/* KPI 2: Sự cố đang mở */}
         <div className="p-4 rounded-xl bg-slate-900 border border-red-500/30">
           <div className="flex items-center justify-between text-red-400 mb-2">
             <span className="text-xs font-semibold uppercase tracking-wider">Sự cố đang mở</span>
             <Layers className="w-5 h-5" />
           </div>
-          <div className="text-2xl font-bold font-mono text-white">1</div>
-          <div className="text-xs text-slate-400 mt-1">Cụm tương quan Link Flap / BGP</div>
+          <div className="text-2xl font-bold font-mono text-white">{kpi.openIncidents}</div>
+          <div className="text-xs text-slate-400 mt-1">Cụm tương quan gom nhóm mức cao</div>
         </div>
 
-        {/* KPI 3: Tốc độ bản tin (Ingest Rate msg/s) */}
+        {/* KPI 3: Tốc độ bản tin */}
         <div className="p-4 rounded-xl bg-slate-900 border border-slate-800">
           <div className="flex items-center justify-between text-indigo-400 mb-2">
             <span className="text-xs font-semibold uppercase tracking-wider">Tốc độ bản tin</span>
             <Gauge className="w-5 h-5" />
           </div>
           <div className="text-2xl font-bold font-mono text-white">
-            <span>~10</span>
+            <span>{kpi.ingestRate}</span>
             <span className="text-xs font-normal text-slate-400 ml-1">msg/s</span>
           </div>
           <div className="text-xs text-slate-400 mt-1">Tải danh định W13: 1.000 msg/s</div>
         </div>
 
-        {/* KPI 4: Trạng thái hệ thống (System Status) */}
+        {/* KPI 4: Trạng thái hệ thống */}
         <div className="p-4 rounded-xl bg-slate-900 border border-emerald-500/30">
           <div className="flex items-center justify-between text-emerald-400 mb-2">
             <span className="text-xs font-semibold uppercase tracking-wider">Trạng thái hệ thống</span>
             <CheckCircle2 className="w-5 h-5" />
           </div>
-          <div className="text-base font-bold text-emerald-400 mt-1">SẴN SÀNG (HEALTHY)</div>
-          <div className="text-xs text-slate-400 mt-1">Process Liveness GET /api/health</div>
+          <div className="text-base font-bold text-emerald-400 mt-1">{kpi.systemStatus}</div>
+          <div className="text-xs text-slate-400 mt-1">Giám sát Liveness & Fixture State</div>
         </div>
       </div>
 
-      {/* Thanh phân bố Mức độ nghiêm trọng (Severity Breakdown Bar) */}
-      <div className="p-4 rounded-xl bg-slate-900/60 border border-slate-800 flex items-center justify-between text-xs">
+      {/* Thanh phân bố Mức độ nghiêm trọng (RFC 5424 D-01) */}
+      <div className="p-4 rounded-xl bg-slate-900/60 border border-slate-800 flex flex-wrap items-center justify-between gap-3 text-xs">
         <span className="font-semibold text-slate-400 uppercase tracking-wide">
-          Phân bố mức độ cảnh báo (RFC 5424 D-01):
+          Phân bố mức độ cảnh báo:
         </span>
         <div className="flex items-center space-x-6">
           <span className="flex items-center space-x-1.5 text-red-400">
@@ -165,25 +215,63 @@ export const DashboardOverviewPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Live Alert Table với Detail Panel tách Normalized vs Raw theo ARCHITECTURE_DESIGN Mục 5 */}
+      {/* Bảng sự kiện (Event Explorer) & Các trạng thái UX theo AC 2 & TC-UI-006 */}
       <div className="rounded-xl bg-slate-900 border border-slate-800 overflow-hidden">
         <div className="p-4 border-b border-slate-800 flex items-center justify-between">
-          <div>
+          <div className="flex items-center space-x-2">
             <h3 className="font-semibold text-white text-sm">Bảng sự kiện tiếp nhận (Event Explorer)</h3>
-            <p className="text-xs text-slate-500 mt-0.5">
-              Nhấp vào từng dòng để mở chi tiết trường chuẩn hóa và bản tin thô (raw payload)
-            </p>
+            <span className="text-[11px] text-slate-400 flex items-center font-normal">
+              <Keyboard className="w-3.5 h-3.5 mr-1 text-cyan-400" /> Hỗ trợ phím Tab + Enter/Space
+            </span>
           </div>
           <span className="text-xs text-slate-400 font-mono">Hiển thị {events.length} sự kiện</span>
         </div>
 
+        {/* 1. TRẠNG THÁI ĐANG TẢI (LOADING SKELETON) */}
         {loading ? (
-          <div className="p-8 text-center text-slate-400 text-sm">Đang tải dữ liệu cảnh báo...</div>
+          <div className="p-6 space-y-3 animate-pulse">
+            {[1, 2, 3, 4, 5].map((i) => (
+              <div key={i} className="h-10 bg-slate-800/60 rounded-lg w-full" />
+            ))}
+            <p className="text-center text-xs text-slate-500 pt-2">Đang nạp dữ liệu cảnh báo...</p>
+          </div>
         ) : error ? (
-          <div className="p-8 text-center text-red-400 text-sm">{error}</div>
+          /* 2. TRẠNG THÁI LỖI (ERROR STATE CÓ NÚT RETRY) */
+          <div className="p-12 text-center space-y-4">
+            <div className="w-12 h-12 bg-red-500/10 text-red-400 rounded-full flex items-center justify-center mx-auto border border-red-500/20">
+              <AlertTriangle className="w-6 h-6" />
+            </div>
+            <div>
+              <h4 className="text-white font-semibold text-sm">Không thể nạp dữ liệu sự kiện</h4>
+              <p className="text-xs text-red-400/90 mt-1 max-w-md mx-auto">{error}</p>
+            </div>
+            <button
+              onClick={() => handleReload(true)}
+              className="inline-flex items-center space-x-2 px-4 py-2 rounded-lg bg-red-600/20 text-red-300 border border-red-500/30 hover:bg-red-600/30 text-xs font-medium transition"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+              <span>Thử lại kết nối (Retry)</span>
+            </button>
+          </div>
         ) : events.length === 0 ? (
-          <div className="p-8 text-center text-slate-500 text-sm">Không có sự kiện nào.</div>
+          /* 3. TRẠNG THÁI RỖNG (EMPTY STATE) */
+          <div className="p-12 text-center space-y-3">
+            <div className="w-12 h-12 bg-slate-800 text-slate-500 rounded-full flex items-center justify-center mx-auto">
+              <FolderOpen className="w-6 h-6" />
+            </div>
+            <h4 className="text-white font-semibold text-sm">Không có sự kiện cảnh báo nào</h4>
+            <p className="text-xs text-slate-400 max-w-sm mx-auto">
+              Tệp dữ liệu fixture hiện tại đang rỗng hoặc không có bản ghi phù hợp.
+            </p>
+            <button
+              onClick={() => setFixtureMode('success')}
+              className="inline-flex items-center space-x-1.5 px-3.5 py-1.5 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-medium transition"
+            >
+              <span>Nạp lại Fixture v1.0</span>
+            </button>
+          </div>
         ) : (
+          /* 4. BẢNG DỮ LIỆU ĐẦY ĐỦ VÀ DETAIL PANEL */
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm text-slate-300">
               <thead className="bg-slate-800/60 text-slate-400 text-xs uppercase font-mono tracking-wider">
@@ -204,8 +292,12 @@ export const DashboardOverviewPage: React.FC = () => {
                   return (
                     <React.Fragment key={evt.id}>
                       <tr
-                        onClick={() => toggleExpand(evt.id)}
-                        className={`cursor-pointer transition hover:bg-slate-800/50 ${
+                        tabIndex={0}
+                        role="button"
+                        aria-expanded={isExpanded}
+                        onClick={() => setExpandedId(isExpanded ? null : evt.id)}
+                        onKeyDown={(e) => handleKeyDown(e, evt.id)}
+                        className={`cursor-pointer transition hover:bg-slate-800/50 focus:outline-none focus:ring-1 focus:ring-cyan-500 ${
                           isExpanded ? 'bg-slate-800/40' : ''
                         }`}
                       >
@@ -241,7 +333,7 @@ export const DashboardOverviewPage: React.FC = () => {
                         </td>
                       </tr>
 
-                      {/* Detail Panel tách Normalized Fields từ Raw Payload (ARCHITECTURE_DESIGN Mục 5) */}
+                      {/* Detail Panel tách Normalized Fields từ Raw Payload */}
                       {isExpanded && (
                         <tr className="bg-slate-950/70 border-b border-slate-800">
                           <td colSpan={8} className="p-4 pl-12 space-y-3">
@@ -266,7 +358,7 @@ export const DashboardOverviewPage: React.FC = () => {
                               </div>
                             </div>
 
-                            {/* Raw Payload nguyên bản (Đối soát kiểm thử) */}
+                            {/* Raw Payload nguyên bản */}
                             <div className="bg-slate-950 p-3 rounded-lg border border-slate-800">
                               <div className="flex items-center space-x-2 text-xs font-semibold text-slate-400 mb-1.5">
                                 <Terminal className="w-3.5 h-3.5 text-cyan-400" />
