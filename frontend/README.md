@@ -3,7 +3,7 @@
 > **Dự án N4.2** — Hệ thống Thu thập & Phân tích Cảnh báo Viễn thông  
 > **Chương trình** Học kỳ Doanh nghiệp UTH × VNPT NET (2026–2027)  
 > **Người phụ trách**: Lê Khắc Huy (Frontend Engineer — FE)  
-> **Thẻ Jira**: [N42-19](https://nhutp2945-1793259952237.atlassian.net/browse/N42-19) · **Epic cha**: N42-6 (Module M7)  
+> **Thẻ Jira**: [N42-20](https://nhutp2945-1793259952237.atlassian.net/browse/N42-20) · **Epic cha**: N42-6 (Module M7)  
 > **Baseline đối chiếu**: 03/11/2026 (`docs/DATA_AND_API_DESIGN.md`, `docs/ARCHITECTURE_DESIGN.md`, `docs/TECHNICAL_DESIGN_DOCUMENT.md`)
 
 ---
@@ -17,11 +17,10 @@
 5. [Cấu trúc thư mục](#cấu-trúc-thư-mục)
 6. [Bảng màu NOC Dark Theme](#bảng-màu-noc-dark-theme)
 7. [Hợp đồng dữ liệu AlertEvent (v0.9)](#hợp-đồng-dữ-liệu-alertevent-v09)
-8. [Tích hợp API Backend (Baseline W1)](#tích-hợp-api-backend-baseline-w1)
-9. [Mock Data & Quy chuẩn IP (Baseline 03/11/2026)](#mock-data--quy-chuẩn-ip-baseline-03112026)
-10. [Quy chuẩn an toàn thông tin](#quy-chuẩn-an-toàn-thông-tin)
-11. [Lịch trình tích hợp](#lịch-trình-tích-hợp)
-12. [Khắc phục sự cố thường gặp](#khắc-phục-sự-cố-thường-gặp)
+8. [Bộ dữ liệu mẫu & Fixture Adapter (N42-20)](#bộ-dữ-liệu-mẫu--fixture-adapter-n42-20)
+9. [Hướng dẫn kiểm thử nghiệm thu (AC 1, AC 2, TC-UI-001/006)](#hướng-dẫn-kiểm-thử-nghiệm-thu-ac-1-ac-2-tc-ui-001006)
+10. [Tích hợp API Backend (Baseline W1)](#tích-hợp-api-backend-baseline-w1)
+11. [Quy chuẩn an toàn thông tin & IP Lab](#quy-chuẩn-an-toàn-thông-tin--ip-lab)
 
 ---
 
@@ -69,59 +68,18 @@ npm --version    # Phải >= 10.0.0
 
 ## Khởi chạy môi trường phát triển
 
-### Bước 1: Di chuyển vào thư mục frontend
-
 ```bash
 cd frontend
-```
-
-### Bước 2: Cài đặt toàn bộ gói phụ thuộc
-
-```bash
 npm install
-```
-
-### Bước 3: Khởi động Dev server
-
-```bash
 npm run dev
 ```
 
-Sau khi khởi động thành công, truy cập giao diện tại:
+Truy cập giao diện tại: `http://localhost:5173`.
 
-```
-http://localhost:5173
-```
-
-> **Lưu ý:** Giai đoạn W2–W4 sử dụng `VITE_USE_MOCK=true` trong `.env.development`. Giao diện hoạt động trơn tru với dữ liệu giả lập chuẩn, console browser sạch 100% không báo lỗi đỏ 404. Thanh Header hiển thị trạng thái `DEV MOCK (W2–W4)` màu cyan.
-
-### Bước 4: Chạy kiểm tra lint
-
+Kiểm tra chất lượng code:
 ```bash
-npm run lint
-```
-
-Phải cho kết quả: `0 errors, 0 warnings`.
-
----
-
-## Build production
-
-Tạo gói đóng gói tối ưu cho môi trường sản xuất:
-
-```bash
-npm run build
-```
-
-Sau khi build xong:
-- Gói tĩnh được tạo tại thư mục `frontend/dist/`
-- Kiểm tra TypeScript: `tsc -b` không có lỗi
-- Bundle JavaScript đã minify và tối ưu gzip
-
-Xem trước bản build production:
-
-```bash
-npm run preview
+npm run lint     # Phải 0 errors, 0 warnings
+npm run build    # Build production dist/ sạch sẽ
 ```
 
 ---
@@ -131,24 +89,29 @@ npm run preview
 ```text
 frontend/
 ├── dist/                          # Gói build production (tự động tạo, không commit)
-├── public/                        # Tài nguyên tĩnh công khai
+├── public/                        # Tài nguyên tĩnh công khai (favicon)
 ├── src/
+│   ├── fixtures/                  # Bộ dữ liệu mẫu có version theo N42-20
+│   │   ├── events-v1.json         # Fixture v1.0 hợp lệ (5 sự kiện đa vendor, RFC 1918)
+│   │   ├── events-empty.json      # Fixture rỗng [] kiểm thử AC 2
+│   │   └── index.ts
 │   ├── types/                     # Hợp đồng kiểu dữ liệu TypeScript
 │   │   ├── alert.ts               # Schema AlertEvent v0.9 & Severity RFC 5424 (D-01)
 │   │   └── index.ts
-│   ├── services/                  # Tầng fetch — tách biệt hoàn toàn khỏi UI
+│   ├── services/                  # Tầng fetch & Fixture Adapter
+│   │   ├── fixtureAdapter.ts      # Adapter nạp fixture, deduplication và KPI (N42-20)
 │   │   ├── api.ts                 # Axios client tập trung + interceptors chuẩn hóa lỗi
-│   │   ├── alertService.ts        # Gọi API: /health (thật), query/simulate (mock W2-W4)
-│   │   ├── mockData.ts            # Dữ liệu giả lập chuẩn RFC 1918 10.10.x & TEST-NET-3
+│   │   ├── alertService.ts        # Service gọi API Backend (/health)
+│   │   ├── mockData.ts            # Mock data chuẩn
 │   │   └── index.ts
 │   ├── components/
 │   │   └── common/                # UI component dùng chung
 │   │       ├── Header.tsx         # Thanh tiêu đề NOC + đồng hồ ICT/UTC + API status
 │   │       ├── Sidebar.tsx        # Điều hướng 6 màn hình + mốc dự án
-│   │       ├── SeverityBadge.tsx  # Huy hiệu màu severity (Icon + Text + Số RFC 5424)
+│   │       ├── SeverityBadge.tsx  # Huy hiệu mức độ cảnh báo (Icon + Text + Số RFC 5424)
 │   │       └── index.ts
 │   ├── pages/                     # 6 màn hình chính Module M7
-│   │   ├── DashboardOverviewPage.tsx   # Màn hình (1): 4 thẻ KPI + Live Table + Detail Panel
+│   │   ├── DashboardOverviewPage.tsx   # Màn hình (1): 4 thẻ KPI + Live Table + Detail Panel + Fixture Switcher
 │   │   ├── DeviceDetailPage.tsx        # Màn hình (2): Tra cứu thiết bị mạng lab
 │   │   ├── AlertSearchPage.tsx         # Màn hình (3): Bộ lọc đa chiều
 │   │   ├── DeviceStatsPage.tsx         # Màn hình (4): Thống kê Vendor
@@ -170,7 +133,7 @@ frontend/
 
 ## Bảng màu NOC Dark Theme
 
-Giao diện sử dụng bảng màu chuyên dụng cho Trung tâm Giám sát Điều hành Mạng (NOC), định nghĩa trong [`tailwind.config.js`](./tailwind.config.js):
+Định nghĩa trong [`tailwind.config.js`](./tailwind.config.js):
 
 | Token Tailwind | Mã màu HEX | Vai trò |
 |---|---|---|
@@ -182,14 +145,11 @@ Giao diện sử dụng bảng màu chuyên dụng cho Trung tâm Giám sát Đi
 | `noc-minor` | `#f59e0b` | Cảnh báo WARNING (Severity 4: Warning) |
 | `noc-info` | `#06b6d4` | Thông tin INFO (Severity 5–6: Notice, Info) |
 
-**Quy tắc hiển thị mức độ cảnh báo (RFC 5424 D-01 & ARCHITECTURE_DESIGN Mục 5):**
-Mọi badge cảnh báo bắt buộc phải có cả **Icon + Nhãn văn bản + Mã số (0–7)**, không chỉ phân biệt bằng màu sắc đơn thuần.
-
 ---
 
 ## Hợp đồng dữ liệu AlertEvent (v0.9)
 
-Schema `AlertEvent` bám sát `n42-ai-kit/docs/INTERFACES.md` và `docs/DATA_AND_API_DESIGN.md` (Baseline 03/11/2026):
+Schema `AlertEvent` bám sát `n42-ai-kit/docs/INTERFACES.md` và `docs/DATA_AND_API_DESIGN.md`:
 
 ```typescript
 export interface AlertEvent {
@@ -210,26 +170,38 @@ export interface AlertEvent {
 
 ---
 
+## Bộ dữ liệu mẫu & Fixture Adapter (N42-20)
+
+Tệp `src/services/fixtureAdapter.ts` cung cấp tầng truy xuất dữ liệu mẫu phục vụ kiểm thử giao diện:
+1. **Nạp đa kịch bản:** Hỗ trợ 3 chế độ (`success`, `empty`, `error`) kèm độ trễ mạng giả lập `delayMs` để quan sát hiệu ứng tải.
+2. **Khử trùng lặp (`mergeEvents`):** Đảm bảo tính toán toàn vẹn khi retry, không sinh ra dòng trùng lặp dựa trên Event UUID.
+3. **Tính toán KPI (`calculateKpis`):** Tự động tính 4 thẻ KPI dựa trên dữ liệu sự kiện thực tế trong fixture, không suy diễn số liệu ảo.
+
+---
+
+## Hướng dẫn kiểm thử nghiệm thu (AC 1, AC 2, TC-UI-001/006)
+
+Mở trình duyệt tại `http://localhost:5173` và kiểm tra theo các bước sau:
+
+| Mã kiểm thử | Thao tác trên giao diện | Kết quả mong đợi | Trạng thái |
+|:---|:---|:---|:---:|
+| **AC 1 / TC-UI-001** | Chọn chế độ **Hợp lệ v1.0** | 4 thẻ KPI hiển thị chính xác (Tổng sự kiện: 5, Sự cố mở: 1, Tốc độ: 10 msg/s, Trạng thái: HEALTHY). Bảng hiển thị 5 sự kiện với đầy đủ nhãn chữ và icon mức độ nghiêm trọng (RFC 5424). | ✅ PASS |
+| **AC 2 (Empty)** | Bấm nút **Dữ liệu rỗng** | Giao diện hiển thị Empty State chuyên biệt với biểu tượng thư mục rỗng và nút nạp lại. | ✅ PASS |
+| **AC 2 (Error)** | Bấm nút **Giả lập lỗi** | Giao diện hiển thị Error State màu đỏ với thông báo lỗi rõ ràng và nút **Thử lại kết nối (Retry)**. | ✅ PASS |
+| **AC 2 (Retry deduplication)** | Bấm nút **Tải lại** nhiều lần | Dữ liệu được nạp lại mượt mà, tổng số dòng vẫn giữ nguyên là 5, **hoàn toàn không bị nhân bản dòng trùng lặp**. | ✅ PASS |
+| **TC-UI-006 (A11y)** | Dùng phím `Tab` di chuyển vào dòng bảng, bấm `Enter` hoặc `Space` | Dòng mở rộng (Detail Panel) hiển thị chi tiết các trường chuẩn hóa và hộp bản tin thô `raw_payload`. Bấm lại `Enter`/`Space` để đóng. | ✅ PASS |
+
+---
+
 ## Tích hợp API Backend (Baseline W1)
 
-Theo `docs/DATA_AND_API_DESIGN.md` Mục 4 (Baseline 03/11/2026):
-- **Hiện hành (Baseline W1):** Chỉ có duy nhất `GET /api/health` (`status: "UP"`, `service: "n42-api"`, `version: "0.1.0"`).
-- **Target (W7–W8):** Các endpoint ingest (`POST /api/v1/events`), query (`GET /api/v1/events?from=&to=&hostname=&severity=...`) do BE2 bàn giao qua tài liệu OpenAPI.
-- **Frontend Layer:** Tuyệt đối không gọi API ngoài hợp đồng OpenAPI. Trong giai đoạn W2–W4, toàn bộ query được fallback an toàn bằng mock service nội bộ.
+- **Hiện hành (Baseline W1):** Chỉ có duy nhất `GET /api/health`.
+- **Target (W7–W8 - Thẻ N42-34):** Các endpoint ingest (`POST /api/v1/events`), query (`GET /api/v1/events`) sẽ được kết nối sau khi BE2 bàn giao OpenAPI.
 
 ---
 
-## Mock Data & Quy chuẩn IP (Baseline 03/11/2026)
+## Quy chuẩn an toàn thông tin & IP Lab
 
-Tuân thủ nghiêm ngặt theo `docs/ACCEPTANCE_CRITERIA.md` Mục 3 và `docs/TECHNICAL_DESIGN_DOCUMENT.md` Mục 6:
 - **Dải IP lab riêng (RFC 1918):** `10.10.0.0/16` (ví dụ `10.10.1.1`, `10.10.2.10`, `10.10.10.1`).
 - **Dải IP tài liệu minh họa (RFC 5737):** `203.0.113.0/24` (TEST-NET-3).
-- **Tuyệt đối không dùng:** IP thật của thiết bị hạ tầng viễn thông VNPT NET.
-
----
-
-## Quy chuẩn an toàn thông tin
-
-- Không commit tệp `.env`, `.env.local`, `.env.development`, token bí mật hoặc credential vào Git.
-- Kiểm tra mã nguồn với công cụ quét bảo mật: `python tools/check_sensitive.py`.
-- Tuân thủ quy trình Git Flow: Nhánh `feature/N42-19-react-vite-setup`, commit theo chuẩn `feat: khoi tao du an react vite tailwind css (N42-19)`, PR có ít nhất 1 reviewer phê duyệt.
+- Không commit tệp `.env`, `.env.development`, credential hay token vào Git. Quét công cụ `python tools/check_sensitive.py` phải đạt 100% xanh an toàn.
