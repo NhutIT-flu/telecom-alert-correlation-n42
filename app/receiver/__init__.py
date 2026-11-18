@@ -1,2 +1,5 @@
-# Package Receiver
-# Thanh vien BE1 (Pham Hoang Long) se trien khai module Syslog UDP Receiver tai day
+"""Package Receiver: Chứa các adapter tiếp nhận dữ liệu (Module M1 - BE1)."""
+
+from app.receiver.file_tailer import FileTailer, FileTailerConfig, FileTailerMetrics
+
+__all__ = ["FileTailer", "FileTailerConfig", "FileTailerMetrics"]
