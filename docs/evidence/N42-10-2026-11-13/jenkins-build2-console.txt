@@ -1,0 +1,566 @@
+Started by an SCM change
+Obtained Jenkinsfile from git https://github.com/NhutIT-flu/telecom-alert-correlation-n42.git
+[Pipeline] Start of Pipeline
+[Pipeline] node
+Running on Jenkins in /var/jenkins_home/workspace/N42-CI-Test-Feature
+[Pipeline] {
+[Pipeline] withEnv
+[Pipeline] {
+[Pipeline] timestamps
+[Pipeline] {
+[Pipeline] timeout
+[2026-11-13T09:48:16.392Z] Timeout set to expire in 30 min
+[Pipeline] {
+[Pipeline] stage
+[Pipeline] { (Checkout)
+[Pipeline] dir
+[2026-11-13T09:48:16.562Z] Running in /var/jenkins_home/workspace/N42-CI-Test-Feature/reports
+[Pipeline] {
+[Pipeline] deleteDir
+[Pipeline] }
+[Pipeline] // dir
+[Pipeline] dir
+[2026-11-13T09:48:16.718Z] Running in /var/jenkins_home/workspace/N42-CI-Test-Feature/.scannerwork
+[Pipeline] {
+[Pipeline] deleteDir
+[Pipeline] }
+[Pipeline] // dir
+[Pipeline] script
+[Pipeline] {
+[Pipeline] checkout
+[2026-11-13T09:48:16.941Z] Selected Git installation does not exist. Using Default
+[2026-11-13T09:48:16.941Z] The recommended git tool is: NONE
+[2026-11-13T09:48:16.941Z] No credentials specified
+[2026-11-13T09:48:16.942Z]  > git rev-parse --resolve-git-dir /var/jenkins_home/workspace/N42-CI-Test-Feature/.git # timeout=10
+[2026-11-13T09:48:16.946Z] Fetching changes from the remote Git repository
+[2026-11-13T09:48:16.948Z]  > git config remote.origin.url https://github.com/NhutIT-flu/telecom-alert-correlation-n42.git # timeout=10
+[2026-11-13T09:48:16.952Z] Fetching upstream changes from https://github.com/NhutIT-flu/telecom-alert-correlation-n42.git
+[2026-11-13T09:48:16.952Z]  > git --version # timeout=10
+[2026-11-13T09:48:16.956Z]  > git --version # 'git version 2.47.3'
+[2026-11-13T09:48:16.957Z]  > git fetch --tags --force --progress -- https://github.com/NhutIT-flu/telecom-alert-correlation-n42.git +refs/heads/*:refs/remotes/origin/* # timeout=10
+[2026-11-13T09:48:18.267Z]  > git rev-parse refs/remotes/origin/feature/N42-10-ci-pipeline^{commit} # timeout=10
+[2026-11-13T09:48:18.271Z] Checking out Revision 825d8032c34bad538f62acd9d036ca3005c28a4a (refs/remotes/origin/feature/N42-10-ci-pipeline)
+[2026-11-13T09:48:18.272Z]  > git config core.sparsecheckout # timeout=10
+[2026-11-13T09:48:18.276Z]  > git checkout -f 825d8032c34bad538f62acd9d036ca3005c28a4a # timeout=10
+[2026-11-13T09:48:18.293Z] Commit message: "chore: cung co backup va pipeline Jenkins Sonar review (N42-10)"
+[2026-11-13T09:48:18.296Z]  > git rev-list --no-walk b502ad1a5e54c90304b5b4a3cfbf836ebecfe226 # timeout=10
+[Pipeline] sh
+[2026-11-13T09:48:18.671Z] + git rev-parse HEAD
+[Pipeline] }
+[Pipeline] // script
+[Pipeline] sh
+[2026-11-13T09:48:19.022Z] + mkdir -p reports
+[Pipeline] }
+[Pipeline] // stage
+[Pipeline] stage
+[Pipeline] { (Python 3.12 & Dependencies)
+[Pipeline] timeout
+[2026-11-13T09:48:19.112Z] Timeout set to expire in 10 min
+[Pipeline] {
+[Pipeline] sh
+[2026-11-13T09:48:22.387Z] Collecting fastapi==0.162.4 (from -r requirements.txt (line 5))
+[2026-11-13T09:48:22.387Z]   Using cached fastapi-0.162.4-py3-none-any.whl.metadata (27 kB)
+[2026-11-13T09:48:22.638Z] Collecting uvicorn==0.54.0 (from uvicorn[standard]==0.54.0->-r requirements.txt (line 6))
+[2026-11-13T09:48:22.638Z]   Using cached uvicorn-0.54.0-py3-none-any.whl.metadata (6.6 kB)
+[2026-11-13T09:48:22.638Z] Collecting pydantic==2.14.3 (from -r requirements.txt (line 7))
+[2026-11-13T09:48:22.638Z]   Using cached pydantic-2.14.3-py3-none-any.whl.metadata (141 kB)
+[2026-11-13T09:48:22.889Z] Collecting pytest==9.2.0 (from -r requirements.txt (line 10))
+[2026-11-13T09:48:22.889Z]   Using cached pytest-9.2.0-py3-none-any.whl.metadata (7.9 kB)
+[2026-11-13T09:48:22.889Z] Collecting pytest-asyncio==1.4.1.post1 (from -r requirements.txt (line 11))
+[2026-11-13T09:48:22.889Z]   Using cached pytest_asyncio-1.4.1.post1-py3-none-any.whl.metadata (4.4 kB)
+[2026-11-13T09:48:22.889Z] Collecting pytest-cov==7.1.0 (from -r requirements.txt (line 12))
+[2026-11-13T09:48:22.889Z]   Using cached pytest_cov-7.1.0-py3-none-any.whl.metadata (32 kB)
+[2026-11-13T09:48:23.140Z] Collecting flake8==7.5.0 (from -r requirements.txt (line 15))
+[2026-11-13T09:48:23.140Z]   Using cached flake8-7.5.0-py2.py3-none-any.whl.metadata (3.8 kB)
+[2026-11-13T09:48:23.140Z] Collecting black==26.10.1 (from -r requirements.txt (line 16))
+[2026-11-13T09:48:23.140Z]   Using cached black-26.10.1-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (108 kB)
+[2026-11-13T09:48:23.692Z] Collecting ruamel.yaml==0.18.17 (from -r requirements.txt (line 18))
+[2026-11-13T09:48:23.692Z]   Downloading ruamel_yaml-0.18.17-py3-none-any.whl.metadata (27 kB)
+[2026-11-13T09:48:23.943Z] Collecting starlette>=0.46.0 (from fastapi==0.162.4->-r requirements.txt (line 5))
+[2026-11-13T09:48:23.943Z]   Using cached starlette-1.10.0-py3-none-any.whl.metadata (6.6 kB)
+[2026-11-13T09:48:23.943Z] Collecting anyio>=4.1.0 (from fastapi==0.162.4->-r requirements.txt (line 5))
+[2026-11-13T09:48:23.943Z]   Using cached anyio-4.16.0-py3-none-any.whl.metadata (4.7 kB)
+[2026-11-13T09:48:24.194Z] Collecting typing-extensions>=4.8.0 (from fastapi==0.162.4->-r requirements.txt (line 5))
+[2026-11-13T09:48:24.194Z]   Using cached typing_extensions-4.16.0-py3-none-any.whl.metadata (3.3 kB)
+[2026-11-13T09:48:24.194Z] Collecting typing-inspection>=0.4.2 (from fastapi==0.162.4->-r requirements.txt (line 5))
+[2026-11-13T09:48:24.194Z]   Using cached typing_inspection-0.4.5-py3-none-any.whl.metadata (2.6 kB)
+[2026-11-13T09:48:24.194Z] Collecting annotated-doc>=0.0.2 (from fastapi==0.162.4->-r requirements.txt (line 5))
+[2026-11-13T09:48:24.194Z]   Using cached annotated_doc-0.0.6-py3-none-any.whl.metadata (6.5 kB)
+[2026-11-13T09:48:24.194Z] Collecting opentelemetry-api>=1.44.0 (from fastapi==0.162.4->-r requirements.txt (line 5))
+[2026-11-13T09:48:24.194Z]   Using cached opentelemetry_api-1.45.2-py3-none-any.whl.metadata (1.4 kB)
+[2026-11-13T09:48:24.445Z] Collecting click>=7.0 (from uvicorn==0.54.0->uvicorn[standard]==0.54.0->-r requirements.txt (line 6))
+[2026-11-13T09:48:24.445Z]   Using cached click-8.5.1-py3-none-any.whl.metadata (2.6 kB)
+[2026-11-13T09:48:24.446Z] Collecting h11>=0.8 (from uvicorn==0.54.0->uvicorn[standard]==0.54.0->-r requirements.txt (line 6))
+[2026-11-13T09:48:24.446Z]   Using cached h11-0.16.0-py3-none-any.whl.metadata (8.3 kB)
+[2026-11-13T09:48:24.696Z] Collecting annotated-types>=0.6.0 (from pydantic==2.14.3->-r requirements.txt (line 7))
+[2026-11-13T09:48:24.696Z]   Using cached annotated_types-0.8.0-py3-none-any.whl.metadata (15 kB)
+[2026-11-13T09:48:25.248Z] Collecting pydantic-core==2.50.4 (from pydantic==2.14.3->-r requirements.txt (line 7))
+[2026-11-13T09:48:25.248Z]   Using cached pydantic_core-2.50.4-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.whl.metadata (6.6 kB)
+[2026-11-13T09:48:25.248Z] Collecting iniconfig>=2 (from pytest==9.2.0->-r requirements.txt (line 10))
+[2026-11-13T09:48:25.248Z]   Using cached iniconfig-2.3.1-py3-none-any.whl.metadata (2.8 kB)
+[2026-11-13T09:48:25.499Z] Collecting packaging>=24 (from pytest==9.2.0->-r requirements.txt (line 10))
+[2026-11-13T09:48:25.499Z]   Using cached packaging-26.3-py3-none-any.whl.metadata (3.5 kB)
+[2026-11-13T09:48:25.499Z] Collecting pluggy<2,>=1.6 (from pytest==9.2.0->-r requirements.txt (line 10))
+[2026-11-13T09:48:25.499Z]   Using cached pluggy-1.7.0-py3-none-any.whl.metadata (5.0 kB)
+[2026-11-13T09:48:25.499Z] Collecting pygments>=2.15 (from pytest==9.2.0->-r requirements.txt (line 10))
+[2026-11-13T09:48:25.499Z]   Using cached pygments-2.21.0-py3-none-any.whl.metadata (2.5 kB)
+[2026-11-13T09:48:26.411Z] Collecting coverage>=7.10.6 (from coverage[toml]>=7.10.6->pytest-cov==7.1.0->-r requirements.txt (line 12))
+[2026-11-13T09:48:26.412Z]   Downloading coverage-7.17.3-cp312-cp312-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl.metadata (8.3 kB)
+[2026-11-13T09:48:26.412Z] Collecting mccabe<0.8.0,>=0.7.0 (from flake8==7.5.0->-r requirements.txt (line 15))
+[2026-11-13T09:48:26.412Z]   Using cached mccabe-0.7.0-py2.py3-none-any.whl.metadata (5.0 kB)
+[2026-11-13T09:48:26.412Z] Collecting pycodestyle<2.16.0,>=2.15.0 (from flake8==7.5.0->-r requirements.txt (line 15))
+[2026-11-13T09:48:26.412Z]   Using cached pycodestyle-2.15.0-py2.py3-none-any.whl.metadata (4.5 kB)
+[2026-11-13T09:48:26.662Z] Collecting pyflakes<4.2.0,>=4.1.0 (from flake8==7.5.0->-r requirements.txt (line 15))
+[2026-11-13T09:48:26.663Z]   Using cached pyflakes-4.1.0-py2.py3-none-any.whl.metadata (3.7 kB)
+[2026-11-13T09:48:26.663Z] Collecting mypy-extensions>=0.4.3 (from black==26.10.1->-r requirements.txt (line 16))
+[2026-11-13T09:48:26.663Z]   Using cached mypy_extensions-1.2.0-py3-none-any.whl.metadata (1.1 kB)
+[2026-11-13T09:48:26.663Z] Collecting pathspec>=1.0.0 (from black==26.10.1->-r requirements.txt (line 16))
+[2026-11-13T09:48:26.663Z]   Using cached pathspec-1.1.1-py3-none-any.whl.metadata (14 kB)
+[2026-11-13T09:48:26.913Z] Collecting platformdirs>=2 (from black==26.10.1->-r requirements.txt (line 16))
+[2026-11-13T09:48:26.913Z]   Using cached platformdirs-4.14.5-py3-none-any.whl.metadata (5.7 kB)
+[2026-11-13T09:48:26.913Z] Collecting pytokens~=0.4.0 (from black==26.10.1->-r requirements.txt (line 16))
+[2026-11-13T09:48:26.913Z]   Using cached pytokens-0.4.1-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (3.8 kB)
+[2026-11-13T09:48:27.165Z] Collecting ruamel.yaml.clib>=0.2.15 (from ruamel.yaml==0.18.17->-r requirements.txt (line 18))
+[2026-11-13T09:48:27.165Z]   Downloading ruamel_yaml_clib-0.2.15-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (3.5 kB)
+[2026-11-13T09:48:27.165Z] Collecting httptools>=0.8.0 (from uvicorn[standard]==0.54.0->-r requirements.txt (line 6))
+[2026-11-13T09:48:27.165Z]   Using cached httptools-0.9.0-cp312-cp312-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl.metadata (3.5 kB)
+[2026-11-13T09:48:27.416Z] Collecting python-dotenv>=0.13 (from uvicorn[standard]==0.54.0->-r requirements.txt (line 6))
+[2026-11-13T09:48:27.416Z]   Using cached python_dotenv-1.2.4-py3-none-any.whl.metadata (29 kB)
+[2026-11-13T09:48:27.416Z] Collecting pyyaml>=5.1 (from uvicorn[standard]==0.54.0->-r requirements.txt (line 6))
+[2026-11-13T09:48:27.416Z]   Using cached pyyaml-6.0.3-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (2.4 kB)
+[2026-11-13T09:48:27.416Z] Collecting uvloop>=0.15.1 (from uvicorn[standard]==0.54.0->-r requirements.txt (line 6))
+[2026-11-13T09:48:27.416Z]   Using cached uvloop-0.23.0-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (5.1 kB)
+[2026-11-13T09:48:27.667Z] Collecting watchfiles>=0.20 (from uvicorn[standard]==0.54.0->-r requirements.txt (line 6))
+[2026-11-13T09:48:27.667Z]   Using cached watchfiles-1.3.0-cp310-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (4.9 kB)
+[2026-11-13T09:48:27.918Z] Collecting websockets>=13.0 (from uvicorn[standard]==0.54.0->-r requirements.txt (line 6))
+[2026-11-13T09:48:27.918Z]   Using cached websockets-17.4-cp312-cp312-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl.metadata (6.3 kB)
+[2026-11-13T09:48:27.918Z] Collecting idna>=2.8 (from anyio>=4.1.0->fastapi==0.162.4->-r requirements.txt (line 5))
+[2026-11-13T09:48:27.918Z]   Using cached idna-3.20-py3-none-any.whl.metadata (7.2 kB)
+[2026-11-13T09:48:27.918Z] Using cached fastapi-0.162.4-py3-none-any.whl (151 kB)
+[2026-11-13T09:48:27.918Z] Using cached uvicorn-0.54.0-py3-none-any.whl (87 kB)
+[2026-11-13T09:48:27.918Z] Using cached pydantic-2.14.3-py3-none-any.whl (494 kB)
+[2026-11-13T09:48:27.918Z] Using cached pytest-9.2.0-py3-none-any.whl (411 kB)
+[2026-11-13T09:48:27.918Z] Using cached pytest_asyncio-1.4.1.post1-py3-none-any.whl (17 kB)
+[2026-11-13T09:48:27.918Z] Using cached pytest_cov-7.1.0-py3-none-any.whl (22 kB)
+[2026-11-13T09:48:27.918Z] Using cached flake8-7.5.0-py2.py3-none-any.whl (57 kB)
+[2026-11-13T09:48:27.918Z] Using cached black-26.10.1-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (2.1 MB)
+[2026-11-13T09:48:28.169Z] Downloading ruamel_yaml-0.18.17-py3-none-any.whl (121 kB)
+[2026-11-13T09:48:28.169Z] Using cached pydantic_core-2.50.4-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (2.3 MB)
+[2026-11-13T09:48:28.169Z] Using cached annotated_doc-0.0.6-py3-none-any.whl (5.3 kB)
+[2026-11-13T09:48:28.169Z] Using cached annotated_types-0.8.0-py3-none-any.whl (13 kB)
+[2026-11-13T09:48:28.169Z] Using cached anyio-4.16.0-py3-none-any.whl (134 kB)
+[2026-11-13T09:48:28.169Z] Using cached click-8.5.1-py3-none-any.whl (126 kB)
+[2026-11-13T09:48:28.169Z] Downloading coverage-7.17.3-cp312-cp312-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl (264 kB)
+[2026-11-13T09:48:28.420Z] Using cached h11-0.16.0-py3-none-any.whl (37 kB)
+[2026-11-13T09:48:28.420Z] Using cached httptools-0.9.0-cp312-cp312-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl (552 kB)
+[2026-11-13T09:48:28.420Z] Using cached iniconfig-2.3.1-py3-none-any.whl (7.6 kB)
+[2026-11-13T09:48:28.420Z] Using cached mccabe-0.7.0-py2.py3-none-any.whl (7.3 kB)
+[2026-11-13T09:48:28.420Z] Using cached mypy_extensions-1.2.0-py3-none-any.whl (5.1 kB)
+[2026-11-13T09:48:28.420Z] Using cached opentelemetry_api-1.45.2-py3-none-any.whl (60 kB)
+[2026-11-13T09:48:28.420Z] Using cached packaging-26.3-py3-none-any.whl (129 kB)
+[2026-11-13T09:48:28.420Z] Using cached pathspec-1.1.1-py3-none-any.whl (57 kB)
+[2026-11-13T09:48:28.420Z] Using cached platformdirs-4.14.5-py3-none-any.whl (35 kB)
+[2026-11-13T09:48:28.420Z] Using cached pluggy-1.7.0-py3-none-any.whl (27 kB)
+[2026-11-13T09:48:28.420Z] Using cached pycodestyle-2.15.0-py2.py3-none-any.whl (31 kB)
+[2026-11-13T09:48:28.420Z] Using cached pyflakes-4.1.0-py2.py3-none-any.whl (66 kB)
+[2026-11-13T09:48:28.420Z] Using cached pygments-2.21.0-py3-none-any.whl (1.3 MB)
+[2026-11-13T09:48:28.420Z] Using cached python_dotenv-1.2.4-py3-none-any.whl (23 kB)
+[2026-11-13T09:48:28.420Z] Using cached pytokens-0.4.1-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (269 kB)
+[2026-11-13T09:48:28.420Z] Using cached pyyaml-6.0.3-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (807 kB)
+[2026-11-13T09:48:28.671Z] Downloading ruamel_yaml_clib-0.2.15-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (788 kB)
+[2026-11-13T09:48:28.922Z]    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 788.2/788.2 kB 2.6 MB/s eta 0:00:00
+[2026-11-13T09:48:28.922Z] Using cached starlette-1.10.0-py3-none-any.whl (80 kB)
+[2026-11-13T09:48:28.922Z] Using cached typing_extensions-4.16.0-py3-none-any.whl (45 kB)
+[2026-11-13T09:48:28.922Z] Using cached typing_inspection-0.4.5-py3-none-any.whl (14 kB)
+[2026-11-13T09:48:28.922Z] Using cached uvloop-0.23.0-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (4.5 MB)
+[2026-11-13T09:48:28.922Z] Using cached watchfiles-1.3.0-cp310-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (458 kB)
+[2026-11-13T09:48:28.922Z] Using cached websockets-17.4-cp312-cp312-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl (226 kB)
+[2026-11-13T09:48:28.922Z] Using cached idna-3.20-py3-none-any.whl (69 kB)
+[2026-11-13T09:48:28.922Z] Installing collected packages: websockets, uvloop, typing-extensions, ruamel.yaml.clib, pyyaml, pytokens, python-dotenv, pygments, pyflakes, pycodestyle, pluggy, platformdirs, pathspec, packaging, mypy-extensions, mccabe, iniconfig, idna, httptools, h11, coverage, click, annotated-types, annotated-doc, uvicorn, typing-inspection, ruamel.yaml, pytest, pydantic-core, opentelemetry-api, flake8, black, anyio, watchfiles, starlette, pytest-cov, pytest-asyncio, pydantic, fastapi
+[2026-11-13T09:48:31.407Z] Successfully installed annotated-doc-0.0.6 annotated-types-0.8.0 anyio-4.16.0 black-26.10.1 click-8.5.1 coverage-7.17.3 fastapi-0.162.4 flake8-7.5.0 h11-0.16.0 httptools-0.9.0 idna-3.20 iniconfig-2.3.1 mccabe-0.7.0 mypy-extensions-1.2.0 opentelemetry-api-1.45.2 packaging-26.3 pathspec-1.1.1 platformdirs-4.14.5 pluggy-1.7.0 pycodestyle-2.15.0 pydantic-2.14.3 pydantic-core-2.50.4 pyflakes-4.1.0 pygments-2.21.0 pytest-9.2.0 pytest-asyncio-1.4.1.post1 pytest-cov-7.1.0 python-dotenv-1.2.4 pytokens-0.4.1 pyyaml-6.0.3 ruamel.yaml-0.18.17 ruamel.yaml.clib-0.2.15 starlette-1.10.0 typing-extensions-4.16.0 typing-inspection-0.4.5 uvicorn-0.54.0 uvloop-0.23.0 watchfiles-1.3.0 websockets-17.4
+[2026-11-13T09:48:32.319Z] No broken requirements found.
+[Pipeline] }
+[Pipeline] // timeout
+[Pipeline] }
+[Pipeline] // stage
+[Pipeline] stage
+[Pipeline] { (Code Quality & AI Kit Validation)
+[Pipeline] sh
+[2026-11-13T09:48:33.252Z] 0
+[2026-11-13T09:48:34.164Z] All done! ✨ 🍰 ✨
+[2026-11-13T09:48:34.164Z] 25 files would be left unchanged.
+[2026-11-13T09:48:34.164Z] [OK]  skill change-alertevent-schema
+[2026-11-13T09:48:34.164Z] [OK]  skill daily-report
+[2026-11-13T09:48:34.165Z] [OK]  skill debug-network-ingest
+[2026-11-13T09:48:34.165Z] [OK]  skill fe-api-contract-mock
+[2026-11-13T09:48:34.165Z] [OK]  skill git-workflow
+[2026-11-13T09:48:34.165Z] [OK]  skill make-test-scenario
+[2026-11-13T09:48:34.165Z] [OK]  skill pm-report
+[2026-11-13T09:48:34.165Z] [OK]  skill review-pr
+[2026-11-13T09:48:34.165Z] [OK]  skill write-correlation-rule
+[2026-11-13T09:48:34.165Z] [OK]  skill write-parser-tests
+[2026-11-13T09:48:34.165Z] [CẢNH BÁO] docs/templates/daily.md chưa có nội dung chính thức (TL cần dán mẫu)
+[2026-11-13T09:48:34.165Z] [CẢNH BÁO] docs/templates/weekly-mau2.md chưa có nội dung chính thức (TL cần dán mẫu)
+[2026-11-13T09:48:34.165Z] [CẢNH BÁO] docs/templates/monthly-mau3.md chưa có nội dung chính thức (TL cần dán mẫu)
+[2026-11-13T09:48:34.165Z] [CẢNH BÁO] docs/templates/handover-8-hang-muc.md chưa có nội dung chính thức (TL cần dán mẫu)
+[2026-11-13T09:48:34.165Z] [CẢNH BÁO] docs/DECISIONS.md còn 10 mục chưa chốt
+[2026-11-13T09:48:34.165Z] 
+[2026-11-13T09:48:34.165Z] 0 lỗi, 5 cảnh báo.
+[Pipeline] }
+[Pipeline] // stage
+[Pipeline] stage
+[Pipeline] { (Security Scan)
+[Pipeline] sh
+[2026-11-13T09:48:34.513Z] ============================================================
+[2026-11-13T09:48:34.513Z] N42 SECURITY SCANNER — RÀ SOÁT TỪ KHÓA NHẠY CẢM
+[2026-11-13T09:48:34.513Z] Quét thư mục: /var/jenkins_home/workspace/N42-CI-Test-Feature
+[2026-11-13T09:48:34.513Z] ============================================================
+[2026-11-13T09:48:34.513Z] ------------------------------------------------------------
+[2026-11-13T09:48:34.513Z] Hoàn tất quét 148 tệp tin.
+[2026-11-13T09:48:34.513Z] [✔] AN TOÀN: Không phát hiện từ khóa nhạy cảm hay thông tin rò rỉ.
+[Pipeline] }
+[Pipeline] // stage
+[Pipeline] stage
+[Pipeline] { (Unit Tests & Coverage)
+[Pipeline] sh
+[2026-11-13T09:48:35.513Z] test_clean_rfc1918_and_rfc5737_ips_pass (test_check_sensitive.SensitiveScannerTests.test_clean_rfc1918_and_rfc5737_ips_pass) ... ok
+[2026-11-13T09:48:35.513Z] test_detects_hardcoded_credentials (test_check_sensitive.SensitiveScannerTests.test_detects_hardcoded_credentials) ... ok
+[2026-11-13T09:48:35.513Z] test_detects_public_ip_outside_allowed_ranges (test_check_sensitive.SensitiveScannerTests.test_detects_public_ip_outside_allowed_ranges) ... ok
+[2026-11-13T09:48:35.513Z] test_ignores_virtualenv_and_git_directories (test_check_sensitive.SensitiveScannerTests.test_ignores_virtualenv_and_git_directories) ... ok
+[2026-11-13T09:48:35.513Z] test_aggregate_gate_requires_every_job_to_succeed (test_ci_checks.CISmokeTests.test_aggregate_gate_requires_every_job_to_succeed) ... ok
+[2026-11-13T09:48:35.513Z] test_metadata_records_revision_and_build_without_arbitrary_environment (test_ci_checks.CISmokeTests.test_metadata_records_revision_and_build_without_arbitrary_environment) ... ok
+[2026-11-13T09:48:36.423Z] test_pytest_process_fails_for_a_failing_test (test_ci_checks.CISmokeTests.test_pytest_process_fails_for_a_failing_test) ... ok
+[2026-11-13T09:48:36.423Z] test_scanner_process_fails_for_synthetic_finding (test_ci_checks.CISmokeTests.test_scanner_process_fails_for_synthetic_finding) ... ok
+[2026-11-13T09:48:36.423Z] test_startup_failure_is_not_reported_as_healthy (test_ci_checks.CISmokeTests.test_startup_failure_is_not_reported_as_healthy) ... ok
+[2026-11-13T09:48:36.423Z] test_timeout_terminates_then_kills_unresponsive_child (test_ci_checks.CISmokeTests.test_timeout_terminates_then_kills_unresponsive_child) ... ok
+[2026-11-13T09:48:36.423Z] test_wrong_health_payload_fails_and_cleans_up (test_ci_checks.CISmokeTests.test_wrong_health_payload_fails_and_cleans_up) ... ok
+[2026-11-13T09:48:36.674Z] test_after_lost_response_next_message_uses_new_connection (test_generator.SyslogGeneratorTests.test_after_lost_response_next_message_uses_new_connection) ... ok
+[2026-11-13T09:48:38.019Z] test_cli_exit_code_for_all_failed_and_partial_http_batches (test_generator.SyslogGeneratorTests.test_cli_exit_code_for_all_failed_and_partial_http_batches) ... ok
+[2026-11-13T09:48:38.019Z] test_cli_parse_args_and_main_all_modes (test_generator.SyslogGeneratorTests.test_cli_parse_args_and_main_all_modes)
+[2026-11-13T09:48:38.270Z] Kiểm tra hàm parse_args và luồng thực thi CLI main() trên cả 3 chế độ (file, udp, http). ... ok
+[2026-11-13T09:48:39.182Z] test_cli_process_returns_nonzero_when_response_is_lost (test_generator.SyslogGeneratorTests.test_cli_process_returns_nonzero_when_response_is_lost) ... ok
+[2026-11-13T09:48:39.182Z] test_cli_rejects_invalid_options_before_creating_file (test_generator.SyslogGeneratorTests.test_cli_rejects_invalid_options_before_creating_file) ... ok
+[2026-11-13T09:48:39.182Z] test_cli_reports_connection_failure_as_error (test_generator.SyslogGeneratorTests.test_cli_reports_connection_failure_as_error) ... ok
+[2026-11-13T09:48:39.182Z] test_cli_runtime_errors_return_nonzero_and_restore_sigint (test_generator.SyslogGeneratorTests.test_cli_runtime_errors_return_nonzero_and_restore_sigint) ... ok
+[2026-11-13T09:48:39.182Z] test_default_api_url_matches_n42_14_contract (test_generator.SyslogGeneratorTests.test_default_api_url_matches_n42_14_contract)
+[2026-11-13T09:48:39.182Z] Endpoint mặc định phải khớp router N42-14: /api + /v1/events + /ingest. ... ok
+[2026-11-13T09:48:39.182Z] test_deterministic_seed_replay_int_and_string (test_generator.SyslogGeneratorTests.test_deterministic_seed_replay_int_and_string)
+[2026-11-13T09:48:39.182Z] Kiểm tra tính năng Deterministic Replay (FR-13 / TC-REP-001) với seed số và chuỗi KB-08-v1. ... ok
+[2026-11-13T09:48:39.182Z] test_emit_file_batch (test_generator.SyslogGeneratorTests.test_emit_file_batch)
+[2026-11-13T09:48:39.182Z] Kiểm tra phát luồng bản tin ghi trực tiếp ra file log. ... ok
+[2026-11-13T09:48:39.182Z] test_emit_file_batch_flushes_periodically_and_keeps_all_lines (test_generator.SyslogGeneratorTests.test_emit_file_batch_flushes_periodically_and_keeps_all_lines)
+[2026-11-13T09:48:39.182Z] Ghi nhiều hơn FILE_FLUSH_EVERY dòng: flush định kỳ nhưng file cuối cùng vẫn đủ 100% dòng. ... ok
+[2026-11-13T09:48:39.182Z] test_emit_http_batch_counts_non_2xx_as_errors (test_generator.SyslogGeneratorTests.test_emit_http_batch_counts_non_2xx_as_errors)
+[2026-11-13T09:48:39.433Z] Mã trả về ngoài 2xx (ví dụ 404 do sai endpoint) phải tính vào errors, không tính là đã gửi. ... ok
+[2026-11-13T09:48:39.433Z] test_emit_http_batch_counts_unreachable_server_as_errors (test_generator.SyslogGeneratorTests.test_emit_http_batch_counts_unreachable_server_as_errors)
+[2026-11-13T09:48:39.433Z] Không kết nối được server: không crash, mọi bản tin đều tính vào errors. ... ok
+[2026-11-13T09:48:39.433Z] test_emit_http_batch_reconnects_when_server_closes_connection (test_generator.SyslogGeneratorTests.test_emit_http_batch_reconnects_when_server_closes_connection)
+[2026-11-13T09:48:39.985Z] Server đóng kết nối sau mỗi response: generator tự mở lại, không mất bản tin nào. ... ok
+[2026-11-13T09:48:39.985Z] test_emit_http_batch_rejects_invalid_url (test_generator.SyslogGeneratorTests.test_emit_http_batch_rejects_invalid_url)
+[2026-11-13T09:48:39.985Z] api_url sai định dạng phải báo ValueError rõ ràng ngay từ đầu. ... ok
+[2026-11-13T09:48:39.986Z] test_emit_http_batch_reuses_single_keepalive_connection (test_generator.SyslogGeneratorTests.test_emit_http_batch_reuses_single_keepalive_connection)
+[2026-11-13T09:48:42.471Z] 50 bản tin HTTP phải đi qua đúng 1 kết nối TCP (tránh TIME_WAIT storm) và đúng payload/đường dẫn. ... ok
+[2026-11-13T09:48:42.472Z] test_emit_udp_batch_loopback (test_generator.SyslogGeneratorTests.test_emit_udp_batch_loopback)
+[2026-11-13T09:48:42.472Z] Kiểm tra phát luồng bản tin qua UDP socket tới cổng loopback nội bộ. ... ok
+[2026-11-13T09:48:42.472Z] test_file_flush_is_batched_instead_of_per_line (test_generator.SyslogGeneratorTests.test_file_flush_is_batched_instead_of_per_line) ... ok
+[2026-11-13T09:48:43.023Z] test_lost_response_does_not_resend_accepted_payload (test_generator.SyslogGeneratorTests.test_lost_response_does_not_resend_accepted_payload) ... ok
+[2026-11-13T09:48:43.575Z] test_mixed_http_results_keep_exact_attempt_count (test_generator.SyslogGeneratorTests.test_mixed_http_results_keep_exact_attempt_count) ... ok
+[2026-11-13T09:48:43.575Z] test_rate_control_validation_and_error_handling (test_generator.SyslogGeneratorTests.test_rate_control_validation_and_error_handling)
+[2026-11-13T09:48:43.575Z] Kiểm tra điều kiện biên rate <= 0, đếm lỗi khi gửi thất bại, duration và request_stop. ... ok
+[2026-11-13T09:48:43.575Z] test_sigint_returns_130_and_restores_previous_handler (test_generator.SyslogGeneratorTests.test_sigint_returns_130_and_restores_previous_handler) ... ok
+[2026-11-13T09:48:43.575Z] test_synthetic_ip_compliance (test_generator.SyslogGeneratorTests.test_synthetic_ip_compliance)
+[2026-11-13T09:48:43.575Z] Đảm bảo 100% địa chỉ IP trong bản tin sinh ra thuộc dải Private Lab RFC 1918 hoặc TEST-NET-3 RFC 5737. ... ok
+[2026-11-13T09:48:43.575Z] test_timeout_or_partial_body_never_retries_post (test_generator.SyslogGeneratorTests.test_timeout_or_partial_body_never_retries_post) ... ok
+[2026-11-13T09:48:43.575Z] test_timestamp_without_seed_and_explicit_datetime (test_generator.SyslogGeneratorTests.test_timestamp_without_seed_and_explicit_datetime)
+[2026-11-13T09:48:43.575Z] Kiểm tra định dạng timestamp khi không truyền seed hoặc truyền mốc datetime cụ thể. ... ok
+[2026-11-13T09:48:43.575Z] test_vendor_message_formats_rfc3164_and_rfc5424 (test_generator.SyslogGeneratorTests.test_vendor_message_formats_rfc3164_and_rfc5424)
+[2026-11-13T09:48:43.575Z] Kiểm tra định dạng bản tin chuẩn RFC 3164 và RFC 5424 cho từng hãng thiết bị. ... ok
+[2026-11-13T09:48:43.575Z] test_health_returns_service_status (test_health.HealthEndpointTests.test_health_returns_service_status) ... ok
+[2026-11-13T09:48:43.575Z] test_health_route_is_registered (test_health.HealthEndpointTests.test_health_route_is_registered) ... ok
+[2026-11-13T09:48:43.575Z] 
+[2026-11-13T09:48:43.575Z] ----------------------------------------------------------------------
+[2026-11-13T09:48:43.575Z] Ran 39 tests in 8.149s
+[2026-11-13T09:48:43.575Z] 
+[2026-11-13T09:48:43.575Z] OK
+[2026-11-13T09:48:43.575Z] ============================================================
+[2026-11-13T09:48:43.575Z] N42 SECURITY SCANNER — RÀ SOÁT TỪ KHÓA NHẠY CẢM
+[2026-11-13T09:48:43.575Z] Quét thư mục: /tmp/tmpxkwy7qfl
+[2026-11-13T09:48:43.575Z] ============================================================
+[2026-11-13T09:48:43.575Z] ------------------------------------------------------------
+[2026-11-13T09:48:43.575Z] Hoàn tất quét 1 tệp tin.
+[2026-11-13T09:48:43.575Z] [✔] AN TOÀN: Không phát hiện từ khóa nhạy cảm hay thông tin rò rỉ.
+[2026-11-13T09:48:43.575Z] ============================================================
+[2026-11-13T09:48:43.575Z] N42 SECURITY SCANNER — RÀ SOÁT TỪ KHÓA NHẠY CẢM
+[2026-11-13T09:48:43.575Z] Quét thư mục: /tmp/tmpnuoznrpw
+[2026-11-13T09:48:43.575Z] ============================================================
+[2026-11-13T09:48:43.575Z] [CẢNH BÁO] Lộ mật khẩu trong code tại leaked_creds.py:1
+[Synthetic scanner fixture value omitted from public evidence]
+[2026-11-13T09:48:43.575Z] [CẢNH BÁO] Lộ API Key / Token tại leaked_creds.py:2
+[Synthetic scanner fixture value omitted from public evidence]
+[2026-11-13T09:48:43.575Z] ------------------------------------------------------------
+[2026-11-13T09:48:43.575Z] Hoàn tất quét 1 tệp tin.
+[2026-11-13T09:48:43.575Z] [!] PHÁT HIỆN: Có 2 điểm cần rà soát lại trước khi nộp.
+[2026-11-13T09:48:43.575Z] ============================================================
+[2026-11-13T09:48:43.575Z] N42 SECURITY SCANNER — RÀ SOÁT TỪ KHÓA NHẠY CẢM
+[2026-11-13T09:48:43.575Z] Quét thư mục: /tmp/tmpv4bm0ba9
+[2026-11-13T09:48:43.575Z] ============================================================
+[2026-11-13T09:48:43.575Z] [CẢNH BÁO] IP công cộng có thể là IP thật của hệ thống tại leaked_ip.py:1
+[Synthetic scanner fixture value omitted from public evidence]
+[2026-11-13T09:48:43.575Z] ------------------------------------------------------------
+[2026-11-13T09:48:43.575Z] Hoàn tất quét 1 tệp tin.
+[2026-11-13T09:48:43.575Z] [!] PHÁT HIỆN: Có 1 điểm cần rà soát lại trước khi nộp.
+[2026-11-13T09:48:43.575Z] ============================================================
+[2026-11-13T09:48:43.575Z] N42 SECURITY SCANNER — RÀ SOÁT TỪ KHÓA NHẠY CẢM
+[2026-11-13T09:48:43.575Z] Quét thư mục: /tmp/tmprhugsa36
+[2026-11-13T09:48:43.575Z] ============================================================
+[2026-11-13T09:48:43.575Z] ------------------------------------------------------------
+[2026-11-13T09:48:43.575Z] Hoàn tất quét 0 tệp tin.
+[2026-11-13T09:48:43.575Z] [✔] AN TOÀN: Không phát hiện từ khóa nhạy cảm hay thông tin rò rỉ.
+[2026-11-13T09:48:43.575Z] ====================================================================
+[2026-11-13T09:48:43.575Z] N42 TELECOM SYSLOG GENERATOR — BỘ SINH DỮ LIỆU GIẢ LẬP 3 NGUỒN
+[2026-11-13T09:48:43.575Z] Chế độ (Mode) : FILE | Chuẩn: RFC3164
+[2026-11-13T09:48:43.575Z] Hãng (Vendor) : mixed
+[2026-11-13T09:48:43.575Z] Tốc độ (Rate) : 1000 msg/s | Số lượng (Count): 5
+[2026-11-13T09:48:43.575Z] Replay Seed   : KB-08-v1 (Deterministic Mode)
+[2026-11-13T09:48:43.575Z] ====================================================================
+[2026-11-13T09:48:43.575Z] --------------------------------------------------------------------
+[2026-11-13T09:48:43.575Z] [HOÀN TẤT] Đích: /tmp/tmpzvi7m814/cli_out.log | Đã phát: 5 bản tin | Lỗi: 0 (chưa rõ kết quả: 0) | Thời gian: 0.0032s | Thông lượng đạt: 1582.4 msg/s
+[2026-11-13T09:48:43.575Z] --------------------------------------------------------------------
+[2026-11-13T09:48:43.575Z] ====================================================================
+[2026-11-13T09:48:43.575Z] N42 TELECOM SYSLOG GENERATOR — BỘ SINH DỮ LIỆU GIẢ LẬP 3 NGUỒN
+[2026-11-13T09:48:43.575Z] Chế độ (Mode) : UDP | Chuẩn: RFC3164
+[2026-11-13T09:48:43.575Z] Hãng (Vendor) : cisco
+[2026-11-13T09:48:43.575Z] Tốc độ (Rate) : 1000 msg/s | Số lượng (Count): 3
+[2026-11-13T09:48:43.575Z] Replay Seed   : 42 (Deterministic Mode)
+[2026-11-13T09:48:43.575Z] ====================================================================
+[2026-11-13T09:48:43.575Z] --------------------------------------------------------------------
+[2026-11-13T09:48:43.575Z] [HOÀN TẤT] Đích: 127.0.0.1:41443 | Đã phát: 3 bản tin | Lỗi: 0 (chưa rõ kết quả: 0) | Thời gian: 0.0214s | Thông lượng đạt: 139.9 msg/s
+[2026-11-13T09:48:43.575Z] --------------------------------------------------------------------
+[2026-11-13T09:48:43.575Z] ====================================================================
+[2026-11-13T09:48:43.575Z] N42 TELECOM SYSLOG GENERATOR — BỘ SINH DỮ LIỆU GIẢ LẬP 3 NGUỒN
+[2026-11-13T09:48:43.575Z] Chế độ (Mode) : HTTP | Chuẩn: RFC3164
+[2026-11-13T09:48:43.575Z] Hãng (Vendor) : huawei
+[2026-11-13T09:48:43.575Z] Tốc độ (Rate) : 1000 msg/s | Số lượng (Count): 2
+[2026-11-13T09:48:43.575Z] ====================================================================
+[2026-11-13T09:48:43.575Z] --------------------------------------------------------------------
+[2026-11-13T09:48:43.575Z] [HOÀN TẤT] Đích: http://127.0.0.1:42409/api/v1/events/ingest | Đã phát: 2 bản tin | Lỗi: 0 (chưa rõ kết quả: 0) | Thời gian: 0.044s | Thông lượng đạt: 45.41 msg/s
+[2026-11-13T09:48:43.575Z] --------------------------------------------------------------------
+[2026-11-13T09:48:44.127Z] /var/jenkins_home/workspace/N42-CI-Test-Feature/.venv/lib/python3.12/site-packages/pytest_asyncio/plugin.py:300: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+[2026-11-13T09:48:44.127Z] The event loop scope for asynchronous fixtures will default to the "fixture" caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to "function" scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+[2026-11-13T09:48:44.127Z] 
+[2026-11-13T09:48:44.127Z]   warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+[2026-11-13T09:48:44.127Z] ============================= test session starts ==============================
+[2026-11-13T09:48:44.127Z] platform linux -- Python 3.12.16, pytest-9.2.0, pluggy-1.7.0 -- /var/jenkins_home/workspace/N42-CI-Test-Feature/.venv/bin/python
+[2026-11-13T09:48:44.127Z] cachedir: .pytest_cache
+[2026-11-13T09:48:44.127Z] rootdir: /var/jenkins_home/workspace/N42-CI-Test-Feature
+[2026-11-13T09:48:44.127Z] configfile: pyproject.toml
+[2026-11-13T09:48:44.127Z] plugins: platformdirs-4.14.5, cov-7.1.0, anyio-4.16.0, asyncio-1.4.1.post1
+[2026-11-13T09:48:44.127Z] asyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+[2026-11-13T09:48:45.038Z] collecting ... collected 137 items
+[2026-11-13T09:48:45.038Z] 
+[2026-11-13T09:48:45.038Z] tests/test_check_sensitive.py::SensitiveScannerTests::test_clean_rfc1918_and_rfc5737_ips_pass PASSED [  0%]
+[2026-11-13T09:48:45.038Z] tests/test_check_sensitive.py::SensitiveScannerTests::test_detects_hardcoded_credentials PASSED [  1%]
+[2026-11-13T09:48:45.038Z] tests/test_check_sensitive.py::SensitiveScannerTests::test_detects_public_ip_outside_allowed_ranges PASSED [  2%]
+[2026-11-13T09:48:45.038Z] tests/test_check_sensitive.py::SensitiveScannerTests::test_ignores_virtualenv_and_git_directories PASSED [  2%]
+[2026-11-13T09:48:45.590Z] tests/test_ci_checks.py::CISmokeTests::test_aggregate_gate_requires_every_job_to_succeed 
+[2026-11-13T09:48:45.590Z] tests/test_ci_checks.py::CISmokeTests::test_aggregate_gate_requires_every_job_to_succeed PASSED [  3%]
+[2026-11-13T09:48:45.590Z] tests/test_ci_checks.py::CISmokeTests::test_metadata_records_revision_and_build_without_arbitrary_environment PASSED [  4%]
+[2026-11-13T09:48:46.141Z] tests/test_ci_checks.py::CISmokeTests::test_pytest_process_fails_for_a_failing_test PASSED [  5%]
+[2026-11-13T09:48:46.141Z] tests/test_ci_checks.py::CISmokeTests::test_scanner_process_fails_for_synthetic_finding PASSED [  5%]
+[2026-11-13T09:48:46.141Z] tests/test_ci_checks.py::CISmokeTests::test_startup_failure_is_not_reported_as_healthy PASSED [  6%]
+[2026-11-13T09:48:46.141Z] tests/test_ci_checks.py::CISmokeTests::test_timeout_terminates_then_kills_unresponsive_child PASSED [  7%]
+[2026-11-13T09:48:46.141Z] tests/test_ci_checks.py::CISmokeTests::test_wrong_health_payload_fails_and_cleans_up PASSED [  8%]
+[2026-11-13T09:48:46.694Z] tests/test_generator.py::SyslogGeneratorTests::test_after_lost_response_next_message_uses_new_connection PASSED [  8%]
+[2026-11-13T09:48:47.606Z] tests/test_generator.py::SyslogGeneratorTests::test_cli_exit_code_for_all_failed_and_partial_http_batches 
+[2026-11-13T09:48:47.606Z] tests/test_generator.py::SyslogGeneratorTests::test_cli_exit_code_for_all_failed_and_partial_http_batches PASSED [  9%]
+[2026-11-13T09:48:48.158Z] tests/test_generator.py::SyslogGeneratorTests::test_cli_parse_args_and_main_all_modes PASSED [ 10%]
+[2026-11-13T09:48:49.071Z] tests/test_generator.py::SyslogGeneratorTests::test_cli_process_returns_nonzero_when_response_is_lost PASSED [ 10%]
+[2026-11-13T09:48:49.071Z] tests/test_generator.py::SyslogGeneratorTests::test_cli_rejects_invalid_options_before_creating_file 
+[2026-11-13T09:48:49.071Z] tests/test_generator.py::SyslogGeneratorTests::test_cli_rejects_invalid_options_before_creating_file PASSED [ 11%]
+[2026-11-13T09:48:49.071Z] tests/test_generator.py::SyslogGeneratorTests::test_cli_reports_connection_failure_as_error PASSED [ 12%]
+[2026-11-13T09:48:49.071Z] tests/test_generator.py::SyslogGeneratorTests::test_cli_runtime_errors_return_nonzero_and_restore_sigint PASSED [ 13%]
+[2026-11-13T09:48:49.071Z] tests/test_generator.py::SyslogGeneratorTests::test_default_api_url_matches_n42_14_contract PASSED [ 13%]
+[2026-11-13T09:48:49.071Z] tests/test_generator.py::SyslogGeneratorTests::test_deterministic_seed_replay_int_and_string PASSED [ 14%]
+[2026-11-13T09:48:49.071Z] tests/test_generator.py::SyslogGeneratorTests::test_emit_file_batch PASSED [ 15%]
+[2026-11-13T09:48:49.071Z] tests/test_generator.py::SyslogGeneratorTests::test_emit_file_batch_flushes_periodically_and_keeps_all_lines PASSED [ 16%]
+[2026-11-13T09:48:49.322Z] tests/test_generator.py::SyslogGeneratorTests::test_emit_http_batch_counts_non_2xx_as_errors PASSED [ 16%]
+[2026-11-13T09:48:49.322Z] tests/test_generator.py::SyslogGeneratorTests::test_emit_http_batch_counts_unreachable_server_as_errors PASSED [ 17%]
+[2026-11-13T09:48:49.874Z] tests/test_generator.py::SyslogGeneratorTests::test_emit_http_batch_reconnects_when_server_closes_connection PASSED [ 18%]
+[2026-11-13T09:48:49.874Z] tests/test_generator.py::SyslogGeneratorTests::test_emit_http_batch_rejects_invalid_url PASSED [ 18%]
+[2026-11-13T09:48:52.360Z] tests/test_generator.py::SyslogGeneratorTests::test_emit_http_batch_reuses_single_keepalive_connection PASSED [ 19%]
+[2026-11-13T09:48:52.360Z] tests/test_generator.py::SyslogGeneratorTests::test_emit_udp_batch_loopback PASSED [ 20%]
+[2026-11-13T09:48:52.360Z] tests/test_generator.py::SyslogGeneratorTests::test_file_flush_is_batched_instead_of_per_line PASSED [ 21%]
+[2026-11-13T09:48:52.911Z] tests/test_generator.py::SyslogGeneratorTests::test_lost_response_does_not_resend_accepted_payload PASSED [ 21%]
+[2026-11-13T09:48:53.463Z] tests/test_generator.py::SyslogGeneratorTests::test_mixed_http_results_keep_exact_attempt_count PASSED [ 22%]
+[2026-11-13T09:48:53.463Z] tests/test_generator.py::SyslogGeneratorTests::test_rate_control_validation_and_error_handling PASSED [ 23%]
+[2026-11-13T09:48:53.463Z] tests/test_generator.py::SyslogGeneratorTests::test_sigint_returns_130_and_restores_previous_handler PASSED [ 24%]
+[2026-11-13T09:48:53.463Z] tests/test_generator.py::SyslogGeneratorTests::test_synthetic_ip_compliance PASSED [ 24%]
+[2026-11-13T09:48:53.463Z] tests/test_generator.py::SyslogGeneratorTests::test_timeout_or_partial_body_never_retries_post 
+[2026-11-13T09:48:53.463Z] tests/test_generator.py::SyslogGeneratorTests::test_timeout_or_partial_body_never_retries_post PASSED [ 25%]
+[2026-11-13T09:48:53.463Z] tests/test_generator.py::SyslogGeneratorTests::test_timestamp_without_seed_and_explicit_datetime PASSED [ 26%]
+[2026-11-13T09:48:53.463Z] tests/test_generator.py::SyslogGeneratorTests::test_vendor_message_formats_rfc3164_and_rfc5424 PASSED [ 27%]
+[2026-11-13T09:48:53.463Z] tests/test_health.py::HealthEndpointTests::test_health_returns_service_status PASSED [ 27%]
+[2026-11-13T09:48:53.463Z] tests/test_health.py::HealthEndpointTests::test_health_route_is_registered PASSED [ 28%]
+[2026-11-13T09:48:53.463Z] tests/test_parser.py::test_n15_01_cisco_link_updown PASSED               [ 29%]
+[2026-11-13T09:48:53.463Z] tests/test_parser.py::test_n15_02_cisco_ospf_adjchg PASSED               [ 29%]
+[2026-11-13T09:48:53.463Z] tests/test_parser.py::test_n15_03_huawei_power_supply_failed PASSED      [ 30%]
+[2026-11-13T09:48:53.463Z] tests/test_parser.py::test_n15_04_huawei_with_suffix_l PASSED            [ 31%]
+[2026-11-13T09:48:53.463Z] tests/test_parser.py::test_n15_05_linux_sshd PASSED                      [ 32%]
+[2026-11-13T09:48:53.463Z] tests/test_parser.py::test_n15_06_linux_kernel PASSED                    [ 32%]
+[2026-11-13T09:48:53.463Z] tests/test_parser.py::test_n15_07_customapp_unknown_vendor PASSED        [ 33%]
+[2026-11-13T09:48:53.463Z] tests/test_parser.py::test_n15_08_plain_content_without_tag PASSED       [ 34%]
+[2026-11-13T09:48:53.463Z] tests/test_parser.py::test_n15_09_invalid_pri_variants[<-1>Nov 03 22:00:00 host-01 test] PASSED [ 35%]
+[2026-11-13T09:48:53.463Z] tests/test_parser.py::test_n15_09_invalid_pri_variants[<192>Nov 03 22:00:00 host-01 test] PASSED [ 35%]
+[2026-11-13T09:48:53.463Z] tests/test_parser.py::test_n15_09_invalid_pri_variants[<abc>Nov 03 22:00:00 host-01 test] PASSED [ 36%]
+[2026-11-13T09:48:53.463Z] tests/test_parser.py::test_n15_09_invalid_pri_variants[<01>Nov 03 22:00:00 host-01 test] PASSED [ 37%]
+[2026-11-13T09:48:53.463Z] tests/test_parser.py::test_n15_09_invalid_pri_variants[<>Nov 03 22:00:00 host-01 test] PASSED [ 37%]
+[2026-11-13T09:48:53.463Z] tests/test_parser.py::test_n15_10_missing_pri PASSED                     [ 38%]
+[2026-11-13T09:48:53.463Z] tests/test_parser.py::test_n15_11_empty_input PASSED                     [ 39%]
+[2026-11-13T09:48:53.463Z] tests/test_parser.py::test_n15_12_invalid_timestamp[<34>Nov 31 22:00:00 host-01 test] PASSED [ 40%]
+[2026-11-13T09:48:53.463Z] tests/test_parser.py::test_n15_12_invalid_timestamp[<34>Nov 03 25:00:00 host-01 test] PASSED [ 40%]
+[2026-11-13T09:48:53.463Z] tests/test_parser.py::test_n15_13_malformed_header_bad_month PASSED      [ 41%]
+[2026-11-13T09:48:53.463Z] tests/test_parser.py::test_n15_14_year_boundary_wrap_backward PASSED     [ 42%]
+[2026-11-13T09:48:53.463Z] tests/test_parser.py::test_n15_15_year_boundary_wrap_forward PASSED      [ 43%]
+[2026-11-13T09:48:53.463Z] tests/test_parser.py::test_n15_16_leap_year_valid PASSED                 [ 43%]
+[2026-11-13T09:48:53.463Z] tests/test_parser.py::test_n15_17_leap_year_invalid_non_leap PASSED      [ 44%]
+[2026-11-13T09:48:53.463Z] tests/test_parser.py::test_n15_18_unicode_and_crlf_suffix PASSED         [ 45%]
+[2026-11-13T09:48:53.463Z] tests/test_parser.py::test_n15_19_control_char_and_internal_newline[<34>Nov 03 22:00:00 host-01 test\x00corrupt] PASSED [ 45%]
+[2026-11-13T09:48:53.463Z] tests/test_parser.py::test_n15_19_control_char_and_internal_newline[<34>Nov 03 22:00:00 host-01\nline-break inside] PASSED [ 46%]
+[2026-11-13T09:48:53.463Z] tests/test_parser.py::test_n15_20_unsupported_iso_header PASSED          [ 47%]
+[2026-11-13T09:48:53.463Z] tests/test_parser.py::test_n15_21_unsupported_fortinet_kv PASSED         [ 48%]
+[2026-11-13T09:48:53.463Z] tests/test_parser.py::test_n15_22_payload_length_boundary PASSED         [ 48%]
+[2026-11-13T09:48:53.463Z] tests/test_parser.py::test_n15_23_contract_boundary_exceptions PASSED    [ 49%]
+[2026-11-13T09:48:53.463Z] tests/test_parser.py::test_n15_24_empty_message PASSED                   [ 50%]
+[2026-11-13T09:48:53.463Z] tests/test_parser.py::test_pydantic_strict_model_validation PASSED       [ 51%]
+[2026-11-13T09:48:55.948Z] tests/test_parser.py::test_throughput_benchmark_dod PASSED               [ 51%]
+[2026-11-13T09:48:55.948Z] tests/test_rule_startup.py::test_startup_loads_disabled_catalog PASSED   [ 52%]
+[2026-11-13T09:48:55.948Z] tests/test_rule_startup.py::test_startup_rejects_invalid_catalog PASSED  [ 53%]
+[2026-11-13T09:48:55.948Z] tests/test_rules_config.py::test_loads_three_disabled_sample_rules PASSED [ 54%]
+[2026-11-13T09:48:55.948Z] tests/test_rules_config.py::test_loads_yaml_1_2_and_accepts_lower_bound PASSED [ 54%]
+[2026-11-13T09:48:55.948Z] tests/test_rules_config.py::test_rejects_yaml_with_tab_indentation PASSED [ 55%]
+[2026-11-13T09:48:55.948Z] tests/test_rules_config.py::test_rejects_duplicate_yaml_keys PASSED      [ 56%]
+[2026-11-13T09:48:55.948Z] tests/test_rules_config.py::test_rejects_invalid_rule_fields[threshold-1-0] PASSED [ 56%]
+[2026-11-13T09:48:55.948Z] tests/test_rules_config.py::test_rejects_invalid_rule_fields[window_seconds-1-0] PASSED [ 57%]
+[2026-11-13T09:48:55.948Z] tests/test_rules_config.py::test_rejects_invalid_rule_fields[threshold-1-"five"] PASSED [ 58%]
+[2026-11-13T09:48:55.948Z] tests/test_rules_config.py::test_rejects_invalid_rule_fields[threshold-1-"1"] PASSED [ 59%]
+[2026-11-13T09:48:55.948Z] tests/test_rules_config.py::test_rejects_invalid_rule_fields[threshold-1-true] PASSED [ 59%]
+[2026-11-13T09:48:55.948Z] tests/test_rules_config.py::test_rejects_invalid_rule_fields[threshold-1-1.5] PASSED [ 60%]
+[2026-11-13T09:48:55.948Z] tests/test_rules_config.py::test_rejects_invalid_rule_fields[window_seconds-1--1] PASSED [ 61%]
+[2026-11-13T09:48:55.948Z] tests/test_rules_config.py::test_rejects_invalid_rule_fields[window_seconds-1-"1"] PASSED [ 62%]
+[2026-11-13T09:48:55.948Z] tests/test_rules_config.py::test_rejects_invalid_rule_fields[window_seconds-1-true] PASSED [ 62%]
+[2026-11-13T09:48:55.948Z] tests/test_rules_config.py::test_rejects_invalid_rule_fields[window_seconds-1-1.5] PASSED [ 63%]
+[2026-11-13T09:48:55.948Z] tests/test_rules_config.py::test_rejects_invalid_rule_fields[group_by-[hostname]-[]] PASSED [ 64%]
+[2026-11-13T09:48:55.948Z] tests/test_rules_config.py::test_rejects_invalid_rule_fields[group_by-[hostname]-[hostname, hostname]] PASSED [ 64%]
+[2026-11-13T09:48:55.948Z] tests/test_rules_config.py::test_rejects_duplicate_rule_ids PASSED       [ 65%]
+[2026-11-13T09:48:55.949Z] tests/test_rules_config.py::test_rejects_invalid_rule_file_structure[empty-catalog] PASSED [ 66%]
+[2026-11-13T09:48:55.949Z] tests/test_rules_config.py::test_rejects_invalid_rule_file_structure[missing-match] PASSED [ 67%]
+[2026-11-13T09:48:55.949Z] tests/test_rules_config.py::test_rejects_invalid_rule_file_structure[match-list] PASSED [ 67%]
+[2026-11-13T09:48:55.949Z] tests/test_rules_config.py::test_rejects_invalid_rule_file_structure[missing-action] PASSED [ 68%]
+[2026-11-13T09:48:55.949Z] tests/test_rules_config.py::test_rejects_invalid_rule_file_structure[action-quoted-boolean] PASSED [ 69%]
+[2026-11-13T09:48:55.949Z] tests/test_rules_config.py::test_rejects_invalid_rule_file_structure[unknown-action-key] PASSED [ 70%]
+[2026-11-13T09:48:55.949Z] tests/test_rules_config.py::test_rejects_invalid_rule_file_structure[unsupported-count-mode] PASSED [ 70%]
+[2026-11-13T09:48:55.949Z] tests/test_rules_config.py::test_rejects_invalid_rule_file_structure[missing-count-field] PASSED [ 71%]
+[2026-11-13T09:48:55.949Z] tests/test_rules_config.py::test_loads_vietnamese_text_from_utf8_file PASSED [ 72%]
+[2026-11-13T09:48:55.949Z] tests/test_rules_config.py::test_rejects_yaml_without_a_configuration_mapping[empty-document] PASSED [ 72%]
+[2026-11-13T09:48:55.949Z] tests/test_rules_config.py::test_rejects_yaml_without_a_configuration_mapping[list-as-document-root] PASSED [ 73%]
+[2026-11-13T09:48:55.949Z] tests/test_rules_config.py::test_reports_missing_yaml_file PASSED        [ 74%]
+[2026-11-13T09:48:55.949Z] tests/test_rules_config.py::test_rejects_yaml_file_with_invalid_utf8 PASSED [ 75%]
+[2026-11-13T09:48:55.949Z] tests/test_rules_config.py::test_rejects_unusable_or_unknown_configuration[blank-version] PASSED [ 75%]
+[2026-11-13T09:48:55.949Z] tests/test_rules_config.py::test_rejects_unusable_or_unknown_configuration[blank-id] PASSED [ 76%]
+[2026-11-13T09:48:55.949Z] tests/test_rules_config.py::test_rejects_unusable_or_unknown_configuration[enabled-integer] PASSED [ 77%]
+[2026-11-13T09:48:55.949Z] tests/test_rules_config.py::test_rejects_unusable_or_unknown_configuration[unknown-rule-key] PASSED [ 78%]
+[2026-11-13T09:48:55.949Z] tests/test_rules_config.py::test_rejects_unusable_or_unknown_configuration[unknown-catalog-key] PASSED [ 78%]
+[2026-11-13T09:48:55.949Z] tests/test_rules_config.py::test_rejects_unusable_or_unknown_configuration[invalid-group-field] PASSED [ 79%]
+[2026-11-13T09:48:55.949Z] tests/test_rules_config.py::test_rejects_unusable_or_unknown_configuration[empty-match] PASSED [ 80%]
+[2026-11-13T09:48:55.949Z] tests/test_rules_config.py::test_rejects_unusable_or_unknown_configuration[blank-match-value] PASSED [ 81%]
+[2026-11-13T09:48:55.949Z] tests/test_rules_config.py::test_rejects_unusable_or_unknown_configuration[numeric-match-value] PASSED [ 81%]
+[2026-11-13T09:48:55.949Z] tests/test_rules_config.py::test_rejects_unusable_or_unknown_configuration[unknown-count-key] PASSED [ 82%]
+[2026-11-13T09:48:56.200Z] tests/test_rules_config.py::test_rejects_unusable_or_unknown_configuration[invalid-count-field] PASSED [ 83%]
+[2026-11-13T09:48:56.200Z] tests/test_rules_config.py::test_rejects_duplicate_ids_after_whitespace_normalization PASSED [ 83%]
+[2026-11-13T09:48:56.200Z] tests/test_rules_config.py::test_rejects_unsafe_yaml_object_tag PASSED   [ 84%]
+[2026-11-13T09:48:56.200Z] tests/test_rules_config.py::test_review_fixture_references_disabled_catalogs PASSED [ 85%]
+[2026-11-13T09:48:56.200Z] tests/test_rules_config.py::test_enforces_lab_numeric_limits[window_seconds-86400] PASSED [ 86%]
+[2026-11-13T09:48:56.200Z] tests/test_rules_config.py::test_enforces_lab_numeric_limits[threshold-10000] PASSED [ 86%]
+[2026-11-13T09:48:56.200Z] tests/test_rules_config.py::test_accepts_incident_severity_catalog[CRITICAL] PASSED [ 87%]
+[2026-11-13T09:48:56.200Z] tests/test_rules_config.py::test_accepts_incident_severity_catalog[MAJOR] PASSED [ 88%]
+[2026-11-13T09:48:56.200Z] tests/test_rules_config.py::test_accepts_incident_severity_catalog[MINOR] PASSED [ 89%]
+[2026-11-13T09:48:56.200Z] tests/test_rules_config.py::test_accepts_incident_severity_catalog[WARNING] PASSED [ 89%]
+[2026-11-13T09:48:56.200Z] tests/test_rules_config.py::test_accepts_incident_severity_catalog[INFO] PASSED [ 90%]
+[2026-11-13T09:48:56.200Z] tests/test_rules_config.py::test_rejects_unknown_incident_severity PASSED [ 91%]
+[2026-11-13T09:48:56.200Z] tests/test_rules_config.py::test_enabled_rule_requires_field_contract PASSED [ 91%]
+[2026-11-13T09:48:56.200Z] tests/test_rules_config.py::test_enabled_count_field_must_be_supported PASSED [ 92%]
+[2026-11-13T09:48:56.200Z] tests/test_rules_config.py::test_optional_checksum_pins_exact_file_bytes PASSED [ 93%]
+[2026-11-13T09:48:56.200Z] tests/test_rules_config.py::test_rejects_malformed_checksum[] PASSED     [ 94%]
+[2026-11-13T09:48:56.200Z] tests/test_rules_config.py::test_rejects_malformed_checksum[xyz] PASSED  [ 94%]
+[2026-11-13T09:48:56.200Z] tests/test_rules_config.py::test_rejects_malformed_checksum[aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa] PASSED [ 95%]
+[2026-11-13T09:48:56.200Z] tests/test_rules_config.py::test_rejects_malformed_checksum[gggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg] PASSED [ 96%]
+[2026-11-13T09:48:56.200Z] tests/test_rules_config.py::test_rule_text_limits[name-120-on] PASSED    [ 97%]
+[2026-11-13T09:48:56.200Z] tests/test_rules_config.py::test_rule_text_limits[rule_id-128-SAMPLE_01] PASSED [ 97%]
+[2026-11-13T09:48:56.200Z] tests/test_rules_config.py::test_rule_text_limits[description-1000-None] PASSED [ 98%]
+[2026-11-13T09:48:56.200Z] tests/test_rules_config.py::test_catalog_and_action_text_limits[version: "0.1.0"-64] PASSED [ 99%]
+[2026-11-13T09:48:56.450Z] tests/test_rules_config.py::test_catalog_and_action_text_limits[title: Example-200] PASSED [100%]
+[2026-11-13T09:48:56.451Z] 
+[2026-11-13T09:48:56.451Z] - generated xml file: /var/jenkins_home/workspace/N42-CI-Test-Feature/reports/junit-report.xml -
+[2026-11-13T09:48:56.451Z] ================================ tests coverage ================================
+[2026-11-13T09:48:56.451Z] _______________ coverage: platform linux, python 3.12.16-final-0 _______________
+[2026-11-13T09:48:56.451Z] 
+[2026-11-13T09:48:56.451Z] Coverage HTML written to dir reports/coverage-html
+[2026-11-13T09:48:56.451Z] Coverage XML written to file reports/coverage.xml
+[2026-11-13T09:48:56.451Z] ================== 137 passed, 635 subtests passed in 12.16s ===================
+[Pipeline] }
+[Pipeline] // stage
+[Pipeline] stage
+[Pipeline] { (API Health Smoke)
+[Pipeline] timeout
+[2026-11-13T09:48:56.532Z] Timeout set to expire in 2 min 0 sec
+[Pipeline] {
+[Pipeline] sh
+[2026-11-13T09:48:56.820Z] + .venv/bin/python tools/ci_checks.py health --reports reports
+[Pipeline] }
+[Pipeline] // timeout
+[Pipeline] }
+[Pipeline] // stage
+[Pipeline] stage
+[Pipeline] { (SonarQube Analysis)
+[Pipeline] timeout
+[2026-11-13T09:48:58.298Z] Timeout set to expire in 10 min
+[Pipeline] {
+[Pipeline] }
+[Pipeline] // timeout
+Stage "SonarQube Analysis" skipped due to when conditional
+[Pipeline] getContext
+[Pipeline] }
+[Pipeline] // stage
+[Pipeline] stage
+[Pipeline] { (Quality Gate)
+Stage "Quality Gate" skipped due to when conditional
+[Pipeline] getContext
+[Pipeline] }
+[Pipeline] // stage
+[Pipeline] stage
+[Pipeline] { (Declarative: Post Actions)
+[Pipeline] script
+[Pipeline] {
+[Pipeline] fileExists
+[Pipeline] junit
+[2026-11-13T09:48:58.843Z] Recording test results
+[2026-11-13T09:48:58.927Z] [Checks API] No suitable checks publisher found.
+[Pipeline] writeFile
+[Pipeline] archiveArtifacts
+[2026-11-13T09:48:58.985Z] Archiving artifacts
+[Pipeline] }
+[Pipeline] // script
+[Pipeline] echo
+[2026-11-13T09:48:59.064Z] Jenkins checks passed. Sonar runs on main or the isolated review project.
+[Pipeline] }
+[Pipeline] // stage
+[Pipeline] }
+[Pipeline] // timeout
+[Pipeline] }
+[Pipeline] // timestamps
+[Pipeline] }
+[Pipeline] // withEnv
+[Pipeline] }
+[Pipeline] // node
+[Pipeline] End of Pipeline
+Finished: SUCCESS

@@ -1,0 +1,4 @@
+status=TIMEOUT
+revision=b349700b6dd265977233149ba9aca1247f58c051
+project=n42-telecom-alert-ci-validation
+build=http://localhost:8000/job/N42-CI-N42-10-Review/2/
