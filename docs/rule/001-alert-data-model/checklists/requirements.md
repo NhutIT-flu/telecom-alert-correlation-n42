@@ -34,7 +34,8 @@
 
 ## Notes
 
-- Đã đồng bộ tham chiếu sau khi tách LinkFlap sang 004; 7 bảng chung giữ nguyên, không tạo bảng riêng theo rule.
-- Điều kiện/thuật toán LinkFlap thuộc 004; schema nền thuộc 001, vòng đời thuộc 002, hợp đồng/checkpoint thuộc 003.
-- Rà soát 16/16 mục chất lượng; kiểm tra liên kết, cấu trúc tài liệu và JSON sau tách được ghi ở checklist 004.
-- Đây là kiểm tra tài liệu; chưa chạy migration, test truy vấn hoặc benchmark ứng dụng. Sẵn sàng lập kế hoạch cùng các feature phụ thuộc.
+- Review 2026-11-20: 5 stories, 28 FR, 11 SC; thêm field interface chuẩn, activated_at, failed/retry audit và runtime health/receipt.
+- Tổng 8 bảng chung: 7 bảng dữ liệu/correlation và pipeline_runtime_status. Không thêm bảng theo hãng/rule hoặc bảng tài khoản.
+- Truy vết mới FR-024–028 qua US5, SC-010/011 và I01–07/I11–15 của 005, C33–48 của 003.
+- Raw giữ nguyên, trạng thái lỗi/thử lại và receipt không bị ghi đè khi heartbeat; cold-load giữ bằng chứng/ranh giới.
+- Các kiểm tra tài liệu và ví dụ không phải migration hoặc kiểm thử database đã triển khai.

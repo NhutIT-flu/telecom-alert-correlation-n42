@@ -1,6 +1,6 @@
 # Thiết kế module điều phối, rule và gom nhóm
 
-Ngày: 2026-11-19. Cập nhật: tách thuật toán/cấu hình/chính sách LinkFlap sang feature 004; giữ cơ chế chung ở đây. Trạng thái: thiết kế để review, chưa triển khai. [Yêu cầu nghiệp vụ](spec.md), [dữ liệu nền](../001-alert-data-model/data-model.md), [vòng đời cảnh báo](../002-alert-lifecycle/lifecycle-design.md).
+Ngày: 2026-11-20. Cập nhật vận hành worker, coverage, retry, owner revision, history context và ngân sách; đồng bộ constitution 2.0.0. Trạng thái: thiết kế để review, chưa triển khai. [Yêu cầu nghiệp vụ](spec.md), [dữ liệu nền](../001-alert-data-model/data-model.md), [vòng đời cảnh báo](../002-alert-lifecycle/lifecycle-design.md).
 
 ## 1. Phương án và phạm vi
 
@@ -30,7 +30,7 @@ flowchart TD
     H2 --> L
     L --> C[Commit checkpoint, bằng chứng, cảnh báo, lịch sử, tiến độ]
     C --> P[(PostgreSQL)]
-    C --> N[Thông báo sau commit]
+    C --> N[Trạng thái đã commit cho API đọc]
 ```
 
 | Thành phần | Trách nhiệm |
@@ -38,7 +38,7 @@ flowchart TD
 | Registry | Nạp/kiểm tra cấu hình, ghép handler, lập chỉ mục sự kiện và giữ các revision cũ còn cần. |
 | Dispatcher | Tra event_type, lọc phạm vi/field và tạo khóa; không tự đếm cửa sổ. |
 | Handler | Logic riêng, nhận config bất biến + event + state, trả state mới/kết luận/bằng chứng. Không trực tiếp ghi DB hoặc ACK/CLOSE. |
-| State cache | State theo nhóm và dữ liệu dẫn xuất theo schema handler. Không sửa cache đã commit trước giao dịch thành công. |
+| State cache | State theo nhóm và dữ liệu dẫn xuất theo schema handler. Không sửa cache đã commit trước giao dịch thành công; recovered có thể cold-load theo guard mục 18. |
 | CleanupManager | Chạy chung, gọi prune_state/can_evict_state và kiểm tra checkpoint, idle, pending, alert trước thu hồi; không tự kết thúc cảnh báo. |
 | Lifecycle | Áp dụng create/append/recover/reactivate theo feature 002, kiểm tra trạng thái hiện tại và tranh chấp với thao tác người. |
 | Persistence | Giao dịch, snapshot rule, checkpoint, nguồn pending bền vững và khôi phục. |
@@ -65,7 +65,7 @@ Mẫu cấu hình và schema tham số của LinkFlap đã chuyển sang [004 m�
 - Registry lưu event_type → danh sách revision ứng viên. Mỗi revision là hợp của đăng ký phát sinh/phục hồi và được loại trùng trước gọi.
 - Phạm vi có thể kiểm tra bằng filter được hỗ trợ; bộ điều phối không quét regex raw cho mọi rule. Khả năng đọc syslog từng hãng thuộc tầng chuẩn hóa.
 - Rule cùng hiện tượng có thể dùng cho router/switch/firewall nếu parser đã chứng minh ánh xạ tương đương; tên hãng không tự bảo đảm tương thích.
-- Cần giữ revision đang bật và revision cũ có alert chưa đóng. Revision cũ chỉ theo dõi đúng nhóm đang tồn tại; không tạo cảnh báo đầu tiên cho nhóm mới khi bị tắt.
+- Giữ revision đang bật và revision cũ có alert chưa đóng. Trước gọi handler, resolver chọn duy nhất owner cho mỗi rule_key/scope/group theo mục 16; không gửi cùng nhóm đồng thời vào bản cũ và bản mới của cùng rule_key. Các rule_key khác nhau vẫn fan-out bình thường.
 - Thiếu field cho một rule: ghi lý do bỏ qua có thể tổng hợp đếm, không cần log cảnh báo vận hành cho từng sự kiện thiếu giống nhau; event vẫn giữ, rule khác còn đủ field vẫn xét.
 - Không có rule phù hợp là kết quả đã xét không khớp, không phải lỗi hệ thống. Lỗi code/DB không được coi như trường hợp này.
 - Tập registry cố định trong một batch. Khi có revision mới, bản chưa đánh giá dùng registry công bố ở đầu batch; bản đã hoàn tất không tự đánh giá lại bằng revision mới. Thử lại sau lỗi giữ registry cũ trong cùng lượt vận hành; đổi revision để khắc phục cần thao tác phục hồi có kiểm soát, không lặng lẽ đổi giữa batch.
@@ -80,7 +80,7 @@ Khóa logic:
 
 `rules.id` đại diện cho bộ định danh revision khi lưu checkpoint, còn group_values chỉ chứa các giá trị group_by. Giới hạn kiểu/độ dài key được kiểm tra, không dùng raw message làm khóa. Ví dụ nhóm interface cần device_id + interface_name đã chuẩn hóa; không tự đổi alias hoặc thay device_id bằng sender_ip/hostname có thể trùng. Khóa riêng từng handler nằm trong tài liệu rule.
 
-Một handler phục vụ nhiều group state: A/Gi0/0, A/Gi0/1 và B/Gi0/0 độc lập. Tạo hoặc nạp state khi có event liên quan; không cấp trước window cho toàn bộ inventory. Cùng nhóm chỉ có một luồng cập nhật; bản đầu phải có khóa sở hữu worker để chạy nhầm hai process không xử lý cùng dữ liệu. Cách dùng khóa/lease cụ thể chốt ở plan.
+Một handler phục vụ nhiều group state: A/Gi0/0, A/Gi0/1 và B/Gi0/0 độc lập. Tạo hoặc nạp state khi có event liên quan; không cấp trước window cho toàn bộ inventory. Cùng nhóm chỉ có một luồng cập nhật; bản đầu phải có khóa sở hữu worker để chạy nhầm hai process không xử lý cùng dữ liệu. Cơ chế sở hữu dùng session-level advisory lock theo mục 13; partition nhiều worker là bước sau.
 
 ## 6. Các rule sử dụng engine
 
@@ -90,7 +90,7 @@ Engine không chứa ngưỡng/cửa sổ hay điều kiện kết thúc mặc �
 
 ## 7. Checkpoint và khôi phục
 
-Bổ sung **một bảng chung `rule_group_states`**, không bảng riêng theo rule/interface. Sáu bảng dữ liệu/lịch sử từ 001/002 vẫn giữ; bảng thứ bảy này là checkpoint thuật toán.
+Bảng chung `rule_group_states` là checkpoint thuật toán, không bảng riêng theo rule/interface. Bảy bảng dữ liệu/correlation giữ nguyên; 005 bổ sung bảng thứ tám `pipeline_runtime_status` cho health/coverage và work receipt, xem schema 001.
 
 | Cột | Kiểu đề xuất | Vai trò |
 |---|---|---|
@@ -113,10 +113,10 @@ Không lưu workflow_status/ACK/CLOSE vào payload như nguồn chuẩn. Tham ch
 
 ### Giao dịch batch
 
-1. Chọn batch từ events đủ parse đang pending, đăng ký/đệm theo group và chính sách mục 12. Event chưa đủ chốt vẫn pending, không đánh dấu processed chỉ vì đã vào RAM. Khóa quyền xử lý; không dùng MAX(id) làm tiến độ vì thứ tự cấp id không bảo đảm thứ tự commit.
+1. Kiểm tra failed barrier và quyền sở hữu, chọn batch đủ parse/pending ưu tiên event đủ chốt; ghi work receipt/registry snapshot như mục 13, đăng ký/đệm theo group và chính sách mục 12. Event chưa đủ chốt vẫn pending, không đánh dấu processed chỉ vì đã vào RAM. Khóa quyền xử lý; không dùng MAX(id) làm tiến độ vì thứ tự cấp id không bảo đảm thứ tự commit.
 2. Đánh giá tuần tự trên bản state tạm (copy-on-write) của batch. Mọi event trong batch thấy kết quả tạm trước nó, nhưng cache đã commit chưa bị sửa. Các rule đủ field được gọi đủ; skip có lý do không phải exception.
 3. Một giao dịch ghi checkpoint cuối của mỗi nhóm đã thay đổi, các alert/evidence/history cần thiết và trạng thái hoàn tất của **đúng các event id** trong batch. Các lần chuyển lịch sử trung gian vẫn ghi đủ; không coalescing mất create/recovery/reactivate.
-4. Chỉ sau commit mới thay cache bằng state mới và gửi thông báo. Crash trước commit: pending + checkpoint cũ để chạy lại; crash sau commit trước cache swap: reload DB, không chạy lại event đã hoàn tất.
+4. Chỉ sau commit mới thay cache bằng state mới và cho phép API đọc kết quả có hiệu lực; frontend polling theo 005. Nếu bổ sung tín hiệu đánh thức thì chỉ phát sau commit. Crash trước commit: pending + checkpoint cũ để chạy lại; crash sau commit trước cache swap: reload DB, không chạy lại event đã hoàn tất.
 5. Ghi cùng một group nhiều lần trong batch có thể chỉ checkpoint state cuối. Batch giảm round-trip/commit, không giảm số row update nếu mọi event thuộc nhóm khác nhau. Batch size/độ chờ phải chốt bằng mục tiêu độ trễ, không chờ hàng giây chỉ để gom nhiều log.
 
 Bộ thực thi trộn event và deadline theo thời gian nguồn, không dồn tất cả timer về cuối batch: deadline d<t chạy trước event t, tại d==t xử lý mọi event t trước timer. Điều này áp dụng cả khi xử lý backlog sau gián đoạn.
@@ -129,7 +129,7 @@ Khởi động lại nạp snapshot rule và handler revision cần thiết, che
 
 - Lỗi input đã kiểm tra (thiếu field/không hỗ trợ) có kết quả skip. Lỗi handler bất ngờ/DB khiến rollback toàn batch, giữ cache cũ, ghi thông tin lỗi và dừng tiến độ worker; thu thập vẫn lưu raw/normalized vào pending theo sức chứa.
 - Không tiếp tục xử lý nhóm sau trong khi đã bỏ qua một event lỗi có thể làm sai cửa sổ; không đánh dấu processed chỉ vì các rule khác thành công. Đây là lựa chọn fail-stop để bảo toàn kết quả của bản đầu.
-- Sau lỗi commit có kết quả không rõ, phải đọc lại tiến độ/checkpoint, không áp dụng lại mù quáng. Lỗi tạm có retry giới hạn; lỗi logic cần sửa có kiểm soát và không được tự sửa revision cũ đã công bố.
+- Sau lỗi commit có kết quả không rõ, đọc lại receipt/progress/checkpoint trước retry. Lỗi tạm giữ pending, lỗi logic hoặc hết retry ghi failed khi DB cho phép và dừng; đường khôi phục chính thức ở mục 13. Không tự sửa revision cũ.
 - Muốn rule lỗi không trì hoãn rule khác cần thêm durable work/receipt theo event–revision và serialization theo group. Đây là bước mở rộng có chi phí ghi và vận hành, chưa có trong giao dịch chung hiện tại.
 
 ## 8. CleanupManager chung và quản lý cache
@@ -149,8 +149,8 @@ Timer điều kiện rule đánh thức theo deadline, không bị buộc chờ 
 ### 8.2. Hai mức dọn
 
 - Prune: bỏ dữ liệu hết hạn khi handler xác nhận không còn cần cho tính tiếp/tính bù. Chưa đạt điều kiện phát sinh không đủ lý do xóa. Giữ ngữ cảnh hoặc đường nạp lại đã kiểm chứng.
-- Evict: chỉ bỏ toàn bộ entry RAM nếu handler xác nhận không còn dữ liệu thuật toán cần giữ nóng, không pending/in-flight, không alert chưa đóng, đủ idle, checkpoint an toàn và generation không đổi. Recovered nhưng chưa closed vẫn là chưa đóng.
-- Nhóm có alert có thể prune phần không còn cần, nhưng bản đầu chưa evict toàn bộ. Đánh giá kết thúc bằng on_time/Lifecycle trước, không dùng cửa sổ rỗng như một lệnh RECOVER.
+- Evict: chỉ bỏ toàn bộ entry RAM nếu handler xác nhận không còn dữ liệu thuật toán cần giữ nóng, không pending/in-flight/alert active, đủ idle, checkpoint an toàn và generation không đổi. Recovered chưa closed được evict khi next_check_at=NULL, không còn dữ liệu cần giữ nóng và cold-load đủ; kiểm tra DB vòng đời hiện hành trước eviction.
+- Nhóm có alert active có thể prune nhưng giữ entry nóng; recovered chưa closed có thể evict theo constitution 2.0.0/mục 18. Đánh giá kết thúc bằng on_time/Lifecycle trước, không dùng cửa sổ rỗng như một lệnh RECOVER.
 
 ### 8.3. Mỗi lượt dọn
 
@@ -218,9 +218,9 @@ CPU/tổng ghi tăng theo E×k (E là sự kiện, k là số rule ứng viên t
 | C29 | Timer sau restart/lặp cùng state | Một quyết định có hiệu lực, ghi timer/effective_at không tạo raw giả. |
 | C30 | State serialize–restore và eviction | Đánh giá tiếp tương đương, không cộng lại observations hai lần. |
 | C31 | Evidence/outcome đổi nhưng trạng thái chưa đổi | Có correction audit/version có ý nghĩa, không tạo lịch sử cho no-op. |
-| C32 | Resume với deadline 80 và event mới tại 90 | Xét timer 80 trước event 90; không bỏ mất quiet period chỉ vì xử lý nhiều việc cùng batch. |
+| C32 | Backlog đủ coverage với deadline 80 và event mới tại 90 | Xét timer hợp lệ 80 trước event 90; coverage thiếu thì áp guard mục 15, không suy khoảng yên. |
 
-Các case C01–C32 kiểm chứng cơ chế chung. Ca thuật toán LinkFlap chuyển sang LF01–LF20 tại [004 mục 7](../004-link-flap-rule/link-flap-design.md). Các case là yêu cầu cho test triển khai sau, chưa được chạy trên ứng dụng. Đặc tả, ví dụ JSON và tính nhất quán tài liệu có thể kiểm tra ngay; không tạo worker hoặc migration ở bước specify.
+Các case C01–C32 và C33–C48 bên dưới kiểm chứng cơ chế chung. Ca thuật toán LinkFlap chuyển sang LF01–LF26 tại [004 mục 7](../004-link-flap-rule/link-flap-design.md). Các case là yêu cầu cho test triển khai sau, chưa được chạy trên ứng dụng. Đặc tả, ví dụ JSON và tính nhất quán tài liệu có thể kiểm tra ngay; không tạo worker hoặc migration ở bước specify.
 
 ## 11. Hợp đồng Handler
 
@@ -232,6 +232,7 @@ Các case C01–C32 kiểm chứng cơ chế chung. Ca thuật toán LinkFlap ch
 | supported_event_types | Các loại sự kiện chuẩn hóa được phép đăng ký, đủ cả trigger/recovery |
 | required_fields | Theo event_type; gồm yêu cầu event_time có căn cứ nếu thuật toán cần |
 | required_group_fields | Identity tối thiểu do loại handler quy định |
+| history_policy | Horizon/lookback/baseline/field và giới hạn nạp lịch sử cho tính bù; không chứa DB session |
 | parameter_schema | Kiểu/range/field và validator liên trường; engine gọi khi nạp |
 | state_schema, state_schema_version | Payload và serialize–restore đúng phiên bản |
 | supported_outcomes | Outcome cố định được code hỗ trợ, không tùy ý thêm bằng cấu hình |
@@ -244,7 +245,7 @@ NormalizedEvent gồm event_id, event_type, event_time, received_at, time_status
 
 RuleState gồm envelope engine sở hữu (rule_ref, group_key, schema/checkpoint version) và payload riêng handler. Handler chỉ đề xuất payload mới; không sửa identity/version/nhóm khác. Snapshot phải thực sự chỉ đọc hoặc copy-on-write; chỉ đóng băng object ngoài mà dict/list bên trong còn sửa được là chưa đủ.
 
-EvaluationContext gồm rule_ref/group_key, parameters và recovery policy đã kiểm tra, watermark nguồn, now hệ thống, mode=live/rebuild. Mốc đếm dùng event_time; timer nguồn dùng watermark; idle TTL thuộc engine dùng clock đơn điệu. Không cung cấp DB session, socket hay callback gửi thông báo cho handler.
+EvaluationContext gồm rule_ref/group_key, parameters và recovery policy đã kiểm tra, watermark nguồn, now hệ thống, mode=live/rebuild; thêm coverage và HistoryContext đã kiểm tra theo mục 15/17. Mốc đếm dùng event_time; timer nguồn dùng watermark; idle TTL thuộc engine dùng clock đơn điệu. Không cung cấp DB session, socket hay callback gửi thông báo cho handler.
 
 State chuẩn lưu phải serialize được (object/list/giá trị JSON có schema, timestamp UTC không mất chính xác, event ID đúng kiểu). Cấu trúc tối ưu tạm trong handler không được trở thành tham chiếu không thể khôi phục. Không thêm hàm IO riêng ở từng rule.
 
@@ -272,6 +273,8 @@ Default an toàn: on_time=NONE, prune=giữ nguyên, can_evict=false nếu handl
 
 | RuleResult field | Ngữ nghĩa |
 |---|---|
+| evaluation_status | READY / NEEDS_HISTORY / INCOMPLETE; chỉ READY cho phép áp dụng new_state/decision |
+| history_request | Mô tả ngữ cảnh cần thêm nếu NEEDS_HISTORY; engine quyết định truy vấn, không handler IO |
 | new_state | Payload/snapshot sau tính toán; NONE vẫn có thể thay state |
 | decision | NONE / ACTIVATE / RECOVER |
 | evidence_ids | ID syslog hỗ trợ kết luận; phải đúng group/scope/lớp |
@@ -298,7 +301,7 @@ Mỗi handler phải có test metadata/config, nhóm độc lập, input không 
 
 event_time là căn cứ thuật toán; received_at dùng đo tiếp nhận/độ trễ. Sắp trong cùng nhóm theo thời gian nguồn; timestamp bằng nhau chỉ dùng sequence nguồn nếu thực sự có căn cứ, không dùng event_id/thứ tự nhận để đoán.
 
-Engine giữ log chưa chốt khoảng 3 giây, là lựa chọn hiện tại dùng chung. Khi UTC/ngữ cảnh nguồn đủ tin cậy và không backlog ảnh hưởng, mốc tham chiếu là now_UTC-3 giây. Xử lý các event đủ điều kiện trước timer tới mốc đó; mốc tiến cả lúc im lặng khi an toàn. Watermark không bảo đảm sẽ không còn log cũ đến nữa.
+Engine giữ dữ liệu chưa chốt trong DB hoặc đệm có giới hạn khoảng 3 giây, là lựa chọn hiện tại dùng chung. Khi UTC/ngữ cảnh nguồn đủ tin cậy và không backlog ảnh hưởng, mốc tham chiếu là now_UTC-3 giây. Xử lý các event đủ điều kiện trước timer tới mốc đó; mốc tiến cả lúc im lặng khi an toàn. Watermark không bảo đảm sẽ không còn log cũ đến nữa.
 
 Thời gian unknown, quá tương lai hoặc mâu thuẫn phải có diagnostic/guard; không giữ vô hạn trong heap rồi coi là dữ liệu trễ bình thường. Pipeline/time không an toàn thì không dùng khoảng im lặng kết luận recovery. Reorder delay áp một lần, không cộng cả trong handler và scheduler.
 
@@ -320,3 +323,215 @@ Ngoài phạm vi ảnh hưởng: giữ raw và late_out_of_horizon. Thiếu ng�
 8. Alert closed bất biến; ghi late_conflict_closed ở diagnostic sự kiện, không reopen. Không cam kết tái dựng mọi incident lịch sử.
 
 Chi phí tính bù phụ thuộc số quan sát/ngữ cảnh và log trễ; phải đo cùng đường ghi/checkpoint. Các test engine ở mục 10 kiểm tra cơ chế; test thuật toán riêng nằm trong từng feature rule.
+
+## 13. Nhận việc, quyền sở hữu, retry và shutdown
+
+### 13.1. Vòng nhận việc
+
+- Một worker tương quan chạy riêng FastAPI; producer commit raw/normalization rồi worker tự polling.
+  idle_poll_ms=200, batch_max_events=500 là mặc định thử lab. Có ít xử lý ngay; backlog
+  còn việc thì lấy batch tiếp, không ngủ giữa các batch để cố đủ số.
+- Poll ưu tiên pending có parse success/partial và event_time đã đủ chốt; loại thời gian
+  không dùng được được quyết định skip/diagnostic riêng để không treo mãi.
+  Log chưa đủ chốt ở DB; nếu đã đưa vào RAM phải theo dõi ID, không nạp trùng hoặc làm đói log khác.
+- Chờ rỗng đến min(lần poll kế, deadline hợp lệ kế, lần cleanup kế, heartbeat kế);
+  không giữ giao dịch mở trong thời gian ngủ. deadline/event vẫn trộn theo mục 12.
+- Scope lịch sử search-only không được tự chọn; replay chủ động giữ scope riêng và chưa có
+  wall-clock quiet recovery ở bản đầu, chỉ replay event-time có điểm kết thúc rõ/coverage tương ứng.
+- Không dùng MAX(id) như cursor, không chỉ lấy page đầu pending chưa đủ chốt mãi.
+  LISTEN/NOTIFY chưa cần trong bản đầu; nếu thêm chỉ là wake-up, reconnect vẫn poll pending.
+
+### 13.2. Sở hữu và work receipt
+
+- Worker dùng pg_try_advisory_lock cấp session với khóa cố định của correlation engine
+  trong database môi trường. Không lấy được thì báo standby/not-owner và không chạy rule/timer.
+- Session sở hữu là kết nối dedicated dùng cho các giao dịch ghi state/progress.
+  Mất kết nối hoặc không xác nhận còn quyền: bỏ state tạm, dừng ghi, reconnect/giành quyền
+  rồi reload checkpoint. Không trả kết nối đang giữ khóa vào pool.
+- Trước đánh giá batch, commit receipt ở pipeline_runtime_status.details.inflight:
+  batch_id, event_ids chính xác, registry_rule_ids và owner_instance_id. Đây là workset
+  bền vững, chưa phải processed. Trạng thái input/claim không dùng id lớn nhất.
+- Giao dịch kết quả ghi checkpoint/evidence/alert/history/exact progress và xóa receipt
+  cùng lúc. Crash trước receipt commit chưa nhận batch; sau receipt commit dùng đúng
+  registry snapshot đó để chạy lại. Crash sau result commit: không đánh giá lại ID đã processed.
+- Snapshot cũ/handler bị thiếu khi restart là lỗi, không tự thay registry mới.
+  Đổi logic để khắc phục cần migration/rebuild có kiểm soát, không đổi nghĩa retry ngầm.
+
+### 13.3. Trạng thái lỗi
+
+| Loại | Trạng thái dữ liệu | Hành động |
+|---|---|---|
+| Thiếu field/không tương thích đã kiểm tra | Kết quả skip rule có lý do | Rule khác đủ điều kiện vẫn chạy |
+| Lỗi tạm DB/deadlock/timeout | Rollback, giữ pending/receipt | Tối đa 5 lần thử lại sau lần đầu; backoff 0.5,1,2,4,8 giây, không busy-loop |
+| Lỗi handler/schema hoặc hết retry | Rollback; ghi failed cho event đang xét khi DB khả dụng | Dừng toàn tiến độ tương quan, health error, giữ receipt |
+| Không ghi được failed vì DB lỗi | Pending/receipt chưa hoàn tất | Health/log lỗi bên ngoài DB; không báo đã ghi failed; không tiếp tục như thành công |
+| Commit không rõ thành bại | Chưa quyết định retry | Reconnect, đọc receipt/progress/checkpoint rồi mới tiếp tục |
+
+Startup kiểm tra failed/barrier trước pending, không bỏ nó qua restart. Đường quản trị
+failed→pending có quyền vận hành, reason, request_id idempotent và audit trong correlation_details;
+xóa correlation_error/correlated_at hiện hành cùng giao dịch, giữ raw/id/registry receipt.
+Không có nút skip tùy tiện cho event lỗi logic. Không tự sửa nội dung revision đã công bố.
+
+### 13.4. Dừng có kiểm soát
+
+Nhận SIGTERM: ngừng nhận batch, hoàn tất hoặc rollback đơn vị đang chạy trong shutdown_grace_seconds=30
+(mặc định thử), ghi status stopped khi DB khả dụng, đóng session để nhả lock. Nếu kill trước
+hoàn tất, receipt/pending/checkpoint quyết định lúc restart; không đánh dấu processed để thoát nhanh.
+Không đợi xử lý hết backlog. Nếu scope không còn coverage được chứng minh, restart chặn quiet
+đến khi có lại đoạn quan sát đủ; không mặc định restart luôn làm mất toàn lịch sử.
+
+## 14. Schema state và projection
+
+- Projection v1: events.id→event_id; các cột chung giữ nguyên; attributes.interface_name,
+  attributes.interface_state và attributes.interface_layer thành field cùng tên có kiểu.
+  UP/DOWN viết hoa, physical/protocol viết thường. Parser/adapter 005 xử lý tên state cũ một lần.
+- Checkpoint state_payload v1 gồm engine và handler. engine có envelope_version=1,
+  last_evaluated_source_at, activation_boundary, safe_since/coverage_until (nullable khi unknown),
+  coverage_status/reason và owner_alert_id_hint (nullable). handler theo state_schema_version;
+  không chứa session/socket/callable/workflow_status làm nguồn chuẩn.
+- last_event_id ngoài payload chỉ tham chiếu event thực áp dụng gần nhất, không là watermark/cursor.
+  Timer/prune không tạo event giả để cập nhật field đó. Cache generation dùng owner_instance_id,
+  checkpoint_version và generation cục bộ để hủy timer/eviction cũ.
+- Schema kiểm tra timestamp UTC, số nguyên/event ID không nhầm boolean, enum, null và kích thước.
+  Serialize→restore phải tương đương. Payload schema cũ phải có converter được kiểm chứng;
+  không có converter thì lỗi rõ ràng, không đọc bằng schema mới hoặc tạo state rỗng.
+- Không copy trigger buffer giữa revision. Close/ACK không lưu trong state như nguồn chuẩn;
+  cold-load tra alerts/rules và ranh giới history cùng scope.
+
+## 15. Coverage và điều kiện cho phép quiet recovery
+
+### 15.1. Nguồn căn cứ
+
+005 cung cấp pipeline_runtime_status cho collector, normalizer, correlator theo scope.
+Heartbeat mặc định thử 1 giây, stale sau 3 giây. Mỗi producer ghi coverage_started_at
+của đoạn healthy liên tục; khi có gap heartbeat/DB/nguồn/time chưa đủ căn cứ phải reset,
+không lấy now-3 giây là bằng chứng đã quan sát. Giá trị clock/source policy được kiểm tra
+lúc cấu hình lab, không polling trạng thái thiết bị.
+
+### 15.2. Tiến mốc chốt
+
+1. Chụp cutoff nhận việc và watermark ứng viên C-3 giây từ giờ server đáng tin cậy.
+2. Đọc hết theo batch các event đủ điều kiện trước/đúng mốc ứng viên của scope đang xét,
+   kết hợp workset/receipt; chưa đọc hết thì chưa cho timer vượt qua.
+3. Nếu còn raw parse-pending thuộc cutoff, failed chưa giải quyết hoặc ambiguity ảnh hưởng
+   thì chặn quiet của thiết bị/group xác định được; chưa xác định phạm vi thì chặn scope.
+   Parse lỗi/unknown-time không bị im lặng coi như đã chứng minh không chuyển.
+4. Chỉ sau khi kết quả đã commit, health/coverage đủ và không còn input liên quan trước
+   deadline chưa xét mới chạy timer hợp lệ. Cùng timestamp vẫn event trước timer.
+5. Event commit sau vòng chụp hoặc quá đệm 3 giây được xử lý như late input; không tuyên bố
+   đã loại trừ mọi log cũ tương lai hay mất gói UDP.
+
+### 15.3. Khoảng mất quan sát
+
+safe_since là đầu đoạn quan sát an toàn hiện hành, lấy bảo thủ theo health/clock/group
+và checkpoint. Health correlator quyết định readiness, không tự xóa coverage đầu vào liên tục của collector/normalizer chỉ vì correlator restart. Khi gap không dựng lại được, quiet deadline hiệu lực là:
+max(last_relevant_change + quiet_seconds, safe_since + quiet_seconds).
+Nếu safe_since unknown, không RECOVER; next_check_at không được quay busy-loop,
+đánh giá lại khi health/clock/input đổi. Cache/scheduler có wake-up cho thay đổi health.
+
+Ví dụ mất quan sát 30–100, transition cuối 20, quiet 60: không kết thúc ở 80; healthy
+từ 100 thì sớm nhất 160 (chốt khoảng 163 nếu đồng hồ/đệm 3 giây như ví dụ chuẩn).
+Nếu chỉ correlator dừng, collector/normalizer có health liên tục và input bền vững
+đủ thì dựng lại đoạn có coverage, không tự reset 60 giây chỉ vì process restart.
+Không có bằng chứng coverage thì giữ unknown và quan sát lại; không giả định đầy đủ.
+
+Health 1 giây/stale 3 giây là chính sách phát hiện gap của lab, không chứng minh UDP
+giao nhận đầy đủ. Thay ngưỡng clock/health phải có config và bộ thử; nguồn không có
+time policy được kiểm chứng không đủ để bật quiet recovery.
+
+## 16. Revision owner và kích hoạt
+
+- Trong snapshot registry, resolver trước hết tìm alert chưa closed cùng rule_key/scope/group,
+  kể cả recovered và state ngoài cache; revision của alert là owner duy nhất.
+  Nhiều rule_key khác nhau cùng event vẫn được xử lý độc lập.
+- Không có owner chưa đóng thì dùng revision đang bật. activated_at ghi lần đầu enable,
+  giữ nguyên; các transition trigger live phải > max(activated_at, ranh giới phục hồi hợp lệ).
+  Có thể nạp baseline <= ranh giới nhưng không tính baseline như một transition mới.
+- Nếu revision mới có cùng group_by, nhóm đã ghim không tạo counter/alert song song ở bản mới.
+  Khi alert cũ closed, chủ sở hữu lần tiếp theo là revision đang bật; dựng state mới từ baseline,
+  không copy buffer đã tính. Nếu không có revision bật thì không mở nhóm/episode mới.
+- Đổi group_by khi cùng rule_key còn alert chưa đóng bị từ chối ở bản đầu.
+  Đổi lớp chỉ được coi là tương đương identity nếu mapping được xác định; không tự gộp.
+- Replay chủ động chọn revision rõ trong yêu cầu và evaluation_start_at theo thời gian dữ liệu;
+  dùng ranh giới max(evaluation_start_at, ranh giới phục hồi hợp lệ của scope replay),
+  không dùng activated_at wall-clock của live để loại mọi log lịch sử. Không trộn owner live.
+- Đổi revision để sửa failed khác với hot activation thông thường: cần quyết định registry
+  mới cho receipt cũ, mapping/rebuild và audit, không tự retry bằng code khác.
+- DB unique theo rule_id vẫn giữ; owner invariant xuyên revision do đường ghi chung/khóa
+  sở hữu và Lifecycle kiểm tra theo rule_key thực thi. Không tuyên bố index cũ tự bảo đảm.
+
+## 17. Hợp đồng nạp lịch sử
+
+- Metadata history_policy được tính từ config lúc nạp: horizon, lookback trước điểm
+  bị ảnh hưởng, cần baseline, field/lớp, cách xác định đoạn và giới hạn chi phí.
+- HistoryContext chỉ đọc gồm requested_range, observations, baseline, episode_boundaries,
+  coverage, completeness=complete/incomplete và reason. Chỉ lấy event đã áp dụng hoặc
+  workset đang xét; pending khác không tự thành bằng chứng đã xử lý.
+- Handler có thể trả evaluation_status=NEEDS_HISTORY với history_request mô tả range,
+  baseline và fields; new_state/decision lúc này chỉ là tạm, engine không commit hoặc
+  đổi cache/progress. Engine kiểm tra request trong policy/scope/group rồi nạp và đánh giá
+  lại từ snapshot trước lượt, không append hai lần.
+- Tối đa 3 vòng nạp mở rộng, 20.000 quan sát mỗi lượt rebuild và timeout truy vấn 2 giây
+  là giá trị thử. Request lặp không mở rộng, vượt giới hạn hoặc thiếu baseline:
+  INCOMPLETE + correction_incomplete, giữ state/kết luận đã commit; đánh dấu group không
+  đủ căn cứ quiet, giữ event diagnostic. Đây là xử lý dữ liệu không đủ, không giả thành count=0.
+- Chi tiết limit/timeout có thể cấu hình. Event được ghi nhận đã xét với diagnostic khi
+  đã quyết định INCOMPLETE có kiểm soát; muốn tính lại phải có yêu cầu rebuild riêng có audit qua hợp đồng 005, không đổi processed thành pending như một retry thông thường.
+- READY mới đưa candidate facts vào hòa giải Lifecycle. Cả event và timer khi rebuild
+  có cùng thứ tự nguồn; không gửi/ghi tác động trung gian trong handler.
+- LinkFlap cụ thể hóa W/lookback/baseline tại 004; không mặc định mọi handler chỉ cần N mốc.
+
+## 18. Ngân sách, eviction và kiểm chứng vận hành
+
+### 18.1. Ngân sách khởi động
+
+| Thông số | Mặc định thử lab / quy tắc |
+|---|---|
+| max_cached_groups | 10.000 entry |
+| max_buffered_events | 20.000 event chưa chốt trong RAM, DB vẫn là nguồn |
+| max_state_payload_bytes | 262.144 byte mỗi checkpoint/group |
+| state_cache_budget_bytes | 67.108.864 byte tổng payload serialize ước tính |
+| memory_budget_bytes | Bắt buộc khai báo theo tài nguyên container; không có thì từ chối khởi động |
+| RSS cảnh báo/dừng nhận | 70% / 85% memory_budget_bytes, kiểm tra cả state tạm |
+| Giới hạn tính bù | Theo mục 17, không đọc toàn lịch sử không giới hạn |
+
+Payload serialize chỉ là thước đo phụ, không phải RAM Python/RSS. Bộ đo tính cả cache,
+state copy-on-write, buffer, heap và process. Trước batch/restore phải dự trù working set,
+giảm batch nếu cần; một entry vượt policy không được nạp vô hạn để vượt ngân sách.
+
+Chạm ngưỡng: dọn entry hợp lệ, giảm batch/đệm; nếu vẫn không đủ thì ngừng lấy thêm event,
+giữ pending ở DB, health degraded. Không evict active/bỏ dữ liệu để giả đạt tải.
+Ngừng nhận việc đồng nghĩa guard quiet phải xét backlog; không tự recovery khi chưa đọc đủ.
+Input đã nhận vẫn giữ theo khả năng lưu; collector/API có cơ chế sức chứa ở 005.
+
+### 18.2. Eviction recovered chưa closed
+
+Giữ entry active. Với recovered chưa closed chỉ evict khi:
+handler cho phép, không còn dữ liệu cần giữ nóng, next_check_at=NULL, không pending/in-flight,
+đủ idle/checkpoint và generation/DB snapshot còn đúng. Lifecycle tra DB trước ghi và cold-load;
+không thay workflow khi evict. Nếu operator CLOSE/engine reactivate hoặc entry đổi thì hủy
+quyết định stale. Không xóa checkpoint/raw/history hoặc ranh giới còn cần.
+
+### 18.3. Các ca bổ sung
+
+| Mã | Tình huống | Kết quả |
+|---|---|---|
+| C33 | Commit normalized rồi producer không gọi worker | Poll tự nhận và xử lý, không cần gọi handler trực tiếp |
+| C34 | Rỗng, batch ít, backlog >500 và deadline đến hạn | Chờ có giới hạn, không đợi đầy batch, không làm đói lịch/dọn |
+| C35 | Retry DB và commit không rõ | Đọc receipt/progress, không ghi đôi; giữ pending nếu chưa hoàn tất |
+| C36 | Failed rồi restart/đưa lại pending | Barrier còn; phục hồi có quyền/audit/idempotency |
+| C37 | Hai worker hoặc mất session lock | Chỉ owner xử lý; mất quyền dừng ghi/reload trước tiếp tục |
+| C38 | SIGTERM/kill giữa batch | Hoàn tất hoặc rollback; receipt quyết định restart |
+| C39 | Raw chưa parse hoặc event trước deadline chưa đọc | Chặn quiet nhóm/scope liên quan |
+| C40 | Mất quan sát 30–100, quiet60 | Không RECOVER ở80; sớm nhất160 nếu chỉ healthy từ100 |
+| C41 | Collector/normalizer coverage liên tục, correlator restart | Dựng lại đúng đoạn được chứng minh, không reset mù hoặc giả coverage |
+| C42 | Mapping field cũ và sai enum/lớp | Projection chuẩn hoặc skip diagnostic, không mặc định physical |
+| C43 | Revision mới khi alert cũ active/recovered/cold | Một owner theo rule_key, không tạo đôi |
+| C44 | Đổi group_by hoặc bằng chứng trước activated_at | Từ chối thay nhóm chưa có migration; không tính trigger cũ |
+| C45 | NEEDS_HISTORY rồi đủ hoặc request lặp/vượt limit | Re-evaluate từ snapshot; hữu hạn, incomplete rõ và không commit tạm |
+| C46 | Recovered evict rồi CLOSE/reactivate/correction | Giữ đúng DB lifecycle, baseline/ranh giới và owner |
+| C47 | Ngân sách đầy/entry quá lớn | Dọn hợp lệ rồi dừng nhận/degraded, pending còn, không quiet sai |
+| C48 | Schema cũ, converter thiếu/sai hoặc receipt handler mất | Báo lỗi, không mặc định rỗng hoặc tự đổi revision |
+
+Các giá trị thử không thay SC hiệu năng thành cam kết đã đo. Bộ C này là yêu cầu
+cho triển khai; chưa phải test ứng dụng đã chạy.

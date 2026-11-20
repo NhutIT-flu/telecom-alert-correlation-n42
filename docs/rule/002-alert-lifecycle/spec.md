@@ -8,7 +8,7 @@
 
 **Tích hợp module**: [Feature 003](../003-rule-dispatch-correlation/spec.md) làm rõ điều phối, phiên bản logic/cấu hình và checkpoint. Feature 002 vẫn là nguồn chuẩn của vòng đời; rule không trực tiếp ACK/CLOSE. Các mốc độ trễ đề xuất trong 003 chưa được coi là SLA đã phê duyệt.
 
-**Updated**: 2026-11-19 — điều kiện/outcome chuyên biệt của LinkFlap chuyển sang [feature 004](../004-link-flap-rule/spec.md); feature này giữ vòng đời và audit chung.
+**Updated**: 2026-11-20 — bổ sung khoảng quan sát an toàn, owner revision và cold-load recovered chưa đóng; thao tác người qua hợp đồng 005.
 
 **Input**: User description: "Thiết kế hoàn chỉnh phần trạng thái cảnh báo. Hệ thống chỉ giám sát thông qua syslog nhận được; người giám sát xác nhận đã thấy và xác nhận kết thúc; hệ thống nhận diện kết thúc theo điều kiện của rule. Không bao gồm xử lý hay cấu hình thiết bị."
 
@@ -94,6 +94,20 @@ Người giám sát muốn lọc độc lập tín hiệu bất thường/phục
 2. **Given** có cảnh báo đã phục hồi chưa đóng và đã đóng, **When** lọc chờ đóng, **Then** chỉ trả nhóm đã phục hồi chưa đóng.
 3. **Given** một yêu cầu đổi trạng thái bị từ chối, **When** người giám sát xem kết quả, **Then** thấy lý do và trạng thái hiện tại, không thấy thông báo thành công giả.
 
+### User Story 6 - Giữ vòng đời khi mất quan sát hoặc state lạnh (Priority: P1)
+
+Người vận hành muốn kết quả có thể tiếp tục và kiểm chứng được khi các module trao đổi dữ liệu hoặc gặp gián đoạn.
+
+**Why this priority**: Thiếu hợp đồng vận hành có thể làm bỏ việc hoặc thay đổi kết luận cảnh báo.
+
+**Independent Test**: Thử gián đoạn nguồn, CLOSE trong lúc state ngoài cache và đổi revision.
+
+**Acceptance Scenarios**:
+
+1. **Given** có khoảng mất quan sát chưa dựng lại được, **When** hệ thống hoạt động lại, **Then** đợi đủ khoảng quan sát an toàn trước kết luận khoảng yên.
+2. **Given** cache recovered đã evict và operator đã CLOSE, **When** log mới hoặc timer đến, **Then** giữ bản closed bất biến.
+3. **Given** revision mới được công bố khi alert cũ chưa đóng, **When** nhận dữ liệu nhóm đó, **Then** chỉ revision owner cũ được theo dõi cảnh báo.
+
 ### Edge Cases
 
 - Phục hồi trước khi xác nhận: giữ cả hai thông tin, không tự coi người giám sát đã thấy.
@@ -141,8 +155,12 @@ Người giám sát muốn lọc độc lập tín hiệu bất thường/phục
 - **FR-027**: Các outcome kết thúc được hỗ trợ của rule MUST ánh xạ về tín hiệu recovered mà giữ workflow; không tự tạo cảnh báo rule khác. Outcome cụ thể thuộc đặc tả rule.
 - **FR-028**: Audit revision MUST tăng cho hiệu chỉnh có ý nghĩa, kể cả signal/workflow không đổi; giữ dấu vết cơ sở trước/sau để người giám sát thấy thay đổi. Không phát sinh revision cho tính lại ra cùng facts.
 - **FR-029**: Quyết định timer MUST không bắt buộc có một syslog mới làm nguyên nhân; bằng chứng gốc vẫn bắt buộc, nguồn timer và mốc tính toán phải rõ.
-- **FR-030**: Nếu tính bù vô hiệu RECOVER của episode chưa đóng, hệ thống MUST sử dụng ranh giới hợp lệ trước đó để sửa nhận định, không đòi 5 transition sau một ranh giới đã chứng minh sai. Nếu ngưỡng phát sinh cũ chưa còn chứng minh được mà chưa có kết thúc hợp lệ, đánh dấu cần xem xét, không tự xóa/đóng.
+- **FR-030**: Nếu tính bù vô hiệu RECOVER của episode chưa đóng, hệ thống MUST sử dụng ranh giới hợp lệ trước đó để sửa nhận định, không đòi lại ngưỡng của rule sau một ranh giới đã chứng minh sai. Nếu ngưỡng phát sinh cũ chưa còn chứng minh được mà chưa có kết thúc hợp lệ, đánh dấu cần xem xét, không tự xóa/đóng.
 - **FR-031**: Trước timer tại một mốc, sự kiện đủ chốt tại cùng mốc MUST được xét trước; timer stale MUST không tạo kết thúc sai. Nguồn mất tin cậy/tồn đọng ảnh hưởng MUST ngăn kết luận khoảng yên.
+
+- **FR-032**: Thời gian không quan sát được MUST không tự tính như khoảng yên; sau khôi phục chỉ kết thúc khi đủ khoảng theo dõi an toàn hoặc dựng lại được bằng chứng quan sát đầy đủ.
+- **FR-033**: Thu hồi cache recovered chưa đóng MUST giữ vòng đời/định danh/xác nhận; khi có dữ liệu mới phải kiểm tra bản hiện hành để không ghi đè CLOSE đã commit.
+- **FR-034**: Đổi revision MUST không tạo hai cảnh báo cho cùng nhóm logic đang được revision cũ sở hữu; ghim revision cũ đến đóng và chuyển chủ sở hữu theo 003.
 
 ### Key Entities *(include if feature involves data)*
 
@@ -166,6 +184,8 @@ Người giám sát muốn lọc độc lập tín hiệu bất thường/phục
 - **SC-008**: 100% kết luận kết thúc/timer lặp của bộ tích hợp, gồm outcome LinkFlap theo 004, giữ đúng tín hiệu/workflow và audit; không tự ACK/CLOSE hoặc tạo cảnh báo rule khác.
 - **SC-009**: Các case tính bù làm đổi outcome, vô hiệu recovery và lặp lại cùng facts có đúng audit/version tương ứng; timer không có raw mới vẫn truy được chứng cứ thật, alert closed không bị sửa.
 
+- **SC-010**: 100% bộ thử mất quan sát, recovered eviction rồi CLOSE/tái phát và đổi revision khi alert cũ mở giữ đúng ranh giới, định danh và audit; không kết thúc dựa trên khoảng dữ liệu bị mất.
+
 ## Assumptions
 
 - Đặc tả chốt phạm vi giám sát theo yêu cầu người dùng; các mặc định chi tiết dưới đây là đề xuất để xem xét, chưa phải kết quả triển khai.
@@ -175,7 +195,7 @@ Người giám sát muốn lọc độc lập tín hiệu bất thường/phục
 - Bất thường tái xuất hiện trước đóng giữ cùng định danh và xác nhận trước đó; sau đóng tạo định danh mới. Không bổ sung chính sách bắt buộc xác nhận lại cho mỗi lần tái phát.
 - Mặc định một nhóm nhiều đối tượng cần tất cả đối tượng còn bất thường được phục hồi; không thêm lựa chọn ANY hoặc suy luận nguyên nhân gốc khi chưa có yêu cầu.
 - Mỗi rule khai báo điều kiện kết thúc ở đặc tả riêng; [LinkFlap 004](../004-link-flap-rule/spec.md) dùng vòng đời này. Không tự closed; thiếu log/mất gói vẫn là giới hạn của suy luận theo quan sát.
-- Đánh giá theo dữ liệu đã nhận; tính bù có giới hạn được đặc tả tại 003, có thể phát hiện muộn hoặc hiệu chỉnh alert chưa đóng. Không tái dựng toàn bộ lịch sử và không sửa bản closed.
+- Đánh giá theo dữ liệu đã nhận; quyền và đồng bộ màn hình theo [005](../005-monitoring-integration/spec.md); tính bù có giới hạn được đặc tả tại 003, có thể phát hiện muộn hoặc hiệu chỉnh alert chưa đóng. Không tái dựng toàn bộ lịch sử và không sửa bản closed.
 - Khi nhiều syslog có timestamp bằng nhau mâu thuẫn và không có thứ tự nguồn đáng tin cậy, không kết luận phục hồi; ưu tiên bảo thủ cho cảnh báo chưa đóng. Quy tắc tạo cảnh báo mới sau đóng chỉ dùng chuỗi bằng chứng mới, không dùng log bằng ranh giới cũ.
 - Không đổi đồng loạt vị trí lưu rule trong feature này. Rule ở code, file hoặc kho dữ liệu đều phải giữ được định danh phiên bản và điều kiện gốc cho cảnh báo tồn tại.
 - Đệm 3 giây đã chọn cần tính riêng trong tổng độ trễ; mục tiêu 2 giây post-chốt ở 003 là đề xuất chưa phê duyệt, không phải cam kết 2 giây sau nhận.

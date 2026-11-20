@@ -6,7 +6,7 @@
 
 **Status**: Draft — bản thiết kế đề xuất, chưa triển khai hoặc nghiệm thu.
 
-**Updated**: 2026-11-19 — tách quy tắc LinkFlap sang [feature 004](../004-link-flap-rule/spec.md); feature này giữ cơ chế điều phối, trạng thái, thời gian, khôi phục và hợp đồng chung.
+**Updated**: 2026-11-20 — cụ thể hóa nhận việc, lỗi/thử lại, coverage, revision owner, lịch sử tính bù, state lạnh và giới hạn tài nguyên; tích hợp 005, constitution 2.0.0.
 
 **Input**: User description: "Thiết kế hoàn chỉnh module điều phối/gom nhóm: nhiều rule đăng ký loại syslog chuẩn hóa, một sự kiện vào nhiều rule, điều kiện phát sinh/kết thúc riêng; phân biệt thiết bị–interface, tách thông số khỏi logic, cân bằng tốc độ và chi phí. Phạm vi chỉ giám sát qua syslog."
 
@@ -127,7 +127,7 @@ Người vận hành muốn thu hồi dữ liệu nóng an toàn mà không ph�
 **Acceptance Scenarios**:
 
 1. **Given** dữ liệu còn cần cho thuật toán, **When** chưa đủ điều kiện phát sinh, **Then** không xóa chỉ vì chưa có cảnh báo.
-2. **Given** handler cho phép và không pending/in-flight/cảnh báo chưa đóng, đủ idle/checkpoint an toàn, **When** dọn, **Then** được thu hồi cache, không xóa dữ liệu bền vững.
+2. **Given** handler cho phép và không pending/in-flight/cảnh báo active, đủ idle/checkpoint và điều kiện cold-load an toàn, **When** dọn, **Then** được thu hồi cache, không xóa dữ liệu bền vững.
 3. **Given** lỗi lưu hoặc cập nhật mới, **When** chuẩn bị thu hồi, **Then** hủy quyết định cũ.
 4. **Given** nhóm có dữ liệu sau thu hồi, **When** nạp lại, **Then** khôi phục ngữ cảnh và không áp dụng hai lần cùng sự kiện.
 5. **Given** nhiều loại rule, **When** bộ dọn chung chạy, **Then** gọi chính sách từng handler và áp guard an toàn chung.
@@ -145,8 +145,50 @@ Người phát triển muốn triển khai một loại rule mới bằng hợp 
 1. **Given** handler khai báo metadata, **When** đăng ký, **Then** kiểm tra được khả năng nhận sự kiện, tham số, khóa nhóm, cấu trúc state và kết quả hỗ trợ.
 2. **Given** sự kiện không đổi kết luận, **When** handler đánh giá, **Then** vẫn cập nhật state cần thiết và xét điều kiện liên quan, không bỏ toàn bộ lượt vì kết luận chưa đổi.
 3. **Given** điều kiện kết thúc phụ thuộc khoảng yên, **When** thời gian đủ và dữ liệu an toàn, **Then** bộ lập lịch chung đánh giá dù không có log mới; các outcome đã khai báo được giữ đúng.
-4. **Given** handler dọn dữ liệu hoặc cho phép thu hồi, **When** áp dụng, **Then** engine vẫn bảo vệ checkpoint, baseline, công việc đang chạy và cảnh báo chưa đóng.
+4. **Given** handler dọn dữ liệu hoặc cho phép thu hồi, **When** áp dụng, **Then** engine vẫn bảo vệ checkpoint, baseline, công việc đang chạy và trạng thái cảnh báo hiện hành.
 5. **Given** dựng lại để tính bù hoặc lỗi sau đánh giá, **When** chưa commit, **Then** handler không gửi thông báo/ghi DB và không sửa cache đã commit.
+
+### User Story 10 - Nhận việc và thử lại có kiểm soát (Priority: P1)
+
+Người vận hành muốn kết quả có thể tiếp tục và kiểm chứng được khi các module trao đổi dữ liệu hoặc gặp gián đoạn.
+
+**Why this priority**: Thiếu hợp đồng vận hành có thể làm bỏ việc hoặc thay đổi kết luận cảnh báo.
+
+**Independent Test**: Mô phỏng không có việc, backlog nhiều batch, lỗi tạm và failed qua restart.
+
+**Acceptance Scenarios**:
+
+1. **Given** sự kiện chuẩn hóa đã lưu sẵn sàng, **When** worker hoạt động, **Then** chủ động lấy việc mà không cần module chuẩn hóa gọi trực tiếp từng rule.
+2. **Given** batch chưa đủ giới hạn hoặc chỉ có timer, **When** có việc sẵn sàng, **Then** không đợi đầy batch hoặc bỏ đói deadline.
+3. **Given** lỗi tạm hoặc failed chưa giải quyết, **When** thử lại/khởi động lại, **Then** không bỏ barrier hoặc ghi hoàn tất thiếu kết quả; thao tác phục hồi có audit.
+
+### User Story 11 - Chặn kết thúc khi thiếu quan sát (Priority: P1)
+
+Người vận hành muốn kết quả có thể tiếp tục và kiểm chứng được khi các module trao đổi dữ liệu hoặc gặp gián đoạn.
+
+**Why this priority**: Thiếu hợp đồng vận hành có thể làm bỏ việc hoặc thay đổi kết luận cảnh báo.
+
+**Independent Test**: Giữ log trước deadline chưa chuẩn hóa, clock mâu thuẫn và mất quan sát rồi khôi phục.
+
+**Acceptance Scenarios**:
+
+1. **Given** còn dữ liệu liên quan chưa xét trước deadline, **When** timer đến, **Then** chưa kết luận khoảng yên.
+2. **Given** mất khả năng quan sát từ 30 đến 100 và quiet 60, **When** healthy từ 100, **Then** sớm nhất kết thúc tại 160 nếu không dựng lại được khoảng mất.
+3. **Given** chỉ worker gián đoạn nhưng dữ liệu và coverage còn đủ, **When** dựng lại, **Then** xét event/deadline theo nguồn mà không giả định khoảng trống mới.
+
+### User Story 12 - Đổi revision và giới hạn cache an toàn (Priority: P1)
+
+Người vận hành muốn kết quả có thể tiếp tục và kiểm chứng được khi các module trao đổi dữ liệu hoặc gặp gián đoạn.
+
+**Why this priority**: Thiếu hợp đồng vận hành có thể làm bỏ việc hoặc thay đổi kết luận cảnh báo.
+
+**Independent Test**: Bật revision mới, cold-load recovered, chạm ngân sách và yêu cầu bổ sung lịch sử.
+
+**Acceptance Scenarios**:
+
+1. **Given** alert cũ chưa đóng, **When** bật revision mới, **Then** nhóm giữ owner cũ và không có alert song song cùng rule logic.
+2. **Given** state recovered đã thu hồi, **When** xử lý lại, **Then** đọc vòng đời hiện hành và giữ ranh giới; active còn trong cache.
+3. **Given** thiếu lịch sử hoặc chạm hạn mức, **When** đánh giá, **Then** nạp ngữ cảnh có giới hạn hoặc báo thiếu/suy giảm, không đoán kết quả hay bỏ dữ liệu.
 
 ### Edge Cases
 
@@ -154,7 +196,7 @@ Người phát triển muốn triển khai một loại rule mới bằng hợp 
 - Thiếu trường, alias chưa xác minh; đăng ký nhiều selector gây gọi lặp hoặc bỏ log phục hồi.
 - Timestamp bằng nhau mâu thuẫn, thiếu thời gian hoặc quá tương lai; không dùng thứ tự nhận để đoán.
 - Tối ưu bộ đệm dẫn xuất làm mất ngữ cảnh hiệu chỉnh/khôi phục.
-- Thu hồi khi còn dữ liệu cần thiết, pending/in-flight hoặc cảnh báo recovered chưa đóng.
+- Thu hồi khi còn dữ liệu cần thiết/pending/in-flight/alert active; recovered chưa đóng chỉ được thu hồi nếu cold-load an toàn.
 - Hai worker cùng sở hữu nhóm; rollback/crash; event id nhỏ commit muộn.
 - Revision cũ còn cảnh báo, code/schema cần restore bị thiếu, rule tắt tạo nhóm mới.
 - Deadline trước event trong backlog phải xét trước; cùng mốc event đủ chốt phải xét trước timer.
@@ -204,7 +246,7 @@ Người phát triển muốn triển khai một loại rule mới bằng hợp 
 - **FR-037**: Kết luận của một rule MUST không tự tạo/chỉ đạo rule khác; sự kiện có thể độc lập thỏa nhiều rule qua cơ chế điều phối.
 - **FR-038**: Mốc cần đánh giá tiếp MUST dùng thời gian nguồn. Khoảng chờ 3 giây được áp một lần ở engine, không cộng lặp trong rule.
 - **FR-039**: Dọn dữ liệu hết hạn và thu hồi toàn bộ cache MUST là hai thao tác riêng; chưa đạt ngưỡng không đủ lý do xóa dữ liệu còn cần.
-- **FR-040**: Thu hồi cache MUST yêu cầu không còn dữ liệu đếm còn hạn, log chờ, việc đang chạy hoặc cảnh báo chưa đóng, đồng thời đủ thời gian nhàn rỗi và checkpoint an toàn; cập nhật mới phải hủy quyết định thu hồi cũ.
+- **FR-040**: Thu hồi cache MUST yêu cầu không còn dữ liệu thuật toán cần giữ nóng, log chờ, việc đang chạy hoặc cảnh báo active; recovered chưa đóng được thu hồi khi đủ idle/checkpoint/ngữ cảnh và không deadline cần giữ nóng. Cập nhật mới phải hủy quyết định cũ; eviction không đổi vòng đời.
 - **FR-041**: Bản đầu MUST dùng một bộ dọn chung với chính sách riêng của rule; chu kỳ dọn 5 giây và idle 60 giây là mặc định đề xuất, không phải tham số phát sinh hoặc kết thúc của rule.
 - **FR-042**: Sau thu hồi, state MUST được nạp lại với baseline/quan sát cần thiết; dựng lại không được cộng hai lần dữ liệu hoặc coi log pending là đã áp dụng.
 - **FR-043**: Handler MUST khai báo phiên bản, khả năng, field/khóa nhóm, schema tham số/state và các outcome được hỗ trợ; schema gồm cả kiểm tra liên trường khi cần.
@@ -213,6 +255,21 @@ Người phát triển muốn triển khai một loại rule mới bằng hợp 
 - **FR-046**: Phục hồi theo khoảng yên MUST tham chiếu bằng chứng gốc và mốc đánh giá, không tạo syslog giả hoặc gọi mốc hết thời gian là một log thiết bị mới.
 - **FR-047**: Hiệu chỉnh có ý nghĩa MUST có phiên bản và dấu vết trước/sau; lỗi hoặc mâu thuẫn chưa đủ kết luận phải được đánh dấu cần xem xét thay vì xóa cảnh báo.
 - **FR-048**: Engine MUST trộn sự kiện và lịch theo thứ tự nguồn: deadline trước một event được xét trước event đó; tại cùng mốc, mọi event đủ chốt được xét trước timer. Công việc hẹn state cũ không tạo kết luận lỗi; không dồn timer về cuối batch làm mất khoảng yên.
+
+- **FR-049**: Worker MUST chủ động nhận dữ liệu sẵn sàng từ nguồn bền vững, chờ có giới hạn khi rỗng và tiếp tục nhận backlog mà không phụ thuộc lời gọi trực tiếp từ module chuẩn hóa.
+- **FR-050**: Việc lấy sự kiện, xét deadline và dọn cache MUST được điều phối để một loại công việc không làm bỏ đói loại khác; chỉ đánh dấu hoàn tất khi đủ điều kiện.
+- **FR-051**: Lỗi tạm MUST rollback và được thử lại giới hạn; lỗi logic hoặc hết thử lại MUST dừng tiến độ, giữ việc chưa hoàn tất và hiển thị lỗi.
+- **FR-052**: Sự kiện failed MUST chặn tiến độ liên quan cả sau restart; đưa lại chờ phải có quyền, lý do, dấu vết và giữ định danh/phiên bản, không tự bỏ qua.
+- **FR-053**: Quyền sở hữu nhóm MUST duy nhất và mất quyền MUST ngừng xử lý; dừng có kiểm soát không được tạo kết quả dở hoặc làm mất việc.
+- **FR-054**: Suy luận khoảng yên MUST có bằng chứng sức khỏe/coverage và đã xử lý đủ đầu vào liên quan trước deadline; không chỉ dựa vào thời gian hiện tại.
+- **FR-055**: Khoảng mất quan sát MUST bị loại khỏi khoảng yên; chỉ dùng lại lịch sử nếu có coverage liên tục chứng minh được, nếu không phải quan sát an toàn lại.
+- **FR-056**: Cùng rule logic, nhóm và ngữ cảnh có cảnh báo chưa đóng MUST giữ owner revision cũ; revision mới chỉ nhận nhóm chưa ghim, không tạo cảnh báo song song.
+- **FR-057**: Phiên bản mới MUST có mốc kích hoạt; bằng chứng phát sinh trước mốc không tự góp ngưỡng mới, baseline vẫn có thể được tham khảo. Đổi khóa nhóm khi còn cảnh báo cũ phải được chặn hoặc có chuyển đổi riêng được phê duyệt.
+- **FR-058**: Handler MUST khai báo ngữ cảnh lịch sử cần thiết; engine cung cấp ngữ cảnh và độ đầy đủ. Thiếu ngữ cảnh phải được nạp thêm có giới hạn hoặc ghi chưa đủ, không tạo kết luận đoán.
+- **FR-059**: Giới hạn nhóm/cache/buffer/state/tính bù MUST được kiểm tra trước nhận việc; chạm giới hạn phải ưu tiên dọn hợp lệ rồi giữ việc bền vững và báo suy giảm.
+- **FR-060**: Cold-load recovered chưa đóng MUST tìm đúng owner và vòng đời hiện hành; không tin workflow trong checkpoint, không mất baseline/ranh giới hoặc nhân đôi dữ liệu.
+- **FR-061**: Hiển thị MUST lấy dữ liệu đã có hiệu lực qua hợp đồng tích hợp; bản đầu không yêu cầu handler gửi trực tiếp hoặc bảo đảm truyền từng thông báo tức thời.
+- **FR-062**: Hợp đồng sự kiện, kết quả, state và lịch sử MUST có schema rõ ràng, được kiểm tra khi trao đổi/lưu/nạp; phiên bản không tương thích phải báo lỗi hoặc chuyển đổi có kiểm soát.
 
 ### Key Entities *(include if feature involves data)*
 
@@ -242,6 +299,11 @@ Người phát triển muốn triển khai một loại rule mới bằng hợp 
 - **SC-011**: Bộ dọn/khôi phục đạt đúng mọi trường hợp dữ liệu còn cần, hết hạn, checkpoint lỗi, cập nhật đồng thời và dữ liệu sau eviction; không mất dữ liệu bền vững.
 - **SC-012**: Cả 5 thao tác của handler được kiểm chứng với state nhiều nhóm, snapshot không bị sửa, serialize–restore tương đương, timer lặp an toàn và dựng lại không có side effect trung gian.
 
+- **SC-013**: Toàn bộ ca worker rỗng, backlog nhiều batch, failed qua restart, retry và dừng/khởi động lại cho đúng tập sự kiện hoàn tất, không nhân đôi và không bỏ barrier.
+- **SC-014**: 100% ca backlog trước deadline, nguồn/time không an toàn và khoảng mất quan sát chặn kết thúc sai; case mất 30–100/quiet 60 không kết thúc trước 160 nếu chưa dựng lại đủ.
+- **SC-015**: Trong bộ đổi revision/cold-load/giới hạn tài nguyên, 100% giữ một owner, đúng vòng đời/ranh giới và không mất dữ liệu đã lưu.
+- **SC-016**: Bộ yêu cầu lịch sử đủ/thiếu/vượt giới hạn/không tiến triển đều kết thúc hữu hạn, có độ đầy đủ rõ; không áp dụng state/kết quả tạm chưa đủ căn cứ.
+
 ## Assumptions
 
 - Đây là thiết kế đề xuất cho giám sát qua syslog, chưa triển khai/kiểm chuẩn; không cấu hình hoặc khắc phục thiết bị.
@@ -252,5 +314,6 @@ Người phát triển muốn triển khai một loại rule mới bằng hợp 
 - Lỗi logic nghiêm trọng dừng tiến độ worker để sửa/thử lại, đầu vào vẫn được thu/lưu. Cách ly lỗi độc lập từng rule là bước mở rộng.
 - Mục tiêu post-chốt ở SC-006, chu kỳ dọn 5 giây và idle 60 giây là đề xuất để review, chưa phê duyệt nghiệm thu.
 - Tính bù theo phạm vi handler với audit, không mặc định tái dựng mọi lịch sử; không thêm trạng thái hủy hoặc sửa bản closed.
+- Nhận việc polling, giới hạn batch/retry và ngân sách có giá trị thử trong thiết kế; không phải SLA đã đo. Health/coverage và API/frontend theo [005](../005-monitoring-integration/spec.md). Eviction theo constitution 2.0.0.
 - Phụ thuộc: hợp đồng sự kiện chuẩn hóa, nhận diện đối tượng/lớp tín hiệu, phiên bản logic còn truy xuất được và dữ liệu/vòng đời 001/002.
 - [engine-design.md](engine-design.md) diễn giải kiến trúc, hợp đồng, checkpoint và chính sách chung. [Thiết kế LinkFlap](../004-link-flap-rule/link-flap-design.md) sở hữu thuật toán và mô hình tài nguyên riêng. Không tạo worker, migration hoặc giao diện ở bước này.

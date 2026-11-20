@@ -34,9 +34,11 @@
 
 ## Notes
 
-- Tách LinkFlap sang 004 theo yêu cầu: điều kiện/ngưỡng, cấu hình mẫu, state riêng, horizon, timeline dọn, tài nguyên và ca thuật toán.
-- 003 giữ Registry/Dispatcher, nhóm/revision, hợp đồng 5 thao tác, giao dịch/checkpoint, lịch/watermark, tính bù chung và CleanupManager.
-- Rà soát 16/16 mục chất lượng: 9 user stories, 48 FR, 12 SC; C01–C32 cho engine, LF01–LF20 cho rule tại 004. Bộ C được đánh lại số sau tách.
-- FR-012–015/031/033/036–039 và SC-003–006/010–011 đã diễn đạt lại theo hợp đồng chung; không áp ngưỡng/cửa sổ LinkFlap cho mọi handler.
-- Khoảng chờ 3 giây giữ ở engine và áp một lần; chu kỳ dọn 5 giây/idle 60 giây, p95 post-chốt 2 giây/p99 5 giây vẫn là mặc định/mục tiêu đề xuất.
-- Kiểm tra tài liệu không phải test ứng dụng; chưa có worker/handler, migration hoặc benchmark. Feature hiện hành chuyển sang 004; 003 vẫn là phụ thuộc cho speckit-plan.
+- Review 2026-11-20: 12 stories, 62 FR, 16 SC; C01–C48 cho engine. Giữ 5 thao tác handler, thêm history_policy/HistoryContext và kết quả NEEDS_HISTORY/INCOMPLETE.
+- FR-049–053 ↔ US10, SC-013, C33–38: polling, receipt, lock, retry/failed và shutdown.
+- FR-054/055 ↔ US11, SC-014, C39–41: cutoff, input backlog, coverage/gap, không dùng now-3 làm bằng chứng đầy đủ.
+- FR-056–062 ↔ US12, SC-015/016, C42–48: schema/owner, activation live/replay, history hữu hạn, budget và recovered eviction.
+- 200 ms/500 event/5 retry/30 giây shutdown, 3 vòng history/20.000 quan sát/2 giây truy vấn và các ngân sách là cấu hình thử đề xuất, không số đo. memory_budget_bytes phải được cấp khi chạy.
+- Một worker dedicated session lock; event/workset/progress nhất quán. Heartbeat không xóa receipt; failed vẫn chặn qua restart.
+- Constitution 2.0.0 cho phép recovered chưa closed cold-load khi đủ guard; active giữ nóng. Frontend polling theo 005, không hứa push từng thông báo.
+- Chưa triển khai worker, SQL, tải hoặc benchmark. Sẵn sàng lập plan với các giá trị thử được giữ nhãn rõ.

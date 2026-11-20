@@ -4,9 +4,11 @@ Ngày: 2026-11-19. Trạng thái: đề xuất, chưa tạo database/chạy migr
 
 Phần điều phối/cấu hình/checkpoint cập nhật theo [thiết kế module 003](../003-rule-dispatch-correlation/engine-design.md). `rules.definition.parameters` là cấu trúc tham số riêng thống nhất; không tạo thêm cột parameters trùng dữ liệu. Các rule được biên soạn ở file bản đầu, DB giữ snapshot công bố bất biến để truy vết.
 
+**Cập nhật vận hành**: 2026-11-20 — đồng bộ hợp đồng 005, coverage/retry và cold-load theo constitution 2.0.0.
+
 ## 1. Mô hình và các giả định
 
-Dùng 5 bảng nền: `devices`, `events`, `rules`, `alerts`, `alert_events`; feature 002 bổ sung `alert_state_history`, feature 003 bổ sung `rule_group_states`, tổng cộng 7 bảng đề xuất. Mọi hãng lưu chung trong `events`; phần thay đổi theo hãng đặt ở JSONB. Một sự kiện có thể tham gia nhiều cảnh báo. `alerts.id` chính là định danh sự cố, chưa cần `incidents` riêng.
+Dùng 5 bảng nền: `devices`, `events`, `rules`, `alerts`, `alert_events`; feature 002 bổ sung `alert_state_history`, feature 003 bổ sung `rule_group_states`, 7 bảng dữ liệu/correlation; 005 bổ sung `pipeline_runtime_status`, tổng cộng 8 bảng chung đề xuất. Mọi hãng lưu chung trong `events`; phần thay đổi theo hãng đặt ở JSONB. Một sự kiện có thể tham gia nhiều cảnh báo. `alerts.id` chính là định danh sự cố, chưa cần `incidents` riêng.
 
 ```mermaid
 erDiagram
@@ -112,7 +114,7 @@ source_metadata chỉ chứa ngữ cảnh đã kiểm tra, không chứa credent
   "event_code": "LINK-3-UPDOWN",
   "event_type": "interface_state_change",
   "severity": 3,
-  "attributes": {"interface_name": "FastEthernet0/0", "state": "down"},
+  "attributes": {"interface_name": "FastEthernet0/0", "interface_state": "DOWN", "interface_layer": "physical"},
   "vendor_fields": {"facility": "LINK", "mnemonic": "UPDOWN"}
 }
 ```
@@ -134,7 +136,7 @@ Junos dùng event_code và vendor_fields riêng, nhưng nếu cùng hiện tư�
 - Parse success không đồng nghĩa đã xét luật. Processed không đồng nghĩa có cảnh báo: đã xem xét các luật trong lượt đó, kể cả kết quả không thỏa/thiếu field cho một luật.
 - Partial chỉ được xét luật có đủ field yêu cầu. Nếu không thể xét bất kỳ luật nào thì skipped kèm lý do; lỗi chuẩn hóa không làm mất raw.
 - Pending đi với timestamp kết thúc tương ứng bằng NULL; các trạng thái kết thúc có timestamp khác NULL. Parse partial/failed phải có lý do; correlation failed/skipped phải có lý do. Khi đưa về pending để thử lại phải xóa timestamp/lỗi kết thúc cũ trong cùng giao dịch.
-- Chưa thêm trạng thái processing lưu dài hạn: dùng khóa giao dịch/điều kiện trạng thái để crash không để việc treo vĩnh viễn. Thiết kế worker/lease khi cần tải lớn thuộc bước kế hoạch.
+- Chưa thêm trạng thái processing lưu dài hạn: worker đơn sở hữu qua advisory lock theo 003. Lỗi cần can thiệp giữ failed; failed là barrier không cho tiến độ/quiet vượt qua. Bản đầu không có cách ly per-rule.
 - Chuẩn hóa lại chỉ áp dụng khi chưa hoàn tất tương quan và chưa có bằng chứng liên kết; giữ nguyên id/raw. Muốn thay field đã tạo cảnh báo cần revision riêng, chưa thuộc MVP.
 
 ## 5. `rules` — phiên bản luật
@@ -154,10 +156,11 @@ Mỗi dòng là một revision bất biến đã công bố. Hai revision của 
 | `alert_severity` | SMALLINT | NOT NULL, 0..7 | Mức độ alert, độc lập severity từng event. |
 | `is_enabled` | BOOLEAN | NOT NULL, false | Có áp dụng cho sự kiện mới không. |
 | `created_at` | TIMESTAMPTZ | NOT NULL | Lúc tạo revision. |
+| `activated_at` | TIMESTAMPTZ | NULL trước công bố | Mốc kích hoạt đầu tiên, nguồn ranh giới xét bằng chứng của revision; không lấy id làm thứ tự nguồn. |
 
 - UNIQUE(rule_key, version); unique có điều kiện rule_key WHERE is_enabled=true để chỉ một revision đang bật.
-- Chỉ sửa is_enabled; đổi handler_key/handler_revision, điều kiện/group/severity/tên/mô tả thì thêm revision. CHECK thường không tự kiểm tra bất biến giữa các UPDATE: cần quyền ghi và đường cập nhật kiểm soát.
-- Đổi revision đang bật trong cùng giao dịch. Mỗi lượt xét lấy tập revision cố định, không trộn thay đổi giữa chừng.
+- Chỉ sửa is_enabled theo đường công bố; activated_at được gán một lần khi kích hoạt và giữ nguyên khi bật lại. Đổi nội dung hoặc muốn mốc kích hoạt mới thì tạo revision mới. Đổi handler_key/handler_revision, điều kiện/group/severity/tên/mô tả thì thêm revision. CHECK thường không tự kiểm tra bất biến giữa các UPDATE: cần quyền ghi và đường cập nhật kiểm soát.
+- Đổi revision đang bật trong cùng giao dịch. Mỗi lượt xét lấy tập revision cố định, không trộn thay đổi giữa chừng. Quyền sở hữu nhóm theo rule_key được ghim revision cũ đến khi alert đóng theo 003; unique theo rule_id không tự chống hai revision cùng tạo alert cho một nhóm logic.
 - Không xóa revision có alert tham chiếu; tắt luật không xóa/giải quyết cảnh báo cũ.
 - definition không chứa SQL/Python tùy ý. Giới hạn field/phép so sánh/kiểu được hỗ trợ, truy vấn phải tham số hóa.
 
@@ -168,7 +171,7 @@ Ví dụ phần definition trong file bản nháp tắt của handler đếm ít
   "subscribed_event_types": ["interface_state_change"],
   "group_by": ["device_id", "interface_name"],
   "parameters": {
-    "filter": {"interface_state": "down"},
+    "filter": {"interface_state": "DOWN"},
     "window_seconds": 300,
     "threshold_count": 3
   },
@@ -270,7 +273,7 @@ Ví dụ E1/E2/E3 tạo A1; E2/E4 tạo A2: kho chỉ có 4 event, bảng nối 
 
 1. Nhận event chờ xét, lấy registry/revision cố định và áp đệm 3 giây/mốc chốt theo 003. Chưa chốt vẫn pending. Log quá trễ có thể tính bù vùng liên quan; không dùng received_at hoặc event_id làm thứ tự nguồn.
 2. Trong cùng giao dịch: tạo/lấy alert chưa đóng, thêm bằng chứng đúng vai trò chưa có, cập nhật MIN/MAX của bằng chứng phát sinh, ghi trạng thái/history theo feature 002, checkpoint nhóm theo feature 003 và đánh dấu đúng event id processed. Chỉ swap cache sau commit. Dùng khóa/upsert theo unique index, không chỉ SELECT chưa có rồi INSERT.
-3. Không luật nào thỏa vẫn processed. Nếu một luật lỗi thì rollback kết quả dở của lượt, sau đó ghi failed/lý do bằng thao tác riêng để retry.
+3. Không luật nào thỏa vẫn processed. Lỗi tạm rollback và giữ pending để retry giới hạn. Lỗi logic hoặc hết retry: sau rollback ghi failed/lý do cho event đang xét bằng thao tác riêng khi DB khả dụng, không failed cả các event chưa chạy; dừng tiến độ. Nếu DB không thể ghi failed, giữ pending và health lỗi, không báo đã ghi. Khôi phục failed→pending qua thao tác quản trị có kiểm soát theo 003; không âm thầm bỏ qua failed khi quét pending.
 4. PK bảng nối ngăn bằng chứng trùng khi retry cùng event id. Không tuyên bố exactly-once trên đường truyền: gửi lại raw bằng lần nhận mới vẫn là event mới khi chưa có hợp đồng idempotency nguồn.
 5. Dùng thứ tự khóa ổn định và retry deadlock. Thuật toán worker, dữ liệu đến muộn, phục hồi cửa sổ và ngữ cảnh replay phải kiểm chứng trong kế hoạch triển khai; trạng thái bảng không tự thay thế thuật toán.
 
@@ -284,10 +287,63 @@ Ví dụ E1/E2/E3 tạo A1; E2/E4 tạo A2: kho chỉ có 4 event, bảng nối 
 
 ## 11. Lưu kết quả rule và tích hợp hợp đồng chung
 
-Không thêm bảng ngoài 7 bảng đã nêu. Checkpoint ở rule_group_states có checkpoint_version, next_check_at và state_payload đủ ngữ cảnh của handler. Cấu hình, thuật toán, payload và điều kiện kết thúc LinkFlap chuyển sang [feature 004](../004-link-flap-rule/link-flap-design.md); dùng bảng chung theo engine 003. Bản đếm down-burst ở mục 5 là ví dụ handler khác.
+Bảy bảng dữ liệu/correlation giữ nguyên; bảng thứ tám pipeline_runtime_status được bổ sung ở mục 13 cho health/coverage và receipt. Checkpoint ở rule_group_states có checkpoint_version, next_check_at và state_payload đủ ngữ cảnh của handler. Cấu hình, thuật toán, payload và điều kiện kết thúc LinkFlap chuyển sang [feature 004](../004-link-flap-rule/link-flap-design.md); dùng bảng chung theo engine 003. Bản đếm down-burst ở mục 5 là ví dụ handler khác.
 
 alert_state_history bổ sung decision_source (syslog/timer/correction/operator), effective_at và details; causal_event_id có thể NULL với timer/operator, nhưng evidence thật và điều kiện khoảng yên vẫn bắt buộc. Action evidence_corrected có thể giữ cặp trạng thái và tăng audit revision khi cơ sở/outcome thực sự đổi. Timer không tạo raw giả; effective_at có thể trước created_at khi phát hiện muộn, recorded_at vẫn là lúc hệ thống ghi.
 
 last_recovery_effective_at thay tên last_recovery_event_at trong bản nháp: mốc này có thể được tính từ deadline, không phải một log recovery mới. rule_result hiện hành giữ outcome/end_state/reason/cờ review, history.details giữ phiên bản trước/sau và diff hiệu lực bằng chứng. Actor/time của ACK/CLOSE giữ nguyên.
 
 Dọn cửa sổ/cache chỉ thu hồi RAM theo chính sách chung và hook handler. Không xóa raw, history, rule snapshot hoặc checkpoint cần khôi phục; mọi event ref trong payload và bằng chứng cũ vẫn phải được bảo vệ trước khi có retention tự động. Cách epoch/effective time, timer/correction và schema đầy đủ nằm trong 002/003; chưa chạy migration.
+
+## 12. Hợp đồng dữ liệu bổ sung ngày 2026-11-20
+
+- Sự kiện interface chuẩn lưu attributes.interface_name (tên chuẩn không tự gộp alias),
+  attributes.interface_state (UP/DOWN), attributes.interface_layer (physical/protocol).
+  events.id ánh xạ event_id; không có hai field state/interface_state làm hai nguồn chuẩn.
+  Adapter chỉ chuyển field cũ khi nhận đầu vào; raw giữ nguyên. Quy tắc nhận/kiểm tra ở
+  [005 — integration-design.md](../005-monitoring-integration/integration-design.md).
+- correlation_details.retry_audit là danh sách append-only của thao tác failed→pending:
+  request_id duy nhất, actor lấy từ danh tính xác thực, reason, recorded_at, lỗi trước và
+  registry/revision được giữ. Cùng request_id không ghi lặp; không dùng mảng này như log mỗi retry tự động.
+  Ghi audit cùng đổi trạng thái và xóa correlation_error/correlated_at hiện hành.
+- Checkpoint state_payload dùng envelope engine/handler có schema theo 003 mục 14;
+  baseline, ranh giới và refs vẫn được bảo vệ khi cache recovered bị evict.
+  Không thêm bảng riêng theo rule. Registry activation và owner resolution tra rules/alerts,
+  không dùng state cache như nguồn chuẩn của workflow.
+- failed chưa được đưa lại pending phải chặn worker; restart không tự bỏ barrier.
+  Truy vấn startup kiểm tra failed trước khi nhận batch mới. Chi tiết lỗi DB/handler ở 003 mục 13.
+
+## 13. pipeline_runtime_status — sức khỏe và receipt dùng chung
+
+Bảng thứ tám cấp pipeline, không phải state nghiệp vụ rule hoặc syslog giả.
+Hợp đồng health do [005](../005-monitoring-integration/integration-design.md) sở hữu;
+correlator work receipt theo 003. Không thêm bảng riêng theo thiết bị/interface/hãng.
+
+| Cột | Kiểu / ràng buộc | Vai trò |
+|---|---|---|
+| component | TEXT NOT NULL, giá trị đã đăng ký | collector/normalizer/correlator hoặc nguồn quan sát đã cấu hình |
+| correlation_scope | TEXT NOT NULL | live hoặc scope replay hợp lệ; cùng component tạo PK |
+| instance_id | UUID NOT NULL | Writer/owner hiện hành, chuyển qua đường kiểm soát |
+| status | TEXT NOT NULL | starting/healthy/degraded/error/stopped; không là trạng thái thiết bị |
+| heartbeat_at | TIMESTAMPTZ NOT NULL | Lần báo sức khỏe bằng giờ DB gần nhất |
+| coverage_started_at | TIMESTAMPTZ NULL được | Đầu đoạn healthy liên tục; NULL khi không chứng minh được |
+| details | JSONB object NOT NULL, {} | Reason, backlog/freshness và inflight receipt của correlator |
+| updated_at | TIMESTAMPTZ NOT NULL | Lần ghi row gần nhất |
+
+PK(component,correlation_scope); CHECK coverage_started_at<=heartbeat_at khi có giá trị;
+coverage_started_at chỉ khác NULL khi healthy. Healthy vẫn phải qua kiểm tra freshness khi đọc;
+heartbeat stale không tự đổi row thành error nhưng người đọc phải coi unsafe.
+Không dùng heartbeat như thay thế session lock hoặc làm bằng chứng về trạng thái thiết bị.
+
+Writer service phải có quyền đúng component/scope và instance đang sở hữu. Khi chuyển instance,
+giữ receipt chưa hoàn tất, không reset details về {}. Health update chỉ sửa phần health/reason,
+không ghi đè details.inflight. Kích thước details/workset có giới hạn theo cấu hình;
+không lưu token/raw/syslog hoặc toàn state nhóm vào đây.
+
+Correlator commit receipt trước đánh giá; commit kết quả xóa receipt cùng tiến độ/checkpoint.
+Mỗi batch một receipt của worker đơn; không tự nhân bản receipt per-rule. Event_ids/registry_rule_ids
+là refs nghiệp vụ trong JSONB: retention phải bảo vệ như checkpoint; lab không tự xóa.
+Lỗi ghi heartbeat thì row cũ trở nên stale, không cần tạo event giả để báo lỗi.
+
+Bộ thử schema: timestamp/enum/scope/instance sai bị từ chối, heartbeat gap reset coverage,
+writer stale không ghi, receipt còn qua crash và clear nguyên tử với kết quả.

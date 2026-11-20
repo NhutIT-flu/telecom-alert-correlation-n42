@@ -4,7 +4,7 @@
 
 **Created**: 2026-11-19
 
-**Status**: Draft — tách từ feature 003 theo yêu cầu; chưa triển khai hoặc nghiệm thu.
+**Status**: Draft — tách từ feature 003; cập nhật vận hành 2026-11-20, chưa triển khai hoặc nghiệm thu.
 
 **Input**: User description: "Tách phần rule link flap ra riêng đi."
 
@@ -68,10 +68,24 @@ Người vận hành muốn thu hồi bộ nhớ của interface không còn c�
 **Acceptance Scenarios**:
 
 1. **Given** còn 4 chuyển hợp lệ, **When** chạy dọn, **Then** vẫn giữ dữ liệu đó, không xóa vì chưa đạt 5.
-2. **Given** các chuyển hết hạn, không log chờ/việc đang chạy/cảnh báo chưa đóng, nhóm đủ nhàn rỗi và trạng thái lưu an toàn, **When** đến lượt dọn, **Then** được thu hồi bộ nhớ; log và trạng thái bền vững vẫn còn.
+2. **Given** các chuyển hết hạn, không log chờ/việc đang chạy/cảnh báo active, nhóm đủ nhàn rỗi và trạng thái lưu an toàn, **When** đến lượt dọn, **Then** được thu hồi bộ nhớ; log và trạng thái bền vững vẫn còn.
 3. **Given** đã thu hồi sau DOWN ở 20, **When** UP ở 90 được chốt, **Then** nhận diện đúng một chuyển DOWN→UP, không coi là quan sát đầu hoặc cộng hai lần lịch sử.
 4. **Given** lưu trạng thái lỗi hoặc có cập nhật mới trong lúc dọn, **When** định thu hồi, **Then** giữ lại dữ liệu để thử lại.
 5. **Given** đã lưu bốn chuyển rồi gián đoạn, **When** hoạt động lại và nhận chuyển thứ năm trong cửa sổ, **Then** tạo đúng một cảnh báo với đủ bằng chứng.
+
+### User Story 5 - Tiếp tục đúng khi nguồn gián đoạn hoặc state lạnh (Priority: P1)
+
+Người giám sát muốn điều kiện flap không kết thúc chỉ vì thiếu dữ liệu và không đổi định danh khi cache được thu hồi.
+
+**Why this priority**: Đảm bảo tiết kiệm RAM không thay đổi kết luận hoặc quyền đóng cảnh báo.
+
+**Independent Test**: Cho gap 30–100, cold-load recovered và kích hoạt revision mới khi alert cũ chưa đóng.
+
+**Acceptance Scenarios**:
+
+1. **Given** cuối chuyển tại 20 và mất quan sát 30–100, **When** healthy từ 100, **Then** sớm nhất kết thúc tại 160 nếu không dựng lại được đoạn mất.
+2. **Given** recovered chưa closed đã evict, **When** đủ ngưỡng tái phát, **Then** giữ id/ACK/owner cũ; nếu đã CLOSE thì bản cũ bất biến.
+3. **Given** log dùng field cũ hoặc không rõ lớp, **When** tiếp nhận, **Then** adapter ánh xạ có căn cứ hoặc skip diagnostic, không cộng sai lớp.
 
 ### Edge Cases
 
@@ -83,7 +97,7 @@ Người vận hành muốn thu hồi bộ nhớ của interface không còn c�
 - Cần lịch sử dài hơn 60+3 giây làm việc để chứng minh cửa sổ bị ảnh hưởng.
 - Log mới đúng hạn kết thúc; timer cũ, timer lặp hoặc xử lý tồn đọng sau gián đoạn.
 - Hiệu chỉnh vô hiệu phát sinh/kết thúc cũ; cảnh báo đã đóng bất biến.
-- Cảnh báo recovered nhưng chưa đóng vẫn ngăn thu hồi toàn bộ nhóm ở bản đầu.
+- Cảnh báo recovered chưa đóng có thể ở ngoài cache nếu checkpoint/ranh giới đủ và không deadline; active vẫn giữ entry nóng.
 - Số mốc ngưỡng giới hạn không phải số đếm tổng hoặc toàn bộ trạng thái.
 - UP 5 giây/DOWN 3 giây là giả định tải, không phải thời gian mở/đóng cảnh báo.
 
@@ -104,7 +118,7 @@ Người vận hành muốn thu hồi bộ nhớ của interface không còn c�
 - **FR-011**: Tính bù MUST dựng lại các cạnh và mọi cửa sổ bị ảnh hưởng, gồm endpoint mới hơn log trễ; khi cần phải dùng thêm lịch sử và baseline trước đoạn.
 - **FR-012**: Log ngoài ảnh hưởng hoặc thiếu căn cứ hiệu chỉnh MUST được giữ với lý do và độ đầy đủ; không được tuyên bố đã dựng lại toàn lịch sử.
 - **FR-013**: Thiếu/mâu thuẫn thời gian MUST không bị giải bằng thứ tự nhận để tạo bằng chứng hoặc kết luận phục hồi.
-- **FR-014**: Rule đang bất thường MUST kết thúc điều kiện khi 60 giây không ghi nhận chuyển mới, mốc chốt đủ và pipeline/thời gian an toàn.
+- **FR-014**: Rule đang bất thường MUST kết thúc khi đủ 60 giây không ghi nhận chuyển mới trong đoạn quan sát an toàn, mốc chốt đủ và không backlog ảnh hưởng; không tính khoảng mất quan sát chưa dựng lại được.
 - **FR-015**: Kết quả kết thúc MUST phân biệt hết flap–UP và hết flap–DOWN theo trạng thái cuối.
 - **FR-016**: Cả hai kết quả MUST chỉ đề nghị tín hiệu recovered; không tự xác nhận, đóng hoặc tạo cảnh báo LinkDown.
 - **FR-017**: Số chuyển dưới 5, log UP đơn lẻ hoặc dọn cửa sổ MUST không tự đủ để kết thúc; chưa phát sinh thì không có phục hồi.
@@ -115,10 +129,15 @@ Người vận hành muốn thu hồi bộ nhớ của interface không còn c�
 - **FR-022**: Dữ liệu nhóm MUST chỉ tạo/nạp khi cần, dùng chung cơ chế thực thi, không cần tiến trình hoặc bộ đếm giờ riêng cho từng interface.
 - **FR-023**: Tối ưu giữ 5 mốc ngưỡng MUST không thay thế các quan sát/baseline, ranh giới và bằng chứng cần để khôi phục/tính bù.
 - **FR-024**: Dọn mốc hết hạn và thu hồi toàn bộ bộ nhớ nhóm MUST tách biệt; chưa đủ 5 không cho phép xóa 4 mốc còn hợp lệ.
-- **FR-025**: Thu hồi MUST chỉ được phép khi hết chuyển hợp lệ, không log chờ/việc đang chạy/cảnh báo chưa đóng, đủ nhàn rỗi và trạng thái đã lưu an toàn; cập nhật mới hoặc lỗi lưu phải hủy thu hồi.
+- **FR-025**: Thu hồi MUST chỉ được phép khi không còn chuyển/dữ liệu cần giữ nóng, log chờ, việc đang chạy hoặc cảnh báo active, đủ nhàn rỗi và trạng thái đã lưu an toàn. Recovered chưa đóng được thu hồi khi không deadline cần giữ nóng và cold-load đầy đủ; cập nhật mới hoặc lỗi lưu phải hủy thu hồi.
 - **FR-026**: Sau thu hồi/gián đoạn MUST khôi phục đúng baseline, quan sát, chu kỳ và kết luận cần thiết; thử lại cùng định danh sự kiện không đếm hoặc tạo cảnh báo hai lần.
 - **FR-027**: Rule MUST dùng điều phối, lịch, lưu trạng thái, dọn chung và vòng đời đã đặc tả; không tự tác động thiết bị hoặc gửi dữ liệu trực tiếp cho giao diện.
 - **FR-028**: Ngưỡng, khoảng đếm, lớp và điều kiện kết thúc MUST được kiểm tra theo phiên bản trước áp dụng; bản tài liệu tắt không được gọi là rule đã vận hành.
+
+- **FR-029**: Rule MUST dùng hợp đồng interface thống nhất của 005, không tự đoán tên field/enum/lớp hoặc parse raw.
+- **FR-030**: Sau gap không dựng lại được MUST có đủ 60 giây quan sát an toàn mới kết thúc; nếu coverage vẫn unknown thì chưa kết luận.
+- **FR-031**: Tính bù MUST yêu cầu/nạp history qua engine với độ đầy đủ và giới hạn rõ; state tạm thiếu lịch sử không được áp dụng.
+- **FR-032**: Owner revision và baseline sau cold-load MUST theo 003; không tạo hai cảnh báo cho cùng rule logic/group/scope khi đổi revision.
 
 ### Key Entities *(include if feature involves data)*
 
@@ -141,11 +160,14 @@ Người vận hành muốn thu hồi bộ nhớ của interface không còn c�
 - **SC-007**: Trên tải SC-006, báo cáo riêng độ trễ tiếp nhận→đủ chốt và đủ chốt→hiển thị; mục tiêu lab đề xuất cho đoạn sau là p95 2 giây/p99 5 giây, chưa phải nghiệm thu. Tổng độ trễ có thêm khoảng chờ 3 giây và tồn đọng.
 - **SC-008**: Đối chiếu được tài nguyên của 1.000 nhóm: tối đa 5.000 mốc ở bộ đệm ngưỡng, đo riêng toàn trạng thái và lưu trữ; không tích lũy toàn bộ 900.000 sự kiện trong bộ nhớ theo dõi hoặc lấy mô phỏng nhỏ làm ngân sách toàn hệ thống.
 
+- **SC-009**: Toàn bộ ca LF21–LF26 về field chuẩn, khoảng mất quan sát, cold-load và owner revision đạt đúng kết luận hoặc diagnostic quy định; không sửa cảnh báo closed.
+
 ## Assumptions
 
 - Tách nội dung chuyên biệt từ 003; đây là nguồn chuẩn của LinkFlap. [Thiết kế chi tiết](link-flap-design.md) mô tả thuật toán, cấu hình và ca kiểm chứng.
 - Phụ thuộc [dữ liệu 001](../001-alert-data-model/spec.md), [vòng đời 002](../002-alert-lifecycle/spec.md), [điều phối/hợp đồng 003](../003-rule-dispatch-correlation/spec.md); không thêm bảng riêng cho rule.
 - Người dùng chọn 5 lần chuyển/60 giây, chờ sắp thứ tự 3 giây và hai kết quả UP/DOWN. Quiet 60 giây là phương án hiện tại từ thảo luận; không thay đổi trong lần tách này.
+- Eviction theo constitution 2.0.0; hợp đồng đầu vào/health theo [005](../005-monitoring-integration/spec.md). Mặc định vận hành từ 003 là cấu hình thử, không hiệu năng đã đo.
 - Bản mẫu chọn lớp vật lý; chỉ ánh xạ hãng/thiết bị đã được chuẩn hóa tương đương mới sử dụng được.
 - Chu kỳ dọn 5 giây và idle 60 giây là mặc định đề xuất của module chung, không phải thời gian phát sinh/kết thúc rule hoặc tham số đã được phê duyệt.
 - Khoảng yên chỉ phản ánh log đã nhận. Mất gói, pipeline hoặc clock không tin cậy giới hạn suy luận; không kiểm tra trực tiếp thiết bị.

@@ -4,6 +4,8 @@ Ngày: 2026-11-19. Trạng thái: bản nháp hoàn chỉnh để review, chưa 
 
 [Thiết kế module 003](../003-rule-dispatch-correlation/engine-design.md) chọn Registry/Dispatcher dùng chung, handler tách state và checkpoint `rule_group_states`. Rule chỉ đề nghị kết luận; Lifecycle ở tài liệu này kiểm tra snapshot hiện hành trước ghi và không tin trạng thái xác nhận trong cache.
 
+**Cập nhật vận hành**: 2026-11-20 — đồng bộ hợp đồng 005, coverage/retry và cold-load theo constitution 2.0.0.
+
 ## 1. Hai chiều trạng thái
 
 | Field | Giá trị | Chủ thể thay đổi | Ý nghĩa |
@@ -73,7 +75,7 @@ Mỗi revision rule cần mô tả: điều kiện tạo/tái phát, điều ki�
 - Sau một lần phục hồi được chấp nhận, bắt đầu chu kỳ đếm mới cho lần tái phát. Không dùng các event trước ranh giới phục hồi để tự đạt ngưỡng lần sau. Bằng chứng của chu kỳ trước vẫn giữ nguyên trong lịch sử.
 - Với cảnh báo đã đóng, lấy ranh giới phục hồi cuối của cùng revision/group/scope để loại event cũ khi xét tạo lần mới; không dùng closed_at của người dùng làm thời gian phát sinh trên thiết bị.
 - Các log bình thường không gắn với alert chưa đóng không tự tạo alert hoặc sửa cảnh báo đã đóng. Bộ đánh giá vẫn phải xét bằng chứng mới nhất đã biết cho group để tránh dùng một log bất thường trễ đã bị log phục hồi mới hơn phủ định.
-- Không tự closed, force-close, polling hoặc cấu hình thiết bị. Rule có thể khai báo quiet period để RECOVER; không phải mọi rule mặc nhiên hết hạn khi im lặng. Phải ngừng suy luận quiet khi pipeline/time không an toàn.
+- Không tự closed, force-close, polling trạng thái thiết bị hoặc cấu hình thiết bị. Polling database của worker và polling API của frontend không thuộc lệnh cấm polling thiết bị. Rule có thể khai báo quiet period để RECOVER; không phải mọi rule mặc nhiên hết hạn khi im lặng. Phải ngừng suy luận quiet khi pipeline/time không an toàn.
 
 ## 4. Thứ tự thời gian và log đến trễ
 
@@ -204,7 +206,7 @@ Index đề xuất: unique nhóm chưa đóng như mục 5; `(workflow_status, c
 | T23 | Crash giữa state/history/evidence | Rollback hoặc đủ cả ba, retry không nhân đôi. |
 | T24 | Người không có quyền | Không thay đổi; không tin actor/status tự khai. |
 | T25 | Đủ 5 tổ hợp dùng các bộ lọc | Tập id/số đếm đúng, không bỏ RN khỏi chưa xác nhận. |
-| T26 | Rule mới bật khi alert cũ chưa đóng | Recovery/tái phát bản cũ theo revision cũ. |
+| T26 | Rule mới bật khi alert cũ chưa đóng | Nhóm ghim revision cũ đến đóng; revision mới không tạo alert song song cùng rule_key/group/scope. |
 | T27 | Replay/search-only chứa log up/down | Không tác động alert live; replay chủ động chỉ trong scope riêng. |
 | T28 | Xem history của 100 chuyển/hiệu chỉnh | Truy được thứ tự, actor/source, effective/recorded time và evidence thật; no-op không nhân đôi. |
 | T29 | Kết quả kết thúc khác nhau của rule, gồm LinkFlap 004 | Giữ outcome cụ thể, cùng ánh xạ recovered; không ACK/CLOSE hoặc tạo cảnh báo rule khác. |
@@ -237,3 +239,25 @@ Lifecycle nhận kết luận và bằng chứng đã được engine chuẩn b�
 Timer là nguyên nhân riêng với evidence thật, effective_at là deadline điều kiện và recorded_at là lúc hệ thống ghi; không tạo raw giả hoặc ghi lùi thời gian hệ thống. Quiet recovery chỉ hợp lệ nếu rule khai báo và pipeline/mốc chốt an toàn. [003 mục 11/12](../003-rule-dispatch-correlation/engine-design.md) sở hữu hợp đồng và cơ chế thời gian/tính bù.
 
 Log trễ có thể tạo alert phát hiện muộn, đổi outcome hoặc sửa nhận định chưa closed. Hiệu chỉnh có ý nghĩa phải có audit; facts không đổi thì idempotent. Không tự recovered chỉ vì điều kiện phát sinh không còn chứng minh được; điều kiện kết thúc riêng vẫn áp dụng. Chưa có trạng thái hủy: dùng evidence_review_required khi facts chưa đủ; không sửa bản closed hoặc tuyên bố tái dựng chính xác mọi incident quá khứ.
+
+## 12. Tích hợp vận hành và state lạnh
+
+- Hết khoảng yên chỉ hợp lệ nếu coverage đủ theo 003 mục 15. Nếu có khoảng mất quan sát
+  không thể dựng lại, deadline thực tế lấy max(deadline thuật toán, safe_since + quiet_seconds).
+  Audit timer lưu safe_since/coverage và mốc hiệu lực thực; không ghi lùi vào khoảng không an toàn.
+- Recovered chưa closed có thể nằm ngoài cache theo constitution 2.0.0. Trước ghi kết quả,
+  Lifecycle khóa/đọc lại alert hiện hành. Nếu operator đã CLOSE thì bản cũ bất biến;
+  bằng chứng chu kỳ mới đủ điều kiện tạo id mới, giữ ranh giới còn hợp lệ.
+- Revision owner: tìm alert chưa đóng cùng rule_key/scope/group, ghim revision đó.
+  Revision đang bật không chạy song song cho nhóm đã ghim. Sau đóng mới xét owner mới
+  với mốc activated_at và ranh giới phục hồi hợp lệ, không copy buffer trigger cũ.
+  Đổi group_by không chuyển nóng; công bố bị chặn khi còn nhóm chưa đóng cần mapping.
+- Giao diện đọc snapshot/lịch sử và thao tác ACK/CLOSE theo [005](../005-monitoring-integration/integration-design.md);
+  polling không tạo thêm history và không thay quyền ghi của Lifecycle.
+
+| Mã | Tình huống | Kết quả |
+|---|---|---|
+| T36 | Mất quan sát 30–100, cuối transition 20, quiet 60 | Không recover ở 80; nếu healthy từ 100 thì sớm nhất effective 160 khi coverage đủ |
+| T37 | Recovered evict, operator CLOSE, log mới hoặc timer cũ | Đọc DB, giữ closed; timer cũ không sửa bản cũ |
+| T38 | Recovered evict, đủ ngưỡng tái phát trước CLOSE | Nạp lại, giữ id/ACK và revision cũ |
+| T39 | Bật revision mới khi nhóm còn alert cũ | Không tạo đôi; chỉ nhóm chưa bị ghim mới dùng revision bật |

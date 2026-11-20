@@ -12,7 +12,7 @@
 
 **Cập nhật module**: [003-rule-dispatch-correlation](../003-rule-dispatch-correlation/spec.md) làm rõ cấu hình/logic, đăng ký nhiều rule, state theo đối tượng và checkpoint. Bảng rules giữ snapshot công bố; file cấu hình là nguồn biên soạn bản đầu, không phải hai nguồn chỉnh sửa song song. Có thêm thực thể trạng thái nhóm bền vững, không có bảng riêng cho từng loại rule.
 
-**Updated**: 2026-11-19 — bổ sung kết quả rule, audit timer/correction, chờ 3 giây và checkpoint phục vụ tính bù/dọn cache; giữ nguyên số bảng.
+**Updated**: 2026-11-20 — thống nhất dữ liệu interface, trạng thái lỗi/thử lại và bảo toàn state sau eviction; tích hợp feature 005.
 
 **Input**: User description: "Thiết kế chi tiết từng bảng cho hệ thống thu thập và phân tích syslog từ router, switch, firewall; giải thích vai trò từng thành phần. Lưu cả syslog thô và dữ liệu chuẩn hóa, hỗ trợ Cisco, Juniper và mở rộng nhiều hãng."
 
@@ -80,6 +80,20 @@ Người vận hành muốn tiếp tục xử lý sau gián đoạn và không m
 4. **Given** thiết bị, luật hoặc sự kiện đang được dùng làm bằng chứng, **When** yêu cầu xóa, **Then** không xóa ngầm lịch sử liên quan.
 5. **Given** tệp lịch sử chỉ để tra cứu có timestamp trùng log trực tiếp, **When** luồng trực tiếp xét luật, **Then** không dùng các sự kiện trong tệp làm bằng chứng hoặc làm tăng ngưỡng đếm.
 
+### User Story 5 - Thống nhất dữ liệu và tiếp tục sau lỗi (Priority: P1)
+
+Người vận hành muốn kết quả có thể tiếp tục và kiểm chứng được khi các module trao đổi dữ liệu hoặc gặp gián đoạn.
+
+**Why this priority**: Thiếu hợp đồng vận hành có thể làm bỏ việc hoặc thay đổi kết luận cảnh báo.
+
+**Independent Test**: Dùng hai mẫu hãng, một field cũ, lỗi retry và nhóm recovered cold-load.
+
+**Acceptance Scenarios**:
+
+1. **Given** cùng hiện tượng từ hai hãng, **When** chuẩn hóa, **Then** có cùng trường/trạng thái/lớp hoặc lý do chưa đủ căn cứ.
+2. **Given** sự kiện failed được đưa lại chờ có audit, **When** thử lại, **Then** giữ ID/raw và không nhân đôi bằng chứng.
+3. **Given** nhóm recovered bị thu hồi, **When** nạp lại, **Then** giữ đúng cảnh báo và xác nhận hiện hành.
+
 ### Edge Cases
 
 - Thiếu năm/múi giờ: giữ chuỗi gốc; chỉ suy ra khi có ngữ cảnh rõ ràng, không tự lấy năm hiện tại cho tệp lịch sử.
@@ -92,6 +106,10 @@ Người vận hành muốn tiếp tục xử lý sau gián đoạn và không m
 - Tệp lịch sử mặc định chỉ để tra cứu. Khi chủ động đánh giá lịch sử, phải tách khỏi luồng trực tiếp và các đợt nhập khác.
 - Byte không giải mã được và đầu vào chỉ gồm dữ liệu đã xử lý: giữ đúng đầu vào đã nhận, không tự tuyên bố có log gốc thiết bị nếu nguồn không cung cấp.
 - Lưu bền vững không bảo đảm nhận đủ log từ thiết bị: mất gói trước điểm lưu là rủi ro của bước thu thập.
+
+- Tên trường trạng thái khác nhau giữa nguồn và projection; không có căn cứ lớp vật lý/giao thức.
+- Lỗi tạm retry và lỗi logic failed phải được chọn lại có kiểm soát, không mắc kẹt hoặc coi là đã xử lý.
+- Cache recovered bị thu hồi rồi người giám sát CLOSE trước khi có log mới; cold-load phải đọc snapshot hiện hành.
 
 ## Requirements *(mandatory)*
 
@@ -122,6 +140,13 @@ Người vận hành muốn tiếp tục xử lý sau gián đoạn và không m
 - **FR-022**: Checkpoint MUST khôi phục quan sát/baseline và lịch đánh giá, không chỉ N mốc; dọn RAM MUST không xóa raw/checkpoint và phải cho phép cold-load/tính bù an toàn.
 - **FR-023**: Hiệu chỉnh có ý nghĩa MUST được audit cùng kết quả/checkpoint, kể cả trạng thái không đổi; cảnh báo closed và lịch sử cũ không bị sửa ngầm.
 
+- **FR-024**: Cùng loại sự kiện interface MUST có tên trường, kiểu, trạng thái và lớp tín hiệu thống nhất giữa các hãng; giá trị không biết MUST không được suy đoán để đủ điều kiện rule.
+- **FR-025**: Sự kiện lỗi MUST phân biệt lỗi tạm chưa hoàn tất với lỗi cần khắc phục; đưa lại chờ xét MUST có dấu vết, giữ định danh và không nhân đôi kết quả.
+- **FR-026**: Thu hồi state đã phục hồi nhưng chưa đóng MUST không xóa dữ liệu cần nạp lại hoặc thay đổi định danh/xác nhận; bằng chứng và ranh giới chu kỳ vẫn được bảo vệ.
+- **FR-027**: Mốc kích hoạt phiên bản rule và lịch sử đưa lại sự kiện lỗi MUST được lưu đủ để truy vết, không tự thay phiên bản đánh giá trong một lượt thử lại.
+
+- **FR-028**: Sức khỏe và workset pipeline MUST có định danh thành phần/ngữ cảnh, freshness, căn cứ quan sát và tiến độ bền vững riêng với syslog; ghi heartbeat không được làm mất receipt chưa hoàn tất.
+
 ### Key Entities *(include if feature involves data)*
 
 - **Thiết bị**: Định danh ổn định, tên, hostname cấu hình, hãng, loại, hệ điều hành, địa chỉ quản trị chính và trạng thái sử dụng; không lưu thông tin đăng nhập.
@@ -131,6 +156,8 @@ Người vận hành muốn tiếp tục xử lý sau gián đoạn và không m
 - **Liên kết cảnh báo–sự kiện**: Ghi sự kiện nào góp vào cảnh báo nào, vai trò phát sinh/phục hồi và thời điểm liên kết; mỗi cặp kèm vai trò duy nhất.
 - **Lịch sử trạng thái**: Ghi thứ tự thay đổi, trước/sau, chủ thể và bằng chứng theo feature 002; bổ sung vào năm thực thể nền.
 - **Checkpoint trạng thái nhóm**: Phiên bản thuật toán và trạng thái đếm/nhận định cần khôi phục theo feature 003; tách khỏi lịch sử và xác nhận người giám sát.
+
+- **Sức khỏe pipeline và work receipt**: Trạng thái thành phần/đoạn quan sát cùng tập công việc chưa hoàn tất; bảng chung bổ sung cho hợp đồng 005 và worker 003.
 
 ## Success Criteria *(mandatory)*
 
@@ -147,10 +174,13 @@ Người vận hành muốn tiếp tục xử lý sau gián đoạn và không m
 - **SC-008**: Bộ mẫu timer/correction của 002/003 giữ đúng outcome, mốc hiệu lực và thời gian ghi; timer không tạo raw giả, lặp facts không tăng audit revision.
 - **SC-009**: Với state bị evict và log trễ sau đó, 100% case khôi phục chung ở 003 và rule LinkFlap ở 004 khôi phục đúng baseline/bằng chứng, không đếm đôi hoặc xóa dữ liệu bền vững.
 
+- **SC-010**: Bộ mẫu interface hai hãng, giá trị cũ được ánh xạ và trường thiếu/sai lớp cho đúng 100% kết quả chuẩn hóa hoặc lý do không đủ điều kiện, theo hợp đồng 005.
+- **SC-011**: Trong bộ thử lỗi tạm, lỗi logic, đưa lại chờ xét và cold-load cảnh báo recovered chưa đóng, 100% giữ định danh/bằng chứng, health/receipt và không nhân đôi kết quả.
+
 ## Assumptions
 
 - Đây là bản đề xuất từ cuộc trao đổi, chưa được phê duyệt; không lấy mã nguồn/hợp đồng triển khai cũ làm nguồn yêu cầu.
-- Người dùng là người giám sát và vận hành lab. Tài khoản, phân quyền chi tiết, giao diện và triển khai bộ xử lý nằm ngoài lần thiết kế dữ liệu này.
+- Người dùng là người giám sát và vận hành lab. Hợp đồng danh tính/giao diện thuộc [005](../005-monitoring-integration/spec.md); vòng đời và engine tiếp tục ở 002/003.
 - Giả định một sự kiện được tham gia nhiều cảnh báo; mỗi cảnh báo do một phiên bản luật tạo ra. Chưa có thực thể sự cố độc lập.
 - Lần đầu ưu tiên điều kiện bằng nhau kết hợp, đếm trong khoảng thời gian và gom theo thuộc tính xác định được. Luật chuỗi, nguyên nhân gốc và sửa toàn bộ bằng chứng lịch sử là bước sau.
 - Cảnh báo chưa đóng tiếp tục được theo dõi; phục hồi theo syslog chưa đồng nghĩa đóng. Hết cửa sổ đếm không tự kết luận phục hồi; quy tắc đầy đủ nằm ở feature 002.

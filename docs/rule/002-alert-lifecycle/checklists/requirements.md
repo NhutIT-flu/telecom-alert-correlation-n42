@@ -34,7 +34,8 @@
 
 ## Notes
 
-- Đã chuyển điều kiện đếm/kết thúc, timing và outcome riêng của LinkFlap sang 004; giữ nguyên hai chiều trạng thái, 5 tổ hợp/8 cạnh và hợp đồng audit chung.
-- FR-027/SC-008 và T29 nay kiểm chứng ánh xạ outcome rule vào vòng đời; không định nghĩa lại thuật toán LinkFlap.
-- Rà soát 16/16 mục chất lượng; cấu trúc/liên kết/các ca chung được đối chiếu sau tách.
-- Đây là kiểm tra tài liệu; chưa có triển khai hoặc test tích hợp. Sẵn sàng lập kế hoạch cùng 001/003 và rule 004.
+- Review 2026-11-20: 6 stories, 34 FR, 10 SC; 5 tổ hợp/8 cạnh giữ nguyên. T01–T39 bổ sung coverage, recovered cold-load và owner revision.
+- FR-032–034 ↔ US6, SC-010, T36–39 và C39–46 của 003. T26 cập nhật một owner xuyên revision.
+- Lệnh cấm polling đã ghi rõ là polling trạng thái thiết bị; không cấm worker đọc DB hoặc frontend đọc API.
+- Mất quan sát không tính như quiet; cold-load không ghi đè CLOSE, bản closed bất biến. Danh tính/quyền và refresh thuộc 005.
+- Chưa triển khai/test ứng dụng; các tình huống T là tiêu chí cho bước kế hoạch.

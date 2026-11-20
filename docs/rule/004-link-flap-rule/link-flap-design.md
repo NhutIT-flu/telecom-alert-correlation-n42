@@ -1,6 +1,6 @@
 # Thiết kế chi tiết rule LinkFlap
 
-Ngày: 2026-11-19. Trạng thái: đề xuất; tách nội dung chuyên biệt từ feature 003, không thay điều kiện đã thảo luận. [Đặc tả nghiệp vụ](spec.md).
+Ngày: 2026-11-20. Trạng thái: đề xuất; bổ sung coverage, history context, owner revision và eviction recovered theo constitution 2.0.0. [Đặc tả nghiệp vụ](spec.md).
 
 ## 1. Phạm vi và ranh giới sở hữu
 
@@ -104,7 +104,7 @@ Quan sát vùng RAM khoảng 60+3 giây cộng baseline là vùng làm việc, k
 
 ### 3.4. Kết thúc theo thời gian
 
-Nếu last_transition_at=20, rule đặt next_check_at=80 theo thời gian nguồn. Engine gọi on_time khi watermark>=80; trong ví dụ đồng hồ đồng bộ, không backlog, khoảng xử lý sớm là giây 83. Rule không cộng thêm 3 giây lần nữa.
+Khi coverage liên tục đủ, nếu last_transition_at=20, rule đặt next_check_at=80 theo thời gian nguồn. Engine gọi on_time khi watermark>=80; trong ví dụ đồng hồ đồng bộ, không backlog, khoảng xử lý sớm là giây 83. Rule không cộng thêm 3 giây lần nữa.
 
 Engine áp dụng mọi event đã đủ chốt tại mốc đó trước timer. Một chuyển mới đúng giây 80 làm dời hạn, không tạo RECOVER thoáng qua rồi ACTIVATE. Công việc hẹn state cũ bị bỏ bằng kiểm tra checkpoint/cache generation.
 
@@ -168,11 +168,11 @@ Hợp đồng và cơ chế gọi chỉ được định nghĩa tại 003 mục 
 | evaluate | Xử lý mục 3; log lặp vẫn cập nhật/xét; log trễ dựng lại vùng mục 4 qua engine |
 | on_time | Khi watermark đủ deadline, quiet 60 giây và dữ liệu an toàn: RECOVER với outcome UP/DOWN nếu có episode active |
 | prune_state | Bỏ mốc hết hạn khi không còn cần cho ngưỡng/tính bù; giữ baseline/đường nạp lại, ranh giới và chứng cứ |
-| can_evict_state | Chỉ đề nghị khi không còn transition hợp lệ/công việc thuật toán cần giữ nóng; engine kiểm tra thêm mọi guard chung |
+| can_evict_state | Chỉ đề nghị khi không còn dữ liệu cần giữ nóng; recovered chưa closed có thể cold-load, active giữ nóng; engine áp mọi guard |
 
-Còn 4 transition hợp lệ thì giữ; count<5 không là lý do xóa. Chỉ tích lũy dưới ngưỡng rồi hết hạn thì không sinh RECOVER. Entry có cảnh báo chưa đóng, kể cả recovered, chưa được evict toàn bộ ở bản đầu. Prune không đổi tín hiệu.
+Còn 4 transition hợp lệ thì giữ; count<5 không là lý do xóa. Chỉ tích lũy dưới ngưỡng rồi hết hạn thì không sinh RECOVER. Entry có cảnh báo active giữ nóng. Recovered chưa closed được evict nếu next_check_at=NULL và đầy đủ guard/cold-load theo 003 mục 18. Prune không đổi tín hiệu.
 
-Điều kiện cuối do CleanupManager 003 kiểm tra: không pending/in-flight, không cảnh báo chưa đóng, đủ idle, checkpoint sạch/an toàn và generation còn đúng. Lỗi lưu hoặc cập nhật mới hủy thu hồi. Chỉ bỏ RAM, không xóa events/checkpoint/history; khôi phục không cộng lại observations đã có.
+Điều kiện cuối do CleanupManager 003 kiểm tra: không pending/in-flight/cảnh báo active, đủ idle, checkpoint sạch/an toàn và generation còn đúng. Lỗi lưu hoặc cập nhật mới hủy thu hồi. Chỉ bỏ RAM, không xóa events/checkpoint/history; khôi phục không cộng lại observations đã có.
 
 Chu kỳ dọn 5 giây và idle 60 giây lấy từ mặc định đề xuất của engine, không phải tham số đếm/kết thúc LinkFlap. Hết hạn transition dùng watermark nguồn; idle dùng clock đơn điệu. Log lặp không kéo dài tuổi transition nhưng có thể giữ cache nóng. Timer phục hồi không chờ đến lượt dọn.
 
@@ -236,7 +236,63 @@ RAM không nhân với 3.600 giây khi state có giới hạn. CPU/tổng ghi t�
 | LF18 | Transition đúng deadline và backlog có event mới hơn deadline | Dùng lịch chung 003: tại cùng mốc event trước timer; timer cũ hơn event chạy trước, giữ đủ lịch sử. |
 | LF19 | Pipeline/time không an toàn, timestamp trùng mâu thuẫn | Diagnostic, không suy thứ tự nhận hoặc quiet recovery. |
 | LF20 | Cùng ID thử lại, restore, timer lặp, correction bản closed | Không nhân đôi; bản closed bất biến; diagnostic theo 002/003. |
+| LF21 | Field cũ state và interface_layer thiếu/sai | Theo adapter 005; đủ căn cứ mới đếm, không đoán physical |
+| LF22 | Gap 30–100, last transition20, quiet60 | Không recover80; safe_since100 thì effective sớm nhất160 |
+| LF23 | Chỉ worker restart, dữ liệu/coverage liên tục đủ | Dựng lại đúng thứ tự, không tự tạo gap hoặc đếm đôi |
+| LF24 | Recovered evict rồi tái phát/CLOSE | Giữ id/ACK nếu chưa đóng; bản closed bất biến |
+| LF25 | Revision mới bật khi state cũ cold | Resolver tìm owner cũ từ DB, không mở alert revision mới song song |
+| LF26 | Yêu cầu lịch sử thiếu/lặp/vượt hạn mức | NEEDS_HISTORY hữu hạn; INCOMPLETE giữ kết quả trước, không count=0 |
+
 
 Các ca này được chuyển/tách từ bộ C của 003; kiểm chứng chung về giao dịch, handler, fan-out, lịch và quyền sở hữu vẫn ở 003. Đây là yêu cầu cho test triển khai, chưa chạy trên ứng dụng.
 
 SC-001 ↔ LF01–04; SC-002 ↔ khóa/field mục 2 và ca nhóm C của 003; SC-003 ↔ LF07–10, LF16–17, LF19–20; SC-004 ↔ LF11–13, LF18–19; SC-005 ↔ LF06, LF13–15, LF20; SC-006–008 ↔ LF05, mục 6 và phép đo đầy đủ của 003. Các mục SC-007 là mục tiêu đề xuất, không phải số đo.
+
+## 8. Binding vận hành của LinkFlap
+
+### 8.1. Projection và state payload v1
+
+Đầu vào theo [005 mục 2](../005-monitoring-integration/integration-design.md):
+interface_name là string chuẩn, interface_state là UP/DOWN, interface_layer là physical/protocol.
+Bản mẫu chỉ đếm physical. Không tự đổi alias hoặc cộng LINEPROTO vào LINK.
+
+State handler v1 gồm:
+
+- phase: unknown/tracking/flapping/recovered, là giai đoạn thuật toán, không phải workflow.
+- baseline: NULL hoặc observation có event_id, event_time, interface_state và lớp.
+- observations: chuỗi đã chốt cần cho dựng lại, gồm log lặp; mỗi phần tử cùng shape baseline.
+- threshold_transitions: tối đa min_transitions phần tử (event_id,event_time,from_state,to_state);
+  các quan sát trước/sau chứng minh cạnh phải còn hoặc nạp lại được.
+- last_observation và last_transition (nullable khi chưa có); giữ tham chiếu log thật.
+- episode_boundary: mốc phục hồi còn hợp lệ và history version tham chiếu nếu có.
+- last_outcome: NULL/flap_stopped_up/flap_stopped_down; không chứa ACK/CLOSE như nguồn chuẩn.
+
+Envelope engine/coverage và cột next_check_at theo 003 mục 14; schema kiểm tra thứ tự,
+ID, lớp, UTC và size. Bộ đệm N không là tổng transition count chính xác.
+
+### 8.2. History policy
+
+Horizon hiện tại W=60 giây, lookback thêm W trước điểm kết luận bị ảnh hưởng và một
+baseline trước đoạn; phải có episode boundaries và coverage của đoạn dựng lại.
+Log trước vùng sống có thể thay baseline nên không loại chỉ dựa timestamp.
+Engine nhận history_request, nạp observations theo group/lớp/scope và trả HistoryContext.
+Tối đa vòng/số quan sát/query timeout theo 003; không đủ thì INCOMPLETE, giữ kết quả
+đã commit, diagnostic correction_incomplete và chặn quiet liên quan cho tới khi giải quyết.
+
+### 8.3. Deadline có coverage
+
+Khi safe_since đã biết, deadline=max(last_transition_at+60, safe_since+60).
+Nếu coverage liên tục đủ từ trước last_transition, ví dụ20→80 vẫn giữ nguyên.
+Gap30–100 không dựng lại được: safe_since=100, deadline=160; tại160 mọi event đủ chốt
+được xét trước timer, khoảng ghi sớm ~163 trong ví dụ chuẩn. safe_since unknown:
+không RECOVER, wake theo thay đổi health/input thay vì lặp timer quá hạn liên tục.
+Health healthy không chứng minh UDP không mất gói; outcome vẫn là hết flap theo log đã nhận.
+
+### 8.4. Owner và eviction
+
+Nhóm recovered chưa closed có thể evict khi không còn dữ liệu cần giữ nóng, deadline NULL,
+không pending/in-flight, checkpoint/baseline/ranh giới đủ và idle/generation đúng.
+Nạp lại phải tìm alert owner theo rule_key trong DB trước khi xét; cache cũ không ghi đè CLOSE.
+Bật revision mới không tạo buffer mới song song cho nhóm còn alert cũ.
+Khi owner chuyển sau closed, chỉ tính transition sau cả mốc kích hoạt revision mới và
+ranh giới phục hồi hợp lệ; baseline trước ranh giới không tự tính một lần chuyển.

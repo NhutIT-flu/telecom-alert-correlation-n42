@@ -34,13 +34,9 @@
 
 ## Notes
 
-- Nguồn chuẩn LinkFlap được tách sang feature 004; không tạo lại engine hoặc thay điều kiện đã thống nhất.
-- Rà soát 16/16 mục chất lượng: 4 user stories, 28 FR, 8 SC; 20 ca LF và các ca chung của engine 003.
-- FR-001–008 ↔ US1, mục 2/3 thiết kế, LF01–04 và nhóm C08 của 003. FR-009–013 ↔ US2, LF07–10/16–17/19; FR-014–021 ↔ US3, LF11–13/18–20 và vòng đời 002.
-- FR-022–026 ↔ US4, LF05–06/14–15/20 và chính sách chung 003; FR-027–028 ↔ mục 1/2/5 thiết kế và các ca registry/handler/transaction của 003.
-- Ngưỡng 5 lần chuyển/60 giây, đệm 3 giây, quiet 60 giây và hai outcome UP/DOWN được giữ. Phân biệt rõ tham số rule với mặc định dọn/idle và mục tiêu độ trễ chưa phê duyệt.
-- Tối ưu 5 mốc không là toàn state; quan sát lặp, baseline, lookback, timestamp mâu thuẫn, correction bản chưa đóng/closed và restore sau eviction đều có mô tả/ca kiểm chứng.
-- Đã kiểm tra 12 tài liệu thuộc 4 feature: cấu trúc/mã yêu cầu và ca, 42 liên kết nội bộ, 30 bảng Markdown, 3 JSON mẫu, feature.json và nguồn sở hữu đều hợp lệ; không còn placeholder trong đặc tả. Các phép tính ví dụ ngưỡng, biên, chèn trễ, baseline/lookback và tải đã được đối chiếu độc lập; đây không phải test ứng dụng.
-- Không có extensions.yml trước/sau đặc tả nên không có hook cần chạy; constitution vẫn là template. Không tạo nhánh hoặc thay constitution.
-- Chưa triển khai/chạy test ứng dụng, tải 1 giờ hoặc đo RAM/CPU đầy đủ. Các ca LF/C/T là tiêu chí cho bước sau, không phải kết quả ứng dụng.
-- Sẵn sàng speckit-plan trên 004, dùng các hợp đồng 001/002/003; chưa cần speckit-clarify cho việc tách tài liệu.
+- Review 2026-11-20: 5 stories, 32 FR, 9 SC; LF01–LF26. Giữ ngưỡng 5 chuyển/(T-60,T], đệm3 và quiet60 với outcome UP/DOWN.
+- FR-029–032 ↔ US5, SC-009, LF21–26: canonical field, coverage sau gap, history request và owner/cold-load.
+- Deadline20→80 chỉ áp dụng khi coverage đủ; gap30–100 thì safe_since100, deadline160. Không cộng reorder delay hai lần.
+- Recovered chưa closed có thể evict khi deadline NULL/đủ guard; active giữ nóng theo constitution 2.0.0. Không đổi ACK/CLOSE hoặc tạo LinkDown.
+- State payload v1, baseline/observations và trigger buffer N tách rõ; history giới hạn không suy count=0 khi thiếu.
+- Chưa triển khai/chạy LF trên ứng dụng hoặc đo RAM/CPU; mô phỏng N3 cũ vẫn chỉ là tham khảo phần nhỏ.
