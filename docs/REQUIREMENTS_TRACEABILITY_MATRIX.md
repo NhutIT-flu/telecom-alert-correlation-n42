@@ -109,14 +109,22 @@ Local FR15/AC05 → TC-RUL008–011: bounded schema/severity, enabled field cont
 Local FR15/AC05 → TC-RUL012: startup dùng loader thật, valid→state catalog, invalid→startup fail; BE3; QA acceptance pending.
 
 
-## Implementation amendment N42-16 — 13/11/2026
+## Implementation amendment N42-16 — 13/11/2026 (Cập nhật xử lý Review 22/11/2026)
 
-Local FR-06/AC-07 → TC-DB-001–004: Đã hoàn thiện thiết kế DDL TimescaleDB (`docker/init-db.sql`), thiết lập Hypertable phân vùng theo `event_timestamp` với chunk interval 1 ngày (`INTERVAL '1 day'`) theo Quyết định D-02. Hoàn thiện hệ thống chỉ mục B-tree (`idx_alerts_ts_sev`, `idx_alerts_host_ts`, `idx_alerts_ts_host_sev`, `idx_alerts_vendor_ts`), lược đồ sự cố M6 (`incidents`, `incident_events` với `ON DELETE CASCADE`), đề xuất chính sách Compression (7 ngày) và Retention (30 ngày Lab / 90 ngày Prod) tại `docs/N42-16_DESIGN.md`.
+Local FR-06/AC-07 → TC-DB-001–005: Đã hoàn thiện thiết kế DDL TimescaleDB (`docker/init-db.sql`), thiết lập Hypertable phân vùng theo `event_timestamp` với chunk interval 1 ngày (`INTERVAL '1 day'`) theo Quyết định D-02. Hoàn thiện hệ thống chỉ mục B-tree (`idx_alerts_ts_sev`, `idx_alerts_host_ts`, `idx_alerts_ts_host_sev`, `idx_alerts_vendor_ts`), lược đồ sự cố M6 (`incidents`, `incident_events` với `ON DELETE CASCADE`), đề xuất chính sách Compression (7 ngày) và Retention (30 ngày Lab / 90 ngày Prod) tại `docs/N42-16_DESIGN.md`.
 
-Bộ kiểm thử tự động `tests/test_database_schema.py` (11 checks) xác thực 100% đạt chuẩn:
+Đã xử lý toàn bộ 4 nội dung theo yêu cầu rà soát (Request Changes) của Technical Lead:
+1. **Gỡ bỏ Retention & Compression khỏi bootstrap:** Toàn bộ lệnh `add_retention_policy` và `add_compression_policy` đã được chuyển thành comment tài liệu mẫu trong `docker/init-db.sql`, đảm bảo DB bootstrap không tự ý kích hoạt tác vụ xóa dữ liệu.
+2. **Chốt Locator bản ghi và thống nhất với N42-62:** Xác nhận khóa chính `(id, event_timestamp)` tuân thủ tuyệt đối quy tắc phân vùng TimescaleDB (bắt buộc cột phân vùng trong PK). Cung cấp phương án truy vấn single ID tận dụng leading column của PK và đồng bộ hoàn toàn với cursor pagination của N42-62.
+3. **Bổ sung bằng chứng nghiệm thu:** Bổ sung ca kiểm thử tự động TC-DB-005 xác thực EXPLAIN query plan và đối soát dữ liệu locator.
+4. **Giải quyết triệt để conflict:** Hoàn tất rebase trên nhánh `main`, cây thư mục sạch sẽ.
+
+Bộ kiểm thử tự động `tests/test_database_schema.py` (12 checks) xác thực 100% đạt chuẩn:
 - **TC-DB-001**: Khóa chính composite `(id, event_timestamp)` và ràng buộc Unique.
 - **TC-DB-002**: Ràng buộc `NOT NULL` trên toàn bộ các trường bắt buộc (`event_timestamp`, `source_ip`, `hostname`, `severity`, `facility`, `vendor`, `message`, `raw_payload`).
 - **TC-DB-003**: Ràng buộc `CHECK` giá trị miền (`facility` 0–23, `severity` 0–7, `status` sự cố) và kiểm chứng Query Plan tận dụng B-tree index.
 - **TC-DB-004**: Tính toàn vẹn tham chiếu khóa ngoại và cơ chế `ON DELETE CASCADE` tự động thu dọn liên kết sự cố mà vẫn bảo toàn cảnh báo gốc.
+- **TC-DB-005**: Kiểm chứng chiến lược định vị bản ghi (Locator Strategy), đối soát dữ liệu và EXPLAIN Query Plan (Point lookup & Leading column B-tree).
+- **Kiểm tra an toàn DDL**: Xác thực không chứa lệnh `add_retention_policy` hoặc `add_compression_policy` kích hoạt chủ động trong bootstrap.
 Owner: BE2 (Phạm Tấn Thành); QA/TL nghiệm thu và kết nối DB runtime tại N42-30.
 

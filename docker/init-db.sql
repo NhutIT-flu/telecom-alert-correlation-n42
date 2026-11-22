@@ -132,23 +132,24 @@ COMMENT ON TABLE incident_events IS 'Bảng liên kết các cảnh báo thành 
 -- ============================================================
 -- 8. ĐỀ XUẤT CHÍNH SÁCH NÉN DỮ LIỆU & LƯU TRỮ (Chờ phê duyệt)
 -- ============================================================
--- Trạng thái: ĐỀ XUẤT CHỜ DUYỆT (PROPOSED - PENDING APPROVAL)
+-- Trạng thái: ĐỀ XUẤT CHỜ DUYỆT (PROPOSED - PENDING FORMAL APPROVAL)
 -- Căn cứ: docs/N42-16_DESIGN.md, DATA_AND_API_DESIGN.md Mục 2
 --
--- 8.1. Bật tính năng nén TimescaleDB Native Compression cho hypertable alert_events
--- Phân đoạn theo hostname và vendor, sắp xếp theo thời gian để đạt tỷ lệ nén tối ưu (ước tính giảm 70-85% dung lượng đĩa)
-ALTER TABLE alert_events SET (
-    timescaledb.compress,
-    timescaledb.compress_segmentby = 'hostname, vendor',
-    timescaledb.compress_orderby = 'event_timestamp DESC'
-);
-
--- 8.2. Lập lịch chính sách nén tự động sau 7 ngày (7-day chunk compression)
--- Giữ 7 ngày gần nhất ở dạng dữ liệu thô (hot data) phục vụ truy vấn thời gian thực tốc độ cao,
--- các chunk cũ hơn 7 ngày (warm data) sẽ tự động nén để tiết kiệm tài nguyên lưu trữ.
-SELECT add_compression_policy('alert_events', INTERVAL '7 days', if_not_exists => TRUE);
-
--- 8.3. Lập lịch chính sách lưu trữ (Data Retention Policy)
--- Đề xuất chu kỳ lưu trữ: 30 ngày cho môi trường kiểm thử/Lab và 90 ngày cho môi trường Production.
--- Tự động loại bỏ (drop) các chunk dữ liệu vượt quá ngưỡng thời gian đã cấu hình.
-SELECT add_retention_policy('alert_events', INTERVAL '30 days', if_not_exists => TRUE);
+-- LƯU Ý BẢO MẬT & AN TOÀN DỮ LIỆU (Review N42-16 ngày 22/11/2026):
+-- Tuyệt đối KHÔNG kích hoạt tự động các lệnh nén và xóa retention trong quá trình khởi tạo (bootstrap) CSDL.
+-- Các câu lệnh dưới đây được lưu lại dưới dạng template tham chiếu để Quản trị viên hệ thống (DBA)
+-- kích hoạt bằng kịch bản di chuyển (migration script) sau khi đã có văn bản phê duyệt chính thức
+-- về thời hạn lưu trữ và thử nghiệm phục hồi dữ liệu thành công.
+--
+-- 8.1. Đề xuất bật tính năng nén TimescaleDB Native Compression cho hypertable alert_events:
+-- ALTER TABLE alert_events SET (
+--     timescaledb.compress,
+--     timescaledb.compress_segmentby = 'hostname, vendor',
+--     timescaledb.compress_orderby = 'event_timestamp DESC'
+-- );
+--
+-- 8.2. Đề xuất lập lịch chính sách nén tự động sau 7 ngày (7-day chunk compression):
+-- SELECT add_compression_policy('alert_events', INTERVAL '7 days', if_not_exists => TRUE);
+--
+-- 8.3. Đề xuất lập lịch chính sách lưu trữ (Data Retention Policy - Đề xuất 30 ngày Lab / 90 ngày Prod):
+-- SELECT add_retention_policy('alert_events', INTERVAL '30 days', if_not_exists => TRUE);

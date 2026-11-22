@@ -48,6 +48,30 @@ Toàn bộ kịch bản DDL được đóng gói trong tệp [`docker/init-db.sq
 | `parse_error` | `VARCHAR(50)` | `NULL` | Mã lỗi nếu rơi vào trường hợp fallback |
 | `schema_version` | `VARCHAR(10)` | `DEFAULT '1.0'` | Phiên bản cấu trúc schema |
 
+#### 2.1.1. Luận chứng Kỹ thuật về Khóa chính và Bộ định vị bản ghi (Record Locator Strategy)
+Để giải quyết dứt điểm phản biện review về việc sử dụng `(id, event_timestamp)` thay vì `id + received_at`:
+
+1. **Ràng buộc bất biến của kiến trúc TimescaleDB (Invariance Rule):**
+   - Theo Quyết định **D-02**, bảng `alert_events` bắt buộc phải là một Hypertable phân vùng theo thời gian thực của sự kiện (`event_timestamp`) với chu kỳ chunk 1 ngày (`INTERVAL '1 day'`).
+   - Theo đặc tả động cơ TimescaleDB / PostgreSQL: Mọi ràng buộc `PRIMARY KEY` hoặc `UNIQUE` trên một Hypertable **bắt buộc phải bao gồm cột phân vùng thời gian** (`partitioning column`).
+   - Nếu áp dụng khóa chính `(id, received_at)` trong khi phân vùng theo `event_timestamp`, TimescaleDB sẽ từ chối tạo Hypertable với lỗi: `ERROR: cannot create a unique index without the column "event_timestamp" (used in partitioning)`. Do đó, `PRIMARY KEY (id, event_timestamp)` là phương án kỹ thuật hợp lệ duy nhất.
+
+2. **Ý nghĩa nghiệp vụ viễn thông & Phân tích nguyên nhân gốc (RCA M6):**
+   - Cảnh báo mạng viễn thông gắn liền với thời điểm vật lý xuất hiện sự cố trên phần cứng (`event_timestamp`). Đây là mốc thời gian khách quan để xác định chuỗi nhân quả (causality) giữa các cảnh báo (ví dụ Router báo Link Down lúc $T_0$, kéo theo hàng loạt BGP Neighbor Down tại $T_0 + 50ms$).
+   - `received_at` chỉ là mốc nhận tin tại cổng Ingest, bị phụ thuộc vào độ trễ đường truyền mạng và độ sâu hàng đợi, có thể bị đến muộn hoặc xáo trộn (out-of-order), không thể đại diện cho danh tính vật lý của sự kiện.
+
+3. **Chiến lược Định vị bản ghi (Locator) & Hiệu năng EXPLAIN:**
+   - **Tuple Locator `(id, event_timestamp)`:**
+     - Kịch bản API tối ưu: `GET /api/v1/events/{id}?event_timestamp={ts}`.
+     - TimescaleDB thực thi cơ chế **Chunk Pruning**: Bỏ qua toàn bộ các chunk không liên quan, định tuyến thẳng tới duy nhất 1 chunk chứa `event_timestamp`, sau đó thực hiện B-tree lookup trên `pk_alert_events`.
+     - Kế hoạch truy vấn: `Index Scan using pk_alert_events on _hyper_1_chunk (cost=0.15..8.17 rows=1)`.
+   - **Single ID Locator `id`:**
+     - Kịch bản API RESTful chuẩn: `GET /api/v1/events/{id}`.
+     - Vì `id` là **cột dẫn đầu (leading column)** trong chỉ mục B-tree tổ hợp `pk_alert_events (id, event_timestamp)`, hệ thống PostgreSQL thực hiện quét trực tiếp trên chỉ mục khóa chính tại các chunk mà **hoàn toàn không cần quét toàn bảng (Full Table Scan / Seq Scan)**.
+   - **Đồng bộ với hợp đồng N42-62:**
+     - Ticket N42-62 thiết kế cursor phân trang ổn định dựa trên cặp `(event_timestamp, id)`.
+     - Lược đồ DDL và cấu trúc khóa chính `(id, event_timestamp)` đồng bộ 100% với định dạng con trỏ cursor của API N42-62.
+
 ### 2.2. Bảng `incidents` (Module M6)
 - Lưu vết các sự cố mạng sau khi chạy thuật toán tương quan gom nhóm và phân tích nguyên nhân gốc (RCA).
 - Bao gồm các trường: `id`, `incident_name`, `rule_key`, `hostname`, `root_cause_type`, `root_cause_alert_id`, `severity` (0-7), `status` (`OPEN`, `INVESTIGATING`, `RESOLVED`, `CLOSED`), `first_seen`, `last_seen`, `event_count`, `summary`, `evidence` (JSONB).
@@ -95,41 +119,50 @@ Toàn bộ kịch bản DDL được đóng gói trong tệp [`docker/init-db.sq
 - **Khuyến nghị:** `chunk_time_interval => INTERVAL '1 day'`.
 - **Cơ sở kỹ thuật:** Mỗi chunk chứa dữ liệu của 1 ngày ($\approx 25\text{ GB}$), hoàn toàn nằm gọn trong bộ nhớ đệm (RAM) của server, giúp tối ưu hóa bộ nhớ đệm index B-tree và tránh hiện tượng thrashing đĩa cứng.
 
-### 4.3. Đề xuất Chính sách Nén (TimescaleDB Native Compression)
-- **Cấu hình:**
+### 4.3. Đề xuất Chính sách Nén (TimescaleDB Native Compression - Chờ duyệt)
+- **Trạng thái:** ĐỀ XUẤT CHỜ DUYỆT (Đã gỡ khỏi bootstrap DDL theo review ngày 22/11/2026).
+- **Cấu hình mẫu tham chiếu:**
   ```sql
-  ALTER TABLE alert_events SET (
-      timescaledb.compress,
-      timescaledb.compress_segmentby = 'hostname, vendor',
-      timescaledb.compress_orderby = 'event_timestamp DESC'
-  );
-  SELECT add_compression_policy('alert_events', INTERVAL '7 days', if_not_exists => TRUE);
+  -- Lệnh áp dụng thủ công khi đưa vào vận hành:
+  -- ALTER TABLE alert_events SET (
+  --     timescaledb.compress,
+  --     timescaledb.compress_segmentby = 'hostname, vendor',
+  --     timescaledb.compress_orderby = 'event_timestamp DESC'
+  -- );
+  -- SELECT add_compression_policy('alert_events', INTERVAL '7 days', if_not_exists => TRUE);
   ```
-- **Lợi ích:**
-  - Dữ liệu trong vòng 7 ngày gần nhất (**Hot Data**) được giữ nguyên ở dạng không nén, đảm bảo hiệu năng ghi $1.000\text{ msg/s}$ và truy vấn thời gian thực có độ trễ thấp nhất.
+- **Lợi ích dự kiến:**
+  - Dữ liệu trong vòng 7 ngày gần nhất (**Hot Data**) được giữ nguyên ở dạng không nén, đảm bảo hiệu năng ghi $\ge 1.000\text{ msg/s}$ và truy vấn thời gian thực có độ trễ thấp nhất.
   - Các chunk cũ hơn 7 ngày (**Warm Data**) tự động được nén cột (columnar compression), đạt tỷ lệ nén từ **70% đến 85%**.
   - Dung lượng 1 ngày sau nén chỉ còn $\approx 3,8 - 6,5\text{ GB}$ (tiết kiệm hơn $20\text{ GB/ngày}$).
 
-### 4.4. Đề xuất Chính sách Lưu trữ (Data Retention Policy)
-- **Cấu hình:**
+### 4.4. Đề xuất Chính sách Lưu trữ (Data Retention Policy - Chờ duyệt)
+- **Trạng thái:** ĐỀ XUẤT CHỜ DUYỆT (Đã gỡ khỏi bootstrap DDL theo review ngày 22/11/2026).
+- **Cấu hình mẫu tham chiếu:**
   ```sql
-  SELECT add_retention_policy('alert_events', INTERVAL '30 days', if_not_exists => TRUE);
+  -- Lệnh áp dụng thủ công khi đưa vào vận hành:
+  -- SELECT add_retention_policy('alert_events', INTERVAL '30 days', if_not_exists => TRUE);
   ```
-- **Khuyến nghị áp dụng:**
-  - **Môi trường Lab / Testing:** Thiết lập retention **30 ngày** để giải phóng tài nguyên tự động.
-  - **Môi trường Production (sau nghiệm thu):** Nâng lên **90 ngày** kèm cơ chế sao lưu (backup) định kỳ.
+- **Lưu ý an toàn:**
+  - Tuyệt đối không tự động kích hoạt `add_retention_policy` khi bootstrap container để tránh việc background worker tự động drop chunk dữ liệu lab/test.
+  - Việc kích hoạt sẽ do DBA thực hiện qua migration riêng sau khi có văn bản phê duyệt chính thức (30 ngày cho Lab / 90 ngày cho Production kèm quy trình backup).
 
 ---
 
-## 5. Kết quả Kiểm thử & Nghiệm thu Ngày 4 & Ngày 5 (TC-DB-001..004)
+## 5. Kết quả Kiểm thử & Nghiệm thu (TC-DB-001..005)
 
-Toàn bộ các tiêu chí kiểm thử đã được tự động hóa tại [`tests/test_database_schema.py`](../tests/test_database_schema.py) (11 tests pass 100%):
+Toàn bộ các tiêu chí kiểm thử đã được tự động hóa tại [`tests/test_database_schema.py`](../tests/test_database_schema.py) (12 tests pass 100%):
 
 1. **TC-DB-001 (Primary Key Integrity):** Xác thực khóa chính composite `(id, event_timestamp)` ngăn chặn trùng lặp dữ liệu theo đúng yêu cầu phân vùng của TimescaleDB Hypertable.
 2. **TC-DB-002 (NOT NULL Constraints):** Xác thực bắt buộc đối với các trường trọng yếu (`event_timestamp`, `received_at`, `source_ip`, `hostname`, `facility`, `severity`, `vendor`, `message`, `raw_payload`).
 3. **TC-DB-003 (CHECK Constraints & Index Query Plan):** Kiểm chứng giá trị biên của `facility` (0–23), `severity` (0–7), `incidents.status` ('OPEN', 'INVESTIGATING', 'RESOLVED', 'CLOSED'); EXPLAIN QUERY PLAN chứng minh query engine sử dụng B-tree index `idx_alerts_host_ts`.
 4. **TC-DB-004 (Referential Integrity & Cascade):** Kiểm chứng xóa Incident sẽ kích hoạt `ON DELETE CASCADE` dọn dẹp quan hệ trong `incident_events` mà vẫn bảo toàn 100% các bản ghi sự kiện gốc trong `alert_events`.
-5. **Model Parity:** Kiểm chứng 100% khớp trường giữa Pydantic model `AlertEvent` và cấu trúc DDL PostgreSQL.
-6. **Bảo mật & Chất lượng mã nguồn:** Quét `tools/check_sensitive.py` không rò rỉ credential hay IP thật; Flake8 & Black đạt chuẩn PEP 8.
+5. **TC-DB-005 (Record Locator & EXPLAIN Query Plan):** Kiểm chứng toàn diện chiến lược định vị bản ghi:
+   - Truy vấn locator đầy đủ `(id, event_timestamp)` tối ưu hóa chunk pruning và sử dụng `pk_alert_events`.
+   - Truy vấn single ID `id` (API `GET /api/v1/events/{id}`) tận dụng leading column của B-tree index `pk_alert_events` mà không cần Full Table Scan.
+   - Đối soát dữ liệu (reconciliation) đảm bảo trả về chính xác 1 bản ghi duy nhất, truy vấn sai timestamp trả về rỗng.
+6. **Không kích hoạt Retention/Compression tại Bootstrap:** Khẳng định 100% không có lệnh `add_retention_policy` hoặc `add_compression_policy` nào chạy chủ động trong DDL khởi tạo.
+7. **Model Parity:** Kiểm chứng 100% khớp trường giữa Pydantic model `AlertEvent` và cấu trúc DDL PostgreSQL.
+8. **Bảo mật & Chất lượng mã nguồn:** Quét `tools/check_sensitive.py` không rò rỉ credential hay IP thật; Flake8 & Black đạt chuẩn PEP 8.
 
 

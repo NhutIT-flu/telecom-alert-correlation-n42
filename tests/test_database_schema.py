@@ -192,13 +192,26 @@ def test_index_definitions_exist(init_db_sql: str) -> None:
 
 
 def test_proposed_compression_and_retention_policy(init_db_sql: str) -> None:
-    """Xác nhận đề xuất chính sách Compression (7 ngày) và Retention (30 ngày) có mặt trong DDL."""
+    """Xác nhận đề xuất chính sách Compression và Retention không được kích hoạt tự động trong DDL bootstrap."""
+    # 1. Đề xuất cú pháp mẫu vẫn phải có trong DDL để tham chiếu tài liệu
     assert "timescaledb.compress" in init_db_sql
     assert "timescaledb.compress_segmentby" in init_db_sql
     assert "add_compression_policy" in init_db_sql
     assert "add_retention_policy" in init_db_sql
-    assert re.search(r"add_compression_policy\('alert_events',\s*INTERVAL\s*'7 days'", init_db_sql)
-    assert re.search(r"add_retention_policy\('alert_events',\s*INTERVAL\s*'30 days'", init_db_sql)
+
+    # 2. NGHIÊM NGẶT (Review N42-16 ngày 22/11/2026):
+    # Tuyệt đối KHÔNG có câu lệnh add_retention_policy hoặc add_compression_policy nào được kích hoạt
+    # trong các câu lệnh SQL thực thi (uncommented).
+    active_lines = [
+        line.strip() for line in init_db_sql.splitlines() if line.strip() and not line.strip().startswith("--")
+    ]
+    for line in active_lines:
+        assert (
+            "add_retention_policy" not in line
+        ), f"Lỗi: bootstrap DDL chứa lệnh add_retention_policy chưa được comment: {line}"
+        assert (
+            "add_compression_policy" not in line
+        ), f"Lỗi: bootstrap DDL chứa lệnh add_compression_policy chưa được comment: {line}"
 
 
 def test_model_parity_with_ddl() -> None:
@@ -433,3 +446,97 @@ def test_tc_db_004_cascade_referential_integrity(memory_db: sqlite3.Connection) 
     # 5. Xác nhận alert_events gốc vẫn còn nguyên
     cur = memory_db.execute("SELECT COUNT(*) FROM alert_events WHERE hostname = 'r-agg-02';")
     assert cur.fetchone()[0] == 5, "Sự kiện cảnh báo gốc trong alert_events bị mất sau khi xóa incident"
+
+
+def test_tc_db_005_record_locator_and_explain(memory_db: sqlite3.Connection) -> None:
+    """TC-DB-005: Kiểm chứng chiến lược định vị bản ghi (Locator Strategy) và EXPLAIN Query Plan.
+
+    Thực hiện theo yêu cầu rà soát N42-16 ngày 22/11/2026:
+    - Chứng minh truy vấn định vị theo cặp locator (id, event_timestamp) sử dụng trực tiếp
+      chỉ mục khóa chính pk_alert_events (Point lookup đạt độ phức tạp O(log N)).
+    - Chứng minh truy vấn định vị theo đơn id (GET /api/v1/events/{id}) vẫn tận dụng B-tree index
+      của leading column trong khóa chính composite mà không cần quét toàn bảng (Full Table Scan).
+    - Chứng minh tính xác định (deterministic reconciliation): lấy đúng duy nhất 1 bản ghi mục tiêu.
+    """
+    # 1. Chuẩn bị 10 bản ghi sự kiện với timestamp khác nhau
+    inserted_records = []
+    base_time = 1731600000  # Unix timestamp chuẩn
+    for i in range(10):
+        ev_id = str(uuid.uuid4())
+        ts = datetime.fromtimestamp(base_time + i * 60, timezone.utc).isoformat()
+        rec_time = datetime.fromtimestamp(base_time + i * 60 + 2, timezone.utc).isoformat()
+        memory_db.execute(
+            """
+            INSERT INTO alert_events (
+                id, event_timestamp, received_at, source_ip, hostname,
+                facility, severity, vendor, message, raw_payload
+            ) VALUES (?, ?, ?, '192.0.2.10', 'router-core-vnpt-01', 16, 3, 'cisco', ?, ?);
+            """,
+            (ev_id, ts, rec_time, f"Interface GigabitEthernet0/0/{i} changed state to down", f"<131>Link {i} down"),
+        )
+        inserted_records.append((ev_id, ts, rec_time))
+    memory_db.commit()
+
+    # Chọn bản ghi thứ 5 làm mẫu tra cứu đối soát
+    target_id, target_ts, target_rec = inserted_records[4]
+
+    # 2. Kiểm chứng Truy vấn với Locator đầy đủ: (id, event_timestamp)
+    # Kịch bản API tối ưu cho TimescaleDB Chunk Pruning: GET /api/v1/events/{id}?event_timestamp={ts}
+    explain_full = memory_db.execute(
+        """
+        EXPLAIN QUERY PLAN
+        SELECT * FROM alert_events
+        WHERE id = ? AND event_timestamp = ?;
+        """,
+        (target_id, target_ts),
+    ).fetchall()
+    plan_full_text = " ".join(str(row) for row in explain_full)
+    # Chứng minh sử dụng khóa chính composite (PostgreSQL: pk_alert_events, SQLite: sqlite_autoindex_alert_events_1)
+    assert (
+        "pk_alert_events" in plan_full_text or "sqlite_autoindex_alert_events" in plan_full_text
+    ) and "SCAN TABLE" not in plan_full_text, (
+        f"Truy vấn locator (id, event_timestamp) không dùng index: {plan_full_text}"
+    )
+
+    # Đối soát dữ liệu thực tế
+    cur = memory_db.execute(
+        "SELECT id, event_timestamp, message FROM alert_events WHERE id = ? AND event_timestamp = ?;",
+        (target_id, target_ts),
+    )
+    row = cur.fetchone()
+    assert row is not None, "Không tìm thấy bản ghi theo locator (id, event_timestamp)"
+    assert row[0] == target_id
+    assert row[1] == target_ts
+    assert "Interface GigabitEthernet0/0/4 changed state to down" in row[2]
+
+    # 3. Kiểm chứng Truy vấn với Single ID Locator: (id)
+    # Kịch bản API: GET /api/v1/events/{id}
+    explain_single = memory_db.execute(
+        """
+        EXPLAIN QUERY PLAN
+        SELECT * FROM alert_events
+        WHERE id = ?;
+        """,
+        (target_id,),
+    ).fetchall()
+    plan_single_text = " ".join(str(row) for row in explain_single)
+    # Vì id là cột đứng đầu (leading column) của pk_alert_events (id, event_timestamp),
+    # query engine vẫn dùng index pk_alert_events thay vì SCAN TABLE!
+    assert (
+        "pk_alert_events" in plan_single_text or "sqlite_autoindex_alert_events" in plan_single_text
+    ) and "SCAN TABLE" not in plan_single_text, (
+        f"Truy vấn single id không dùng index leading column: {plan_single_text}"
+    )
+
+    cur = memory_db.execute("SELECT id, event_timestamp FROM alert_events WHERE id = ?;", (target_id,))
+    single_rows = cur.fetchall()
+    assert len(single_rows) == 1, f"Kỳ vọng 1 bản ghi duy nhất, nhận được {len(single_rows)}"
+    assert single_rows[0][0] == target_id
+
+    # 4. Kiểm chứng trường hợp Negative: ID đúng nhưng sai event_timestamp
+    wrong_ts = datetime.fromtimestamp(base_time + 9999, timezone.utc).isoformat()
+    cur = memory_db.execute(
+        "SELECT id FROM alert_events WHERE id = ? AND event_timestamp = ?;",
+        (target_id, wrong_ts),
+    )
+    assert cur.fetchone() is None, "Truy vấn sai timestamp không được trả về dữ liệu"
