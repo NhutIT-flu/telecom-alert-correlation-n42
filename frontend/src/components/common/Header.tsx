@@ -52,7 +52,7 @@ export const Header: React.FC = () => {
               Baseline 03/11/2026
             </span>
           </div>
-          <p className="text-xs text-slate-400">Hệ thống Thu thập & Phân tích Cảnh báo Viễn thông (Module M7)</p>
+          <p className="text-xs text-slate-400">Hệ thống Thu thập & Phân tích Cảnh báo Viễn thông</p>
         </div>
       </div>
 
@@ -70,7 +70,7 @@ export const Header: React.FC = () => {
                 : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
             }`}
           >
-            {backendStatus === 'UP' ? 'ONLINE (GET /api/health)' : backendStatus === 'MOCK' ? 'DEV MOCK (W2–W4)' : 'STANDBY'}
+            {backendStatus === 'UP' ? 'ONLINE (GET /api/health)' : backendStatus === 'MOCK' ? 'DEV MOCK' : 'STANDBY'}
           </span>
         </div>
 

@@ -96,7 +96,7 @@ export const DashboardOverviewPage: React.FC = () => {
             </span>
           </h2>
           <p className="text-sm text-slate-400">
-            Giám sát thời gian thực theo hợp đồng Fixture AlertEvent v0.9 (Thẻ N42-20)
+            Giám sát thời gian thực theo hợp đồng Fixture AlertEvent v0.9
           </p>
         </div>
 
