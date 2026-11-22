@@ -23,4 +23,3 @@ __all__ = [
     "DEFAULT_QUEUE_SIZE",
     "DEFAULT_SO_RCVBUF",
 ]
-

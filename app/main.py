@@ -7,7 +7,8 @@ from typing import Optional
 from fastapi import FastAPI
 
 from app.api.health import router as health_router
-from app.api.ingest import router as ingest_router
+from app.api.ingest import ingest_queue, router as ingest_router
+from app.receiver.file_tailer import FileTailer, FileTailerConfig
 from app.receiver.server import (
     DEFAULT_UDP_HOST,
     DEFAULT_UDP_PORT,
@@ -36,9 +37,28 @@ async def lifespan(application: FastAPI):
         await receiver.start()
         application.state.syslog_receiver = receiver
 
+    # Tích hợp File Watcher / Tailer vào vòng đời ứng dụng (DoD N42-22)
+    file_tailer: Optional[FileTailer] = None
+    enable_tailer = os.getenv("N42_ENABLE_FILE_TAILER", "false").lower() in ("true", "1", "yes")
+    tailer_path = os.getenv("N42_FILE_TAILER_PATH")
+
+    if enable_tailer and tailer_path:
+        lab_dir = os.getenv("N42_LAB_LOGS_DIR")
+        config = FileTailerConfig(
+            file_path=tailer_path,
+            allowed_dir=lab_dir,
+            poll_interval=float(os.getenv("N42_FILE_TAILER_POLL_INTERVAL", "0.1")),
+            from_beginning=os.getenv("N42_FILE_TAILER_FROM_BEGINNING", "false").lower() in ("true", "1", "yes"),
+        )
+        file_tailer = FileTailer(config=config, queue=ingest_queue)
+        await file_tailer.start()
+        application.state.file_tailer = file_tailer
+
     try:
         yield
     finally:
+        if file_tailer and file_tailer.is_running:
+            await file_tailer.stop()
         if receiver and receiver.is_running:
             await receiver.stop()
 

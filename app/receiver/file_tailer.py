@@ -6,6 +6,7 @@ và đóng gói thành RawEvent nạp vào hàng đợi bất đồng bộ.
 Truy vết: FR-03, AC-01/07, TC-ING-011..013, TC-SEC-006.
 """
 
+import asyncio
 from dataclasses import dataclass
 from datetime import datetime, timezone
 import logging
@@ -88,6 +89,7 @@ class FileTailer:
         self._line_buffer: bytes = b""
         self._is_running: bool = False
         self._file_id: Optional[Tuple[int, int]] = None  # (inode/dev hoặc stat snapshot)
+        self._task: Optional[asyncio.Task] = None
 
     @property
     def is_running(self) -> bool:
@@ -285,3 +287,39 @@ class FileTailer:
                 return []
 
         return self._read_lines_from_handle()
+
+    async def start(self) -> None:
+        """Khởi động tác vụ nền theo dõi tệp (File Tailer Background Task)."""
+        if self._is_running:
+            return
+        self._is_running = True
+        self._task = asyncio.create_task(self._run_loop())
+        logger.info("FileTailer background task started for %s", self.config.file_path)
+
+    async def stop(self) -> None:
+        """Dừng tác vụ nền và giải phóng tài nguyên (Graceful Shutdown)."""
+        if not self._is_running:
+            return
+        self._is_running = False
+        if self._task and not self._task.done():
+            self._task.cancel()
+            try:
+                await self._task
+            except asyncio.CancelledError:
+                pass
+        self._task = None
+        self.close()
+        logger.info("FileTailer background task stopped for %s", self.config.file_path)
+
+    async def _run_loop(self) -> None:
+        """Vòng lặp đọc tệp bất đồng bộ kèm cơ chế thử lại (Retry Loop)."""
+        while self._is_running:
+            try:
+                self.read_available()
+            except Exception as err:
+                logger.warning("Error in FileTailer loop for %s: %s", self.config.file_path, err)
+
+            try:
+                await asyncio.sleep(self.config.poll_interval)
+            except asyncio.CancelledError:
+                break
