@@ -1,6 +1,7 @@
 """Execute the Jenkins test shell against real, isolated unittest/pytest failures."""
 
 import os
+import json
 from pathlib import Path
 import re
 import shlex
@@ -86,3 +87,51 @@ class JenkinsTestReports(unittest.TestCase):
         self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
         junit = self.assert_reports(reports, 1, 2)
         self.assertTrue(junit.findall(".//error"))
+
+
+@unittest.skipUnless(sys.platform.startswith("linux") and shutil.which("bash"), "Requires CI Linux/bash")
+class SonarReleaseVersionTests(unittest.TestCase):
+    def test_repeated_builds_keep_release_version_and_distinct_build_identity(self):
+        source = (ROOT / "Jenkinsfile").read_text(encoding="utf-8")
+        stage = source.split("stage('SonarQube Analysis')", 1)[1].split("stage('Quality Gate')", 1)[0]
+        shell = re.search(r"sh '''(.*?)'''", stage, re.DOTALL).group(1)
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "reports").mkdir()
+            (root / "reports/coverage.xml").write_text("<coverage/>", encoding="utf-8")
+            (root / "sonar-project.properties").write_text(
+                (ROOT / "sonar-project.properties").read_text(encoding="utf-8"), encoding="utf-8"
+            )
+            scanner = root / "scanner/bin/sonar-scanner"
+            scanner.parent.mkdir(parents=True)
+            scanner.write_text(
+                f"#!{sys.executable}\n"
+                "import json,sys\n"
+                "from pathlib import Path\n"
+                "properties = dict(line.split('=',1) for line in "
+                "Path('sonar-project.properties').read_text().splitlines() if line.startswith('sonar.project'))\n"
+                "properties.update(arg[2:].split('=',1) for arg in sys.argv[1:] if arg.startswith('-D'))\n"
+                "print(json.dumps(properties))\n",
+                encoding="utf-8",
+            )
+            scanner.chmod(0o755)
+            records = []
+            for number in (7, 8):
+                env = dict(
+                    os.environ,
+                    SCANNER_HOME=str(root / "scanner"),
+                    CI_SONAR_PROJECT="n42-telecom-alert-ci-validation",
+                    CI_COMMIT="a" * 40,
+                    BUILD_NUMBER=str(number),
+                    BUILD_URL=f"http://localhost:8000/job/review/{number}/",
+                )
+                result = subprocess.run(
+                    ["bash", "-c", shell], cwd=root, env=env, capture_output=True, text=True, timeout=10
+                )
+                self.assertEqual(result.returncode, 0, result.stderr)
+                records.append(json.loads(result.stdout))
+        self.assertEqual(records[0]["sonar.projectVersion"], "0.1.0")
+        self.assertEqual(records[1]["sonar.projectVersion"], records[0]["sonar.projectVersion"])
+        self.assertNotEqual(records[0]["sonar.buildString"], records[1]["sonar.buildString"])
+        self.assertEqual(records[0]["sonar.scm.revision"], "a" * 40)
+        self.assertEqual(records[0]["sonar.projectKey"], "n42-telecom-alert-ci-validation")
