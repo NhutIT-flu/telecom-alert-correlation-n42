@@ -7,6 +7,7 @@ from typing import Optional
 from fastapi import FastAPI
 
 from app.api.health import router as health_router
+from app.api.ingest import router as ingest_router
 from app.receiver.server import (
     DEFAULT_UDP_HOST,
     DEFAULT_UDP_PORT,
@@ -50,3 +51,4 @@ app = FastAPI(
 )
 
 app.include_router(health_router, prefix="/api", tags=["Health"])
+app.include_router(ingest_router, prefix="/api")
