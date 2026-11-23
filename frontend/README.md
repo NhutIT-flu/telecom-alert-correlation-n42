@@ -174,8 +174,8 @@ export interface AlertEvent {
 
 Tệp `src/services/fixtureAdapter.ts` cung cấp tầng truy xuất dữ liệu mẫu phục vụ kiểm thử giao diện:
 1. **Nạp đa kịch bản:** Hỗ trợ 3 chế độ (`success`, `empty`, `error`) kèm độ trễ mạng giả lập `delayMs` để quan sát hiệu ứng tải.
-2. **Khử trùng lặp (`mergeEvents`):** Đảm bảo tính toán toàn vẹn khi retry, không sinh ra dòng trùng lặp dựa trên Event UUID.
-3. **Tính toán KPI (`calculateKpis`):** Tự động tính 4 thẻ KPI dựa trên dữ liệu sự kiện thực tế trong fixture, không suy diễn số liệu ảo.
+2. **Cập nhật snapshot toàn vẹn:** Khi nạp lại hoặc thử lại (retry), thay thế toàn bộ danh sách bằng snapshot vừa nạp, hiển thị chính xác trạng thái rỗng (Empty State) khi fixture không có bản ghi mà không giữ lại snapshot cũ.
+3. **Tính toán KPI (`calculateKpis`):** Chỉ hiển thị chỉ số có nguồn xác thực từ dữ liệu mẫu (`totalEvents`), tuyệt đối không tự suy diễn hay gán cứng số liệu; hiển thị ký tự gạch ngang `—` cho số sự cố mở và tốc độ bản tin khi chưa kết nối backend/luồng thực tế.
 
 ---
 
@@ -185,10 +185,10 @@ Mở trình duyệt tại `http://localhost:5173` và kiểm tra theo các bư�
 
 | Mã kiểm thử | Thao tác trên giao diện | Kết quả mong đợi | Trạng thái |
 |:---|:---|:---|:---:|
-| **AC 1 / TC-UI-001** | Chọn chế độ **Hợp lệ v1.0** | 4 thẻ KPI hiển thị chính xác (Tổng sự kiện: 5, Sự cố mở: 1, Tốc độ: 10 msg/s, Trạng thái: HEALTHY). Bảng hiển thị 5 sự kiện với đầy đủ nhãn chữ và icon mức độ nghiêm trọng (RFC 5424). | ✅ PASS |
+| **AC 1 / TC-UI-001** | Chọn chế độ **Hợp lệ v1.0** | 4 thẻ KPI hiển thị chính xác: Tổng sự kiện: 5, Sự cố mở: —, Tốc độ: —, Trạng thái: HEALTHY. Nhãn tiêu đề hiển thị `Dữ liệu mẫu`. Bảng hiển thị 5 sự kiện với đầy đủ nhãn chữ và icon mức độ nghiêm trọng (RFC 5424). | ✅ PASS |
 | **AC 2 (Empty)** | Bấm nút **Dữ liệu rỗng** | Giao diện hiển thị Empty State chuyên biệt với biểu tượng thư mục rỗng và nút nạp lại. | ✅ PASS |
 | **AC 2 (Error)** | Bấm nút **Giả lập lỗi** | Giao diện hiển thị Error State màu đỏ với thông báo lỗi rõ ràng và nút **Thử lại kết nối (Retry)**. | ✅ PASS |
-| **AC 2 (Retry deduplication)** | Bấm nút **Tải lại** nhiều lần | Dữ liệu được nạp lại mượt mà, tổng số dòng vẫn giữ nguyên là 5, **hoàn toàn không bị nhân bản dòng trùng lặp**. | ✅ PASS |
+| **AC 2 (Retry snapshot)** | Bấm nút **Tải lại** hoặc **Thử lại kết nối** | Dữ liệu được nạp lại theo đúng snapshot chế độ hiện tại; khi chuyển sang dữ liệu rỗng và retry, giao diện hiển thị ngay Empty State mà không lưu giữ dữ liệu cũ. | ✅ PASS |
 | **TC-UI-006 (A11y)** | Dùng phím `Tab` di chuyển vào dòng bảng, bấm `Enter` hoặc `Space` | Dòng mở rộng (Detail Panel) hiển thị chi tiết các trường chuẩn hóa và hộp bản tin thô `raw_payload`. Bấm lại `Enter`/`Space` để đóng. | ✅ PASS |
 
 ---

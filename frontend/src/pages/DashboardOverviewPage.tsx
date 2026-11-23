@@ -26,14 +26,15 @@ export const DashboardOverviewPage: React.FC = () => {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [fixtureMode, setFixtureMode] = useState<FixtureMode>('success');
 
-  // Tải lại dữ liệu thủ công / Thử lại khi lỗi (AC 2: Retry không nhân bản dòng)
-  const handleReload = async (isRetry: boolean = false) => {
+  // Tải lại / Thử lại: luôn thay toàn bộ danh sách bằng snapshot mới (AC 2).
+  // Không merge với dữ liệu cũ — đảm bảo khi retry trả rỗng, bảng hiển thị đúng trạng thái rỗng.
+  const handleReload = async () => {
     setLoading(true);
     setError(null);
 
     try {
       const data = await fixtureAdapter.getEvents({ mode: fixtureMode, delayMs: 400 });
-      setEvents((prev) => (isRetry ? fixtureAdapter.mergeEvents(prev, data) : data));
+      setEvents(data);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Lỗi không xác định khi nạp dữ liệu.';
       setError(msg);
@@ -90,12 +91,12 @@ export const DashboardOverviewPage: React.FC = () => {
         <div>
           <h2 className="text-xl font-bold text-white flex items-center space-x-2">
             <span>Dòng thời gian cảnh báo mạng viễn thông</span>
-            <span className="inline-flex items-center text-xs font-normal px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-              <Radio className="w-3 h-3 mr-1 animate-pulse" /> Live Stream
+            <span className="inline-flex items-center text-xs font-normal px-2 py-0.5 rounded bg-slate-700/50 text-slate-400 border border-slate-600/40">
+              <Radio className="w-3 h-3 mr-1" /> Dữ liệu mẫu
             </span>
           </h2>
           <p className="text-sm text-slate-400">
-            Giám sát thời gian thực theo hợp đồng Fixture AlertEvent v0.9 (Thẻ N42-20)
+            Giám sát thời gian thực theo hợp đồng Fixture AlertEvent v0.9
           </p>
         </div>
 
@@ -133,10 +134,10 @@ export const DashboardOverviewPage: React.FC = () => {
             Giả lập lỗi
           </button>
           <button
-            onClick={() => handleReload(true)}
+            onClick={() => handleReload()}
             disabled={loading}
             className="flex items-center space-x-1 px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 ml-2 transition"
-            title="Tải lại / Thử lại (Không nhân bản dòng)"
+            title="Tải lại / Thử lại (Thay toàn bộ bằng snapshot mới)"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
             <span>Tải lại</span>
@@ -157,13 +158,31 @@ export const DashboardOverviewPage: React.FC = () => {
         </div>
 
         {/* KPI 2: Sự cố đang mở */}
-        <div className="p-4 rounded-xl bg-slate-900 border border-red-500/30">
-          <div className="flex items-center justify-between text-red-400 mb-2">
+        <div
+          className={`p-4 rounded-xl bg-slate-900 border ${
+            kpi.openIncidents !== null && kpi.openIncidents > 0
+              ? 'border-red-500/30'
+              : 'border-slate-800'
+          }`}
+        >
+          <div
+            className={`flex items-center justify-between ${
+              kpi.openIncidents !== null && kpi.openIncidents > 0
+                ? 'text-red-400'
+                : 'text-slate-400'
+            } mb-2`}
+          >
             <span className="text-xs font-semibold uppercase tracking-wider">Sự cố đang mở</span>
             <Layers className="w-5 h-5" />
           </div>
-          <div className="text-2xl font-bold font-mono text-white">{kpi.openIncidents}</div>
-          <div className="text-xs text-slate-400 mt-1">Cụm tương quan gom nhóm mức cao</div>
+          <div className="text-2xl font-bold font-mono text-white">
+            {kpi.openIncidents !== null ? kpi.openIncidents : '—'}
+          </div>
+          <div className="text-xs text-slate-400 mt-1">
+            {kpi.openIncidents !== null
+              ? 'Cụm tương quan gom nhóm mức cao'
+              : 'Cần kết nối API tương quan (N42-34)'}
+          </div>
         </div>
 
         {/* KPI 3: Tốc độ bản tin */}
@@ -173,10 +192,20 @@ export const DashboardOverviewPage: React.FC = () => {
             <Gauge className="w-5 h-5" />
           </div>
           <div className="text-2xl font-bold font-mono text-white">
-            <span>{kpi.ingestRate}</span>
-            <span className="text-xs font-normal text-slate-400 ml-1">msg/s</span>
+            {kpi.ingestRate !== null ? (
+              <>
+                <span>{kpi.ingestRate}</span>
+                <span className="text-xs font-normal text-slate-400 ml-1">msg/s</span>
+              </>
+            ) : (
+              '—'
+            )}
           </div>
-          <div className="text-xs text-slate-400 mt-1">Tải danh định W13: 1.000 msg/s</div>
+          <div className="text-xs text-slate-400 mt-1">
+            {kpi.ingestRate !== null
+              ? 'Tải danh định W13: 1.000 msg/s'
+              : 'Cần luồng dữ liệu thời gian thực (N42-34)'}
+          </div>
         </div>
 
         {/* KPI 4: Trạng thái hệ thống */}
@@ -246,7 +275,7 @@ export const DashboardOverviewPage: React.FC = () => {
               <p className="text-xs text-red-400/90 mt-1 max-w-md mx-auto">{error}</p>
             </div>
             <button
-              onClick={() => handleReload(true)}
+              onClick={() => handleReload()}
               className="inline-flex items-center space-x-2 px-4 py-2 rounded-lg bg-red-600/20 text-red-300 border border-red-500/30 hover:bg-red-600/30 text-xs font-medium transition"
             >
               <RefreshCw className="w-3.5 h-3.5" />

@@ -10,8 +10,10 @@ export interface FixtureAdapterOptions {
 
 export interface KpiSummary {
   totalEvents: number;
-  openIncidents: number;
-  ingestRate: number;
+  /** null = không có nguồn dữ liệu thực, hiển thị "—" trên UI */
+  openIncidents: number | null;
+  /** null = không có nguồn dữ liệu thực, hiển thị "—" trên UI */
+  ingestRate: number | null;
   systemStatus: 'HEALTHY' | 'DEGRADED' | 'STANDBY';
 }
 
@@ -38,30 +40,17 @@ export const fixtureAdapter = {
   },
 
   /**
-   * Chống nhân bản dòng (Deduplication theo id) khi retry - Tiêu chuẩn AC 2
-   */
-  mergeEvents(existing: AlertEvent[], incoming: AlertEvent[]): AlertEvent[] {
-    const map = new Map<string, AlertEvent>();
-    existing.forEach((e) => map.set(e.id, e));
-    incoming.forEach((e) => map.set(e.id, e));
-
-    return Array.from(map.values()).sort(
-      (a, b) => new Date(b.event_timestamp).getTime() - new Date(a.event_timestamp).getTime()
-    );
-  },
-
-  /**
-   * Tính toán 4 thẻ KPI theo chuẩn TC-UI-001
+   * Tính toán 4 thẻ KPI theo chuẩn TC-UI-001.
+   *
+   * - openIncidents: null vì fixture không cung cấp trạng thái tương quan thực — hiển thị "—".
+   * - ingestRate:    null vì fixture không đo tốc độ ghi theo thời gian thực — hiển thị "—".
+   * - Chỉ totalEvents và systemStatus có nguồn dữ liệu xác định từ fixture.
    */
   calculateKpis(events: AlertEvent[], isHealthy: boolean = true): KpiSummary {
-    const totalEvents = events.length;
-    const hasCritical = events.some((e) => e.severity <= 2);
-    const openIncidents = hasCritical ? 1 : 0;
-
     return {
-      totalEvents,
-      openIncidents,
-      ingestRate: totalEvents > 0 ? 10 : 0,
+      totalEvents: events.length,
+      openIncidents: null,
+      ingestRate: null,
       systemStatus: isHealthy ? 'HEALTHY' : 'DEGRADED',
     };
   },

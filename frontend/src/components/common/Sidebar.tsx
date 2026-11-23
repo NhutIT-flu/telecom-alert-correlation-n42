@@ -35,7 +35,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentTab, onSelectTab }) => 
     <aside className="w-64 border-r border-slate-800 bg-slate-900/50 flex flex-col justify-between p-4">
       <div>
         <div className="px-3 mb-4 text-[11px] font-semibold tracking-wider text-slate-500 uppercase">
-          Mục điều hành M7
+          Mục điều hành
         </div>
         <nav className="space-y-1">
           {menuItems.map((item) => {
