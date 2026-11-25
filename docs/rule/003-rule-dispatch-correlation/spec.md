@@ -307,6 +307,7 @@ Người vận hành muốn kết quả có thể tiếp tục và kiểm chứn
 ## Assumptions
 
 - Đây là thiết kế đề xuất cho giám sát qua syslog, chưa triển khai/kiểm chuẩn; không cấu hình hoặc khắc phục thiết bị.
+- Đợt prototype đầu chỉ triển khai rule nghiệp vụ LinkFlap 004; các ví dụ nhiều rule kiểm chứng hợp đồng mở rộng, không là danh sách rule phải triển khai ngay. Sáu lựa chọn phạm vi/đầu vào/lỗi/cấu hình trong thảo luận đã được ghi tại [006](../006-correlation-input-contract/spec.md) và thiết kế engine để trình leader duyệt.
 - Một Dispatcher logic và một worker tương quan tách khỏi xử lý yêu cầu giao diện; không tạo bộ riêng theo hãng/interface/rule.
 - Người phát triển quản lý logic và file cấu hình phiên bản; người giám sát chỉ xem rule và dùng quyền vòng đời. Chưa có giao diện sửa rule.
 - Khoảng chờ sắp thứ tự 3 giây là lựa chọn hiện tại ở engine, áp một lần. Ngưỡng, cửa sổ, horizon, outcome và điều kiện kết thúc LinkFlap chuyển sang [feature 004](../004-link-flap-rule/spec.md).

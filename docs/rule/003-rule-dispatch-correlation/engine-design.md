@@ -12,6 +12,8 @@ Ngày: 2026-11-20. Cập nhật vận hành worker, coverage, retry, owner revis
 
 Một Dispatcher logic, một worker tương quan, một bộ lập lịch và một CleanupManager chung thực thi ban đầu. Dispatcher, Registry và các handler là module trong cùng worker, không phải mỗi thành phần một service. Worker tách khỏi FastAPI; tăng số tiến trình phục vụ HTTP không tự tạo thêm bộ tương quan sở hữu cùng state. Không thêm Redis/Kafka hoặc tiến trình/timer riêng cho từng interface.
 
+**Phạm vi prototype đã chọn trong thảo luận:** rule nghiệp vụ đầu tiên là LinkFlap 004; kiến trúc vẫn hỗ trợ nhiều handler, nhưng các rule khác chưa nằm trong đợt triển khai đầu. Cấu hình do nhóm phát triển công bố theo phiên bản, người giám sát chỉ xem. Log quá đệm 3 giây được tính bù trong vùng ảnh hưởng có căn cứ của LinkFlap; ngoài vùng ghi diagnostic. Lỗi handler/checkpoint nghiêm trọng dừng tiến độ và giữ việc chưa hoàn tất. Hợp đồng đầu vào và quyết định bảo thủ về log thiếu căn cứ ở [006](../006-correlation-input-contract/spec.md), đang chờ leader duyệt.
+
 ## 2. Luồng và trách nhiệm
 
 ```mermaid
