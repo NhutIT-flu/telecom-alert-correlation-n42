@@ -51,7 +51,8 @@ const ALL_SEVERITIES = [0, 1, 2, 3, 4, 5, 6, 7];
  * Đáp ứng các yêu cầu thẻ N42-28 & Đặc tả Sprint 2:
  * - AC 1: Lọc kết hợp đa tiêu chí (Thời gian, Thiết bị, Hãng, Mức độ, Từ khóa)
  * - AC 2: Báo lỗi inline khi thời gian đảo chiều (startTime > endTime)
- * - Chuẩn hóa màu sắc NOC Dark Theme và tương thích A11y
+ * - A11y: Đầy đủ id/htmlFor, role, aria-label, aria-pressed, keyboard focus
+ * - Chuẩn hóa màu sắc NOC Dark Theme, loại bỏ thông tin đánh dấu nội bộ
  */
 export const AlertFilterPanel: React.FC<AlertFilterPanelProps> = ({
   criteria,
@@ -99,7 +100,9 @@ export const AlertFilterPanel: React.FC<AlertFilterPanelProps> = ({
   };
 
   return (
-    <div
+    <section
+      role="region"
+      aria-label="Bộ lọc cảnh báo đa chiều"
       className={`rounded-xl border border-slate-800 bg-slate-900/80 backdrop-blur-sm shadow-xl transition-all ${className}`}
     >
       {/* Tiêu đề & Thanh trạng thái thu gọn */}
@@ -109,11 +112,8 @@ export const AlertFilterPanel: React.FC<AlertFilterPanelProps> = ({
             <Filter className="w-4 h-4" />
           </div>
           <div>
-            <h3 className="text-sm font-semibold text-white tracking-wide flex items-center gap-2">
+            <h3 className="text-sm font-semibold text-white tracking-wide">
               Bộ lọc cảnh báo đa chiều
-              <span className="text-[11px] font-normal text-slate-400 font-mono">
-                (N42-28)
-              </span>
             </h3>
             <p className="text-xs text-slate-400">
               Lọc theo thời gian UTC, thiết bị, hãng, mức độ RFC 5424 và nội dung
@@ -135,6 +135,8 @@ export const AlertFilterPanel: React.FC<AlertFilterPanelProps> = ({
           <button
             type="button"
             onClick={() => setIsExpanded(!isExpanded)}
+            aria-expanded={isExpanded}
+            aria-label={isExpanded ? 'Thu gọn bộ lọc' : 'Mở rộng bộ lọc'}
             className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition"
             title={isExpanded ? 'Thu gọn bộ lọc' : 'Mở rộng bộ lọc'}
           >
@@ -152,7 +154,11 @@ export const AlertFilterPanel: React.FC<AlertFilterPanelProps> = ({
         <div className="p-5 space-y-4">
           {/* Cảnh báo lỗi inline khi thời gian đảo chiều (AC 2) */}
           {!validation.isValid && (
-            <div className="flex items-center space-x-2 p-3 rounded-lg bg-red-950/40 border border-red-500/40 text-red-300 text-xs animate-shake">
+            <div
+              role="alert"
+              aria-live="assertive"
+              className="flex items-center space-x-2 p-3 rounded-lg bg-red-950/40 border border-red-500/40 text-red-300 text-xs animate-shake"
+            >
               <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />
               <span>{validation.errorMessage}</span>
             </div>
@@ -161,17 +167,22 @@ export const AlertFilterPanel: React.FC<AlertFilterPanelProps> = ({
           {/* Hàng 1: Khoảng thời gian & Preset */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <label className="text-xs font-medium text-slate-300 flex items-center space-x-1.5">
+              <span className="text-xs font-medium text-slate-300 flex items-center space-x-1.5">
                 <Clock className="w-3.5 h-3.5 text-cyan-400" />
                 <span>Khoảng thời gian (UTC)</span>
-              </label>
+              </span>
 
               {/* Các nút chọn nhanh Preset */}
-              <div className="flex items-center space-x-1 bg-slate-950/60 p-0.5 rounded-lg border border-slate-800 text-[11px]">
+              <div
+                role="group"
+                aria-label="Chọn nhanh khoảng thời gian"
+                className="flex items-center space-x-1 bg-slate-950/60 p-0.5 rounded-lg border border-slate-800 text-[11px]"
+              >
                 {PRESET_OPTIONS.map((p) => (
                   <button
                     key={p.id}
                     type="button"
+                    aria-pressed={activePreset === p.id}
                     onClick={() => handlePresetSelect(p.id)}
                     className={`px-2 py-0.5 rounded transition font-medium ${
                       activePreset === p.id
@@ -187,10 +198,14 @@ export const AlertFilterPanel: React.FC<AlertFilterPanelProps> = ({
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div>
-                <label className="block text-[11px] text-slate-400 mb-1 flex items-center gap-1">
+                <label
+                  htmlFor="filter-start-time"
+                  className="block text-[11px] text-slate-400 mb-1 flex items-center gap-1"
+                >
                   <Calendar className="w-3 h-3" /> Từ thời điểm (Start UTC)
                 </label>
                 <input
+                  id="filter-start-time"
                   type="text"
                   placeholder="YYYY-MM-DDTHH:mm:ssZ"
                   value={criteria.startTime || ''}
@@ -207,10 +222,14 @@ export const AlertFilterPanel: React.FC<AlertFilterPanelProps> = ({
               </div>
 
               <div>
-                <label className="block text-[11px] text-slate-400 mb-1 flex items-center gap-1">
+                <label
+                  htmlFor="filter-end-time"
+                  className="block text-[11px] text-slate-400 mb-1 flex items-center gap-1"
+                >
                   <Calendar className="w-3 h-3" /> Đến thời điểm (End UTC)
                 </label>
                 <input
+                  id="filter-end-time"
                   type="text"
                   placeholder="YYYY-MM-DDTHH:mm:ssZ"
                   value={criteria.endTime || ''}
@@ -232,11 +251,15 @@ export const AlertFilterPanel: React.FC<AlertFilterPanelProps> = ({
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             {/* Hostname */}
             <div>
-              <label className="block text-xs font-medium text-slate-300 mb-1 flex items-center space-x-1.5">
+              <label
+                htmlFor="filter-hostname"
+                className="block text-xs font-medium text-slate-300 mb-1 flex items-center space-x-1.5"
+              >
                 <Server className="w-3.5 h-3.5 text-cyan-400" />
                 <span>Thiết bị (Hostname)</span>
               </label>
               <input
+                id="filter-hostname"
                 type="text"
                 placeholder="Ví dụ: R1-CORE, SW-DIST..."
                 value={criteria.hostname || ''}
@@ -249,11 +272,15 @@ export const AlertFilterPanel: React.FC<AlertFilterPanelProps> = ({
 
             {/* Vendor */}
             <div>
-              <label className="block text-xs font-medium text-slate-300 mb-1 flex items-center space-x-1.5">
+              <label
+                htmlFor="filter-vendor"
+                className="block text-xs font-medium text-slate-300 mb-1 flex items-center space-x-1.5"
+              >
                 <Layers className="w-3.5 h-3.5 text-cyan-400" />
                 <span>Nhà sản xuất (Vendor)</span>
               </label>
               <select
+                id="filter-vendor"
                 value={criteria.vendor || ''}
                 onChange={(e) =>
                   onChange({ ...criteria, vendor: e.target.value })
@@ -270,11 +297,15 @@ export const AlertFilterPanel: React.FC<AlertFilterPanelProps> = ({
 
             {/* Query */}
             <div>
-              <label className="block text-xs font-medium text-slate-300 mb-1 flex items-center space-x-1.5">
+              <label
+                htmlFor="filter-query"
+                className="block text-xs font-medium text-slate-300 mb-1 flex items-center space-x-1.5"
+              >
                 <Search className="w-3.5 h-3.5 text-cyan-400" />
                 <span>Tìm kiếm nội dung (Query)</span>
               </label>
               <input
+                id="filter-query"
                 type="text"
                 placeholder="Từ khóa thông báo, IP, program..."
                 value={criteria.searchQuery || ''}
@@ -289,10 +320,10 @@ export const AlertFilterPanel: React.FC<AlertFilterPanelProps> = ({
           {/* Hàng 3: Dải chip chọn Severity (RFC 5424) */}
           <div className="space-y-1.5 pt-1">
             <div className="flex items-center justify-between">
-              <label className="text-xs font-medium text-slate-300 flex items-center space-x-1.5">
+              <span className="text-xs font-medium text-slate-300 flex items-center space-x-1.5">
                 <AlertCircle className="w-3.5 h-3.5 text-cyan-400" />
                 <span>Mức độ nghiêm trọng (RFC 5424 Severity)</span>
-              </label>
+              </span>
               <button
                 type="button"
                 onClick={handleSelectAllSeverities}
@@ -304,7 +335,11 @@ export const AlertFilterPanel: React.FC<AlertFilterPanelProps> = ({
               </button>
             </div>
 
-            <div className="flex flex-wrap gap-1.5">
+            <div
+              role="group"
+              aria-label="Danh sách mức độ nghiêm trọng"
+              className="flex flex-wrap gap-1.5"
+            >
               {ALL_SEVERITIES.map((sev) => {
                 const isSelected = criteria.severity?.includes(sev);
                 const group = SEVERITY_COLOR_GROUP(sev);
@@ -327,6 +362,8 @@ export const AlertFilterPanel: React.FC<AlertFilterPanelProps> = ({
                   <button
                     key={sev}
                     type="button"
+                    aria-pressed={isSelected}
+                    aria-label={`Mức độ ${sev}: ${label}`}
                     onClick={() => handleSeverityToggle(sev)}
                     className={`inline-flex items-center space-x-1 px-2.5 py-1 rounded-md text-xs font-medium border transition ${
                       isSelected
@@ -375,7 +412,7 @@ export const AlertFilterPanel: React.FC<AlertFilterPanelProps> = ({
           </div>
         </div>
       )}
-    </div>
+    </section>
   );
 };
 

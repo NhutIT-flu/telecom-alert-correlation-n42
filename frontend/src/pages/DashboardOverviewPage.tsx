@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useRef } from 'react';
 import {
   Activity,
   Layers,
@@ -39,44 +39,58 @@ export const DashboardOverviewPage: React.FC = () => {
   // Trạng thái phân trang (TC-UI-003 & AC 4: Reset cursor/page to 1 on filter change)
   const [currentPage, setCurrentPage] = useState<number>(1);
 
-  // Tải lại / Thử lại: luôn thay toàn bộ danh sách bằng snapshot mới (AC 2).
+  // Cơ chế chống Race Condition (Sprint 2: Stale response prevention)
+  const requestIdRef = useRef<number>(0);
+
+  // Chuyển đổi chế độ fixture
+  const handleModeChange = (mode: FixtureMode) => {
+    setFixtureMode(mode);
+    setLoading(true);
+    setError(null);
+  };
+
+  // Tải lại / Thử lại: luôn thay toàn bộ danh sách bằng snapshot mới (AC 2), chống Race Condition
   const handleReload = async () => {
+    const currentId = ++requestIdRef.current;
     setLoading(true);
     setError(null);
 
     try {
       const data = await fixtureAdapter.getEvents({ mode: fixtureMode, delayMs: 400 });
-      setEvents(data);
+      if (currentId === requestIdRef.current) {
+        setEvents(data);
+      }
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Lỗi không xác định khi nạp dữ liệu.';
-      setError(msg);
+      if (currentId === requestIdRef.current) {
+        const msg = err instanceof Error ? err.message : 'Lỗi không xác định khi nạp dữ liệu.';
+        setError(msg);
+      }
     } finally {
-      setLoading(false);
+      if (currentId === requestIdRef.current) {
+        setLoading(false);
+      }
     }
   };
 
   useEffect(() => {
-    let ignore = false;
+    const currentId = ++requestIdRef.current;
+
     fixtureAdapter
       .getEvents({ mode: fixtureMode, delayMs: 400 })
       .then((data) => {
-        if (!ignore) {
+        if (currentId === requestIdRef.current) {
           setEvents(data);
           setError(null);
           setLoading(false);
         }
       })
       .catch((err: unknown) => {
-        if (!ignore) {
+        if (currentId === requestIdRef.current) {
           const msg = err instanceof Error ? err.message : 'Lỗi không xác định khi nạp dữ liệu.';
           setError(msg);
           setLoading(false);
         }
       });
-
-    return () => {
-      ignore = true;
-    };
   }, [fixtureMode]);
 
   // Xử lý áp dụng bộ lọc (AC 4: Tự động reset con trỏ phân trang về trang 1)
@@ -138,10 +152,15 @@ export const DashboardOverviewPage: React.FC = () => {
         </div>
 
         {/* Thanh công cụ kiểm thử AC 1 & AC 2 */}
-        <div className="flex items-center space-x-2 bg-slate-900 p-1.5 rounded-lg border border-slate-800 text-xs">
-          <span className="text-slate-400 px-2 font-medium">Chế độ Fixture:</span>
+        <div
+          role="toolbar"
+          aria-label="Bộ chuyển đổi chế độ dữ liệu mẫu"
+          className="flex items-center space-x-2 bg-slate-900 p-1.5 rounded-lg border border-slate-800 text-xs"
+        >
+          <span className="text-slate-400 px-2 font-medium">Chế độ:</span>
           <button
-            onClick={() => setFixtureMode('success')}
+            type="button"
+            onClick={() => handleModeChange('success')}
             className={`px-2.5 py-1 rounded font-medium transition ${
               fixtureMode === 'success'
                 ? 'bg-cyan-600 text-white shadow'
@@ -151,7 +170,8 @@ export const DashboardOverviewPage: React.FC = () => {
             Hợp lệ v1.0
           </button>
           <button
-            onClick={() => setFixtureMode('empty')}
+            type="button"
+            onClick={() => handleModeChange('empty')}
             className={`px-2.5 py-1 rounded font-medium transition ${
               fixtureMode === 'empty'
                 ? 'bg-cyan-600 text-white shadow'
@@ -161,7 +181,8 @@ export const DashboardOverviewPage: React.FC = () => {
             Dữ liệu rỗng
           </button>
           <button
-            onClick={() => setFixtureMode('error')}
+            type="button"
+            onClick={() => handleModeChange('error')}
             className={`px-2.5 py-1 rounded font-medium transition ${
               fixtureMode === 'error'
                 ? 'bg-red-600 text-white shadow'
@@ -171,6 +192,7 @@ export const DashboardOverviewPage: React.FC = () => {
             Giả lập lỗi
           </button>
           <button
+            type="button"
             onClick={() => handleReload()}
             disabled={loading}
             className="flex items-center space-x-1 px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 ml-2 transition"
@@ -218,7 +240,7 @@ export const DashboardOverviewPage: React.FC = () => {
           <div className="text-xs text-slate-400 mt-1">
             {kpi.openIncidents !== null
               ? 'Cụm tương quan gom nhóm mức cao'
-              : 'Cần kết nối API tương quan (N42-34)'}
+              : 'Chờ kết nối API tương quan'}
           </div>
         </div>
 
@@ -241,7 +263,7 @@ export const DashboardOverviewPage: React.FC = () => {
           <div className="text-xs text-slate-400 mt-1">
             {kpi.ingestRate !== null
               ? 'Tải danh định W13: 1.000 msg/s'
-              : 'Cần luồng dữ liệu thời gian thực (N42-34)'}
+              : 'Chờ luồng dữ liệu thời gian thực'}
           </div>
         </div>
 
@@ -313,7 +335,7 @@ export const DashboardOverviewPage: React.FC = () => {
 
         {/* 1. TRẠNG THÁI ĐANG TẢI (LOADING SKELETON) */}
         {loading ? (
-          <div className="p-6 space-y-3 animate-pulse">
+          <div className="p-6 space-y-3 animate-pulse" role="status" aria-label="Đang nạp dữ liệu cảnh báo">
             {[1, 2, 3, 4, 5].map((i) => (
               <div key={i} className="h-10 bg-slate-800/60 rounded-lg w-full" />
             ))}
@@ -321,7 +343,7 @@ export const DashboardOverviewPage: React.FC = () => {
           </div>
         ) : error ? (
           /* 2. TRẠNG THÁI LỖI (ERROR STATE CÓ NÚT RETRY) */
-          <div className="p-12 text-center space-y-4">
+          <div role="alert" className="p-12 text-center space-y-4">
             <div className="w-12 h-12 bg-red-500/10 text-red-400 rounded-full flex items-center justify-center mx-auto border border-red-500/20">
               <AlertTriangle className="w-6 h-6" />
             </div>
@@ -330,6 +352,7 @@ export const DashboardOverviewPage: React.FC = () => {
               <p className="text-xs text-red-400/90 mt-1 max-w-md mx-auto">{error}</p>
             </div>
             <button
+              type="button"
               onClick={() => handleReload()}
               className="inline-flex items-center space-x-2 px-4 py-2 rounded-lg bg-red-600/20 text-red-300 border border-red-500/30 hover:bg-red-600/30 text-xs font-medium transition"
             >
@@ -339,7 +362,7 @@ export const DashboardOverviewPage: React.FC = () => {
           </div>
         ) : events.length === 0 ? (
           /* 3. TRẠNG THÁI RỖNG DO DỮ LIỆU FIXTURE RỖNG (EMPTY FIXTURE STATE) */
-          <div className="p-12 text-center space-y-3">
+          <div role="status" className="p-12 text-center space-y-3">
             <div className="w-12 h-12 bg-slate-800 text-slate-500 rounded-full flex items-center justify-center mx-auto">
               <FolderOpen className="w-6 h-6" />
             </div>
@@ -348,7 +371,8 @@ export const DashboardOverviewPage: React.FC = () => {
               Tệp dữ liệu fixture hiện tại đang rỗng hoặc không có bản ghi phù hợp.
             </p>
             <button
-              onClick={() => setFixtureMode('success')}
+              type="button"
+              onClick={() => handleModeChange('success')}
               className="inline-flex items-center space-x-1.5 px-3.5 py-1.5 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-medium transition"
             >
               <span>Nạp lại Fixture v1.0</span>
@@ -356,7 +380,7 @@ export const DashboardOverviewPage: React.FC = () => {
           </div>
         ) : filteredEvents.length === 0 ? (
           /* 4. TRẠNG THÁI RỖNG CHUYÊN BIỆT DO BỘ LỌC (EMPTY FILTER STATE - AC 3) */
-          <div className="p-12 text-center space-y-4">
+          <div role="status" aria-live="polite" className="p-12 text-center space-y-4">
             <div className="w-12 h-12 bg-cyan-950/40 text-cyan-400 rounded-full flex items-center justify-center mx-auto border border-cyan-500/30">
               <SearchX className="w-6 h-6" />
             </div>
@@ -381,17 +405,20 @@ export const DashboardOverviewPage: React.FC = () => {
           /* 5. BẢNG DỮ LIỆU ĐẦY ĐỦ VÀ DETAIL PANEL */
           <>
             <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm text-slate-300">
+              <table
+                className="w-full text-left text-sm text-slate-300"
+                aria-label="Danh sách sự kiện cảnh báo"
+              >
                 <thead className="bg-slate-800/60 text-slate-400 text-xs uppercase font-mono tracking-wider">
                   <tr>
-                    <th className="py-3 px-3 w-8"></th>
-                    <th className="py-3 px-4">Thời gian (ICT / UTC+7)</th>
-                    <th className="py-3 px-4">Mức độ</th>
-                    <th className="py-3 px-4">Thiết bị (Hostname)</th>
-                    <th className="py-3 px-4">Vendor</th>
-                    <th className="py-3 px-4">IP Nguồn (Lab 10.10.x)</th>
-                    <th className="py-3 px-4">Tiến trình</th>
-                    <th className="py-3 px-4">Thông điệp chuẩn hóa</th>
+                    <th scope="col" className="py-3 px-3 w-8"></th>
+                    <th scope="col" className="py-3 px-4">Thời gian (ICT / UTC+7)</th>
+                    <th scope="col" className="py-3 px-4">Mức độ</th>
+                    <th scope="col" className="py-3 px-4">Thiết bị (Hostname)</th>
+                    <th scope="col" className="py-3 px-4">Vendor</th>
+                    <th scope="col" className="py-3 px-4">IP Nguồn (Lab 10.10.x)</th>
+                    <th scope="col" className="py-3 px-4">Tiến trình</th>
+                    <th scope="col" className="py-3 px-4">Thông điệp chuẩn hóa</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-800 font-sans">
@@ -487,7 +514,10 @@ export const DashboardOverviewPage: React.FC = () => {
             </div>
 
             {/* THANH ĐIỀU KHIỂN PHÂN TRANG (TC-UI-003 & AC 4) */}
-            <div className="p-4 border-t border-slate-800 bg-slate-900/90 flex flex-wrap items-center justify-between gap-3 text-xs">
+            <nav
+              aria-label="Phân trang danh sách sự kiện"
+              className="p-4 border-t border-slate-800 bg-slate-900/90 flex flex-wrap items-center justify-between gap-3 text-xs"
+            >
               <div className="text-slate-400">
                 Hiển thị bản ghi từ{' '}
                 <b className="text-white font-mono">
@@ -504,6 +534,7 @@ export const DashboardOverviewPage: React.FC = () => {
                 <button
                   type="button"
                   disabled={currentPage <= 1}
+                  aria-label="Về trang trước"
                   onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
                   className={`inline-flex items-center space-x-1 px-3 py-1.5 rounded-lg border text-xs font-medium transition ${
                     currentPage <= 1
@@ -515,13 +546,17 @@ export const DashboardOverviewPage: React.FC = () => {
                   <span>Trang trước</span>
                 </button>
 
-                <div className="px-3 py-1.5 rounded-lg bg-slate-950 border border-slate-800 text-slate-300 font-mono text-xs">
+                <div
+                  aria-current="page"
+                  className="px-3 py-1.5 rounded-lg bg-slate-950 border border-slate-800 text-slate-300 font-mono text-xs"
+                >
                   Trang {currentPage} / {totalPages}
                 </div>
 
                 <button
                   type="button"
                   disabled={currentPage >= totalPages}
+                  aria-label="Sang trang sau"
                   onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
                   className={`inline-flex items-center space-x-1 px-3 py-1.5 rounded-lg border text-xs font-medium transition ${
                     currentPage >= totalPages
@@ -533,7 +568,7 @@ export const DashboardOverviewPage: React.FC = () => {
                   <ChevronRight className="w-3.5 h-3.5" />
                 </button>
               </div>
-            </div>
+            </nav>
           </>
         )}
       </div>
