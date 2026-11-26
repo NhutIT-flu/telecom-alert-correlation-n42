@@ -3,8 +3,9 @@
 > **Dự án N4.2** — Hệ thống Thu thập & Phân tích Cảnh báo Viễn thông  
 > **Chương trình** Học kỳ Doanh nghiệp UTH × VNPT NET (2026–2027)  
 > **Người phụ trách**: Lê Khắc Huy (Frontend Engineer — FE)  
-> **Thẻ Jira**: [N42-20](https://nhutp2945-1793259952237.atlassian.net/browse/N42-20) · **Epic cha**: N42-6 (Module M7)  
-> **Baseline đối chiếu**: 03/11/2026 (`docs/DATA_AND_API_DESIGN.md`, `docs/ARCHITECTURE_DESIGN.md`, `docs/TECHNICAL_DESIGN_DOCUMENT.md`)
+> **Thẻ Jira**: [N42-20](https://nhutp2945-1793259952237.atlassian.net/browse/N42-20) (Dựng bảng cảnh báo) · [N42-28](https://nhutp2945-1793259952237.atlassian.net/browse/N42-28) (Bộ lọc cảnh báo đa tiêu chí)  
+> **Epic cha**: N42-6 (Module M7)  
+> **Baseline đối chiếu**: 03/11/2026 (`docs/DATA_AND_API_DESIGN.md`, `docs/ARCHITECTURE_DESIGN.md`, `docs/REQUIREMENTS_TRACEABILITY_MATRIX.md`)
 
 ---
 
@@ -17,10 +18,11 @@
 5. [Cấu trúc thư mục](#cấu-trúc-thư-mục)
 6. [Bảng màu NOC Dark Theme](#bảng-màu-noc-dark-theme)
 7. [Hợp đồng dữ liệu AlertEvent (v0.9)](#hợp-đồng-dữ-liệu-alertevent-v09)
-8. [Bộ dữ liệu mẫu & Fixture Adapter (N42-20)](#bộ-dữ-liệu-mẫu--fixture-adapter-n42-20)
-9. [Hướng dẫn kiểm thử nghiệm thu (AC 1, AC 2, TC-UI-001/006)](#hướng-dẫn-kiểm-thử-nghiệm-thu-ac-1-ac-2-tc-ui-001006)
-10. [Tích hợp API Backend (Baseline W1)](#tích-hợp-api-backend-baseline-w1)
-11. [Quy chuẩn an toàn thông tin & IP Lab](#quy-chuẩn-an-toàn-thông-tin--ip-lab)
+8. [Bộ lọc cảnh báo đa tiêu chí & Engine (N42-28)](#bộ-lọc-cảnh-báo-đa-tiêu-chí--engine-n42-28)
+9. [Bộ dữ liệu mẫu Fixture v1.1.0 (N42-20 & N42-28)](#bộ-dữ-liệu-mẫu-fixture-v110-n42-20--n42-28)
+10. [Ma trận kiểm thử nghiệm thu RTM (AC 1–4, TC-UI-002/003/006)](#ma-trận-kiểm-thử-nghiệm-thu-rtm-ac-14-tc-ui-002003006)
+11. [Tích hợp API Backend (Baseline W1 & Target W7–W8)](#tích-hợp-api-backend-baseline-w1--target-w7w8)
+12. [Quy chuẩn an toàn thông tin & IP Lab](#quy-chuẩn-an-toàn-thông-tin--ip-lab)
 
 ---
 
@@ -30,10 +32,10 @@ Module M7 cung cấp giao diện điều hành (NOC Dashboard) cho hệ thống 
 
 | # | Màn hình | Mô tả |
 |---|---|---|
-| 1 | **Dòng thời gian (Event Explorer)** | 4 thẻ KPI (TC-UI-001) + Bảng sự kiện thời gian thực kèm Detail Panel tách trường chuẩn hóa khỏi bản tin thô |
+| 1 | **Dòng thời gian (Event Explorer)** | 4 thẻ KPI (TC-UI-001) + Bộ lọc đa tiêu chí (N42-28) + Bảng sự kiện thời gian thực kèm Detail Panel tách trường chuẩn hóa khỏi bản tin thô |
 | 2 | **Chi tiết thiết bị** | Tra cứu lịch sử cảnh báo theo Router / Switch / Firewall trong dải lab `10.10.0.0/16` |
-| 3 | **Bộ lọc & Tra cứu** | Lọc đa chiều theo thời gian, hostname, IP nguồn, vendor, mức độ (RFC 5424) |
-| 4 | **Thống kê viễn thông** | Phân bổ cảnh báo theo Vendor (CISCO, HUAWEI, LINUX) phục vụ AC-02 (Corpus 200 mẫu) |
+| 3 | **Bộ lọc & Tra cứu** | Lọc đa chiều theo thời gian UTC, hostname, IP nguồn, vendor, mức độ (RFC 5424) |
+| 4 | **Thống kê viễn thông** | Phân bổ cảnh báo theo Vendor (CISCO, HUAWEI, LINUX) phục vụ AC-02 |
 | 5 | **Gom nhóm tương quan (Incident Explorer)** | Sự cố gom nhóm từ luật tương quan (M5/M6), đo tỷ lệ giảm nhiễu (mục tiêu ≥70% theo AC-06) |
 | 6 | **Xuất báo cáo** | Xuất CSV/PDF canonical tuân thủ bộ lọc và escaping (TC-EXP-001) |
 
@@ -91,27 +93,32 @@ frontend/
 ├── dist/                          # Gói build production (tự động tạo, không commit)
 ├── public/                        # Tài nguyên tĩnh công khai (favicon)
 ├── src/
-│   ├── fixtures/                  # Bộ dữ liệu mẫu có version theo N42-20
-│   │   ├── events-v1.json         # Fixture v1.0 hợp lệ (5 sự kiện đa vendor, RFC 1918)
-│   │   ├── events-empty.json      # Fixture rỗng [] kiểm thử AC 2
+│   ├── fixtures/                  # Bộ dữ liệu mẫu có version theo N42-20 & N42-28
+│   │   ├── events-v1.json         # Fixture v1.1.0 hợp lệ (12 sự kiện đa vendor, RFC 1918)
+│   │   ├── events-empty.json      # Fixture rỗng [] kiểm thử kịch bản rỗng
 │   │   └── index.ts
 │   ├── types/                     # Hợp đồng kiểu dữ liệu TypeScript
 │   │   ├── alert.ts               # Schema AlertEvent v0.9 & Severity RFC 5424 (D-01)
+│   │   ├── filter.ts              # FilterCriteria, TimePreset, FilterValidationResult (N42-28)
 │   │   └── index.ts
-│   ├── services/                  # Tầng fetch & Fixture Adapter
-│   │   ├── fixtureAdapter.ts      # Adapter nạp fixture, deduplication và KPI (N42-20)
+│   ├── services/                  # Tầng fetch, Fixture Adapter & Filter Engine
+│   │   ├── filterService.ts       # Thuật toán lọc đa tiêu chí thuần khiết & validation UTC (N42-28)
+│   │   ├── fixtureAdapter.ts      # Adapter nạp fixture, snapshot update và KPI chuẩn hóa (N42-20)
 │   │   ├── api.ts                 # Axios client tập trung + interceptors chuẩn hóa lỗi
 │   │   ├── alertService.ts        # Service gọi API Backend (/health)
 │   │   ├── mockData.ts            # Mock data chuẩn
 │   │   └── index.ts
 │   ├── components/
-│   │   └── common/                # UI component dùng chung
-│   │       ├── Header.tsx         # Thanh tiêu đề NOC + đồng hồ ICT/UTC + API status
-│   │       ├── Sidebar.tsx        # Điều hướng 6 màn hình + mốc dự án
-│   │       ├── SeverityBadge.tsx  # Huy hiệu mức độ cảnh báo (Icon + Text + Số RFC 5424)
+│   │   ├── common/                # UI component dùng chung
+│   │   │   ├── Header.tsx         # Thanh tiêu đề NOC + đồng hồ ICT/UTC + API status
+│   │   │   ├── Sidebar.tsx        # Điều hướng 6 màn hình + mốc dự án
+│   │   │   ├── SeverityBadge.tsx  # Huy hiệu mức độ cảnh báo (Icon + Text + Số RFC 5424)
+│   │   │   └── index.ts
+│   │   └── filter/                # UI component bộ lọc đa tiêu chí (N42-28)
+│   │       ├── AlertFilterPanel.tsx # Panel lọc thời gian, vendor, severity, hostname, search
 │   │       └── index.ts
 │   ├── pages/                     # 6 màn hình chính Module M7
-│   │   ├── DashboardOverviewPage.tsx   # Màn hình (1): 4 thẻ KPI + Live Table + Detail Panel + Fixture Switcher
+│   │   ├── DashboardOverviewPage.tsx   # Màn hình (1): KPI + Filter Panel + Bảng sự kiện + Phân trang
 │   │   ├── DeviceDetailPage.tsx        # Màn hình (2): Tra cứu thiết bị mạng lab
 │   │   ├── AlertSearchPage.tsx         # Màn hình (3): Bộ lọc đa chiều
 │   │   ├── DeviceStatsPage.tsx         # Màn hình (4): Thống kê Vendor
@@ -153,7 +160,7 @@ Schema `AlertEvent` bám sát `n42-ai-kit/docs/INTERFACES.md` và `docs/DATA_AND
 
 ```typescript
 export interface AlertEvent {
-  id: string;               // UUID
+  id: string;               // UUID định danh sự kiện
   received_at: string;      // ISO 8601 UTC — thời điểm hệ thống tiếp nhận
   event_timestamp: string;  // ISO 8601 UTC — thời điểm sự kiện từ thiết bị
   source_ip: string;        // IP nguồn: dải lab 10.10.0.0/16 hoặc TEST-NET 203.0.113.0/24
@@ -163,40 +170,54 @@ export interface AlertEvent {
   program: string;          // Tiến trình/process ghi log
   message: string;          // Nội dung thông điệp đã chuẩn hóa
   raw_payload: string;      // Bản tin thô nhận từ Syslog
-  vendor: string;           // CISCO | HUAWEI | LINUX | RFC3164 | RFC5424 | UNKNOWN
-  category: string;         // Phân loại do BE2 gán khi chuẩn hóa
+  vendor: string;           // CISCO | HUAWEI | LINUX | RFC3164 | RFC5424
+  category: string;         // Phân loại cảnh báo
 }
 ```
 
 ---
 
-## Bộ dữ liệu mẫu & Fixture Adapter (N42-20)
+## Bộ lọc cảnh báo đa tiêu chí & Engine (N42-28)
 
-Tệp `src/services/fixtureAdapter.ts` cung cấp tầng truy xuất dữ liệu mẫu phục vụ kiểm thử giao diện:
-1. **Nạp đa kịch bản:** Hỗ trợ 3 chế độ (`success`, `empty`, `error`) kèm độ trễ mạng giả lập `delayMs` để quan sát hiệu ứng tải.
-2. **Cập nhật snapshot toàn vẹn:** Khi nạp lại hoặc thử lại (retry), thay thế toàn bộ danh sách bằng snapshot vừa nạp, hiển thị chính xác trạng thái rỗng (Empty State) khi fixture không có bản ghi mà không giữ lại snapshot cũ.
-3. **Tính toán KPI (`calculateKpis`):** Chỉ hiển thị chỉ số có nguồn xác thực từ dữ liệu mẫu (`totalEvents`), tuyệt đối không tự suy diễn hay gán cứng số liệu; hiển thị ký tự gạch ngang `—` cho số sự cố mở và tốc độ bản tin khi chưa kết nối backend/luồng thực tế.
+Triển khai tại `src/components/filter/AlertFilterPanel.tsx` và `src/services/filterService.ts`:
+1. **Lọc đa chiều kết hợp (AC 1):** Hỗ trợ lọc đồng thời theo khoảng thời gian UTC (`startTime` – `endTime`), tên thiết bị (`hostname`), nhà sản xuất (`vendor`), danh sách mức độ (`severity` 0–7 RFC 5424) và từ khóa toàn văn (`searchQuery`).
+2. **Kiểm tra thời gian đảo chiều (AC 2):** Hàm `validateCriteria` phát hiện `startTime > endTime`, hiển thị cảnh báo lỗi inline màu đỏ trên giao diện và vô hiệu hóa nút Áp dụng bộ lọc.
+3. **Trạng thái rỗng chuyên biệt (AC 3):** Khi kết quả lọc không có bản ghi nào (`filteredEvents.length === 0`), giao diện hiển thị Empty Filter State kèm nút **Đặt lại bộ lọc (Reset Filter)**.
+4. **Tự động đặt lại phân trang (AC 4):** Mỗi khi điều kiện lọc thay đổi hoặc đặt lại, con trỏ phân trang tự động quay về trang 1 (`setCurrentPage(1)`).
+5. **Cơ chế chống Race Condition (Sprint 2):** Sử dụng `requestIdRef` bảo đảm các phản hồi cũ hoặc thao tác reload nhanh không bao giờ ghi đè lên kết quả của bộ lọc mới nhất.
 
 ---
 
-## Hướng dẫn kiểm thử nghiệm thu (AC 1, AC 2, TC-UI-001/006)
+## Bộ dữ liệu mẫu Fixture v1.1.0 (N42-20 & N42-28)
 
-Mở trình duyệt tại `http://localhost:5173` và kiểm tra theo các bước sau:
+Tệp `src/fixtures/events-v1.json` được nâng cấp lên **version 1.1.0** với 12 bản ghi chuẩn hóa:
+- **5 nhà sản xuất:** `CISCO`, `HUAWEI`, `LINUX`, `RFC5424`, `RFC3164`.
+- **Mức độ phong phú:** Phủ đầy đủ severity từ 0 (Emergency) đến 6 (Informational).
+- **Mạng IP lab:** Tuân thủ chuẩn RFC 1918 `10.10.x.x` (10.10.1.1, 10.10.2.1, 10.10.3.1, 10.10.10.1...).
 
-| Mã kiểm thử | Thao tác trên giao diện | Kết quả mong đợi | Trạng thái |
+---
+
+## Ma trận kiểm thử nghiệm thu RTM (AC 1–4, TC-UI-002/003/006)
+
+Mở trình duyệt tại `http://localhost:5173` và đối chiếu theo ma trận sau:
+
+| Mã kiểm thử | Thao tác trên giao diện | Kết quả mong đợi (Expected Results) | Trạng thái |
 |:---|:---|:---|:---:|
-| **AC 1 / TC-UI-001** | Chọn chế độ **Hợp lệ v1.0** | 4 thẻ KPI hiển thị chính xác: Tổng sự kiện: 5, Sự cố mở: —, Tốc độ: —, Trạng thái: HEALTHY. Nhãn tiêu đề hiển thị `Dữ liệu mẫu`. Bảng hiển thị 5 sự kiện với đầy đủ nhãn chữ và icon mức độ nghiêm trọng (RFC 5424). | ✅ PASS |
-| **AC 2 (Empty)** | Bấm nút **Dữ liệu rỗng** | Giao diện hiển thị Empty State chuyên biệt với biểu tượng thư mục rỗng và nút nạp lại. | ✅ PASS |
-| **AC 2 (Error)** | Bấm nút **Giả lập lỗi** | Giao diện hiển thị Error State màu đỏ với thông báo lỗi rõ ràng và nút **Thử lại kết nối (Retry)**. | ✅ PASS |
-| **AC 2 (Retry snapshot)** | Bấm nút **Tải lại** hoặc **Thử lại kết nối** | Dữ liệu được nạp lại theo đúng snapshot chế độ hiện tại; khi chuyển sang dữ liệu rỗng và retry, giao diện hiển thị ngay Empty State mà không lưu giữ dữ liệu cũ. | ✅ PASS |
-| **TC-UI-006 (A11y)** | Dùng phím `Tab` di chuyển vào dòng bảng, bấm `Enter` hoặc `Space` | Dòng mở rộng (Detail Panel) hiển thị chi tiết các trường chuẩn hóa và hộp bản tin thô `raw_payload`. Bấm lại `Enter`/`Space` để đóng. | ✅ PASS |
+| **AC 1 / TC-UI-002 (Cisco Sev 0–2)** | Chọn Vendor = `Cisco IOS-XE`, Severity = `0` và `2`, bấm Áp dụng | Bảng trả về đúng **2 sự kiện ID**: `a1b2c3d4-0001-...` (Sev 2) và `a1b2c3d4-0006-...` (Sev 0). | ✅ PASS |
+| **AC 1 / TC-UI-002 (Huawei Sev 3–4)** | Chọn Vendor = `Huawei VRP`, Severity = `3` và `4`, bấm Áp dụng | Bảng trả về đúng **2 sự kiện ID**: `a1b2c3d4-0003-...` (Sev 4) và `a1b2c3d4-0007-...` (Sev 3). | ✅ PASS |
+| **AC 2 (Thời gian đảo chiều)** | Nhập `startTime` lớn hơn `endTime` (ví dụ: `2026-11-20` đến `2026-11-18`) | Xuất hiện khung lỗi màu đỏ inline: *"Khoảng thời gian không hợp lệ: Thời gian bắt đầu không được lớn hơn thời gian kết thúc"*, nút Áp dụng bị disabled. | ✅ PASS |
+| **AC 2 (Kiểm tra biên UTC)** | Nhập mốc thời gian đúng bằng thời điểm của sự kiện (so sánh `>=` và `<=`) | Bản tin tại đúng mốc biên thời gian vẫn được giữ lại trong danh sách kết quả, không bị lệch múi giờ. | ✅ PASS |
+| **AC 3 (Empty Filter State)** | Nhập từ khóa tìm kiếm không tồn tại (ví dụ: `firewall-xyz`) | Hiển thị giao diện Empty Filter State chuyên biệt kèm nút **Đặt lại bộ lọc (Reset Filter)**. Bấm nút Reset ➔ khôi phục 12 sự kiện. | ✅ PASS |
+| **AC 4 / TC-UI-003 (Reset cursor)** | Chuyển sang Trang 2 hoặc Trang 3, thay đổi Vendor rồi bấm Áp dụng | Danh sách được lọc và phân trang tự động **quay trở về Trang 1**. | ✅ PASS |
+| **TC-UI-006 (A11y)** | Dùng phím `Tab` duyệt qua các ô nhập, phím `Space`/`Enter` để chọn chip Severity và mở xem `raw_payload` | Tiêu điểm focus rõ ràng theo palette NOC, mở rộng dòng chi tiết mượt mà, hỗ trợ screen-reader với đầy đủ nhãn ARIA. | ✅ PASS |
+| **Sprint 2 (Chống Race Condition)** | Bấm chuyển đổi nhanh giữa các chế độ fixture và nút Tải lại liên tục | Không xảy ra hiện tượng dữ liệu cũ ghi đè dữ liệu mới, kết quả hiển thị khớp 100% với lựa chọn cuối cùng. | ✅ PASS |
 
 ---
 
-## Tích hợp API Backend (Baseline W1)
+## Tích hợp API Backend (Baseline W1 & Target W7–W8)
 
 - **Hiện hành (Baseline W1):** Chỉ có duy nhất `GET /api/health`.
-- **Target (W7–W8 - Thẻ N42-34):** Các endpoint ingest (`POST /api/v1/events`), query (`GET /api/v1/events`) sẽ được kết nối sau khi BE2 bàn giao OpenAPI.
+- **Target (W7–W8 - Thẻ N42-34 & N42-67):** Các endpoint ingest (`POST /api/v1/events`), query (`GET /api/v1/events`) sẽ được kết nối sau khi BE2 bàn giao OpenAPI.
 
 ---
 
@@ -204,4 +225,5 @@ Mở trình duyệt tại `http://localhost:5173` và kiểm tra theo các bư�
 
 - **Dải IP lab riêng (RFC 1918):** `10.10.0.0/16` (ví dụ `10.10.1.1`, `10.10.2.10`, `10.10.10.1`).
 - **Dải IP tài liệu minh họa (RFC 5737):** `203.0.113.0/24` (TEST-NET-3).
-- Không commit tệp `.env`, `.env.development`, credential hay token vào Git. Quét công cụ `python tools/check_sensitive.py` phải đạt 100% xanh an toàn.
+- Tuyệt đối không đưa credential, IP thật hoặc cấu hình production vào kho mã nguồn.
+- Quét định kỳ bằng công cụ: `python tools/check_sensitive.py` bảo đảm 100% xanh an toàn.
