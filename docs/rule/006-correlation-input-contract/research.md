@@ -41,4 +41,4 @@ Ngày 2026-11-25. Đây là tổng hợp phương án thiết kế từ 001/003/
 
 - Repository ứng dụng đã xác minh tại `C:/Projects/vnpt/telecom-alert-correlation-n42`: Python 3.12, FastAPI/Pydantic/ruamel.yaml, pytest và Docker Compose PostgreSQL/TimescaleDB. Chưa có PostgreSQL application driver/repository, worker hoặc canonical interface mapping; xem [bản đồ code](../003-rule-dispatch-correlation/codebase-mapping.md). Script setup-plan chỉ có nhãn feature; thư mục đặc tả ở ngoài Git repo.
 - Ngưỡng kiểm tra clock/trust và giới hạn truy vấn guard/history cần số liệu lab. Giá trị mục tiêu hiện tại chỉ là đề xuất.
-- Nhận diện trùng giữa **hai ID nhận khác nhau** ngoài phạm vi quyết định hiện tại; xử lý lại cùng ID vẫn bắt buộc.
+- Prototype coi **hai ID nhận khác nhau** là hai sự kiện riêng. Việc nhận diện trùng giữa các ID được xem xét sau prototype. Xử lý lại cùng ID vẫn phải nhất quán.

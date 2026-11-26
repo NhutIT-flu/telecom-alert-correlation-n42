@@ -35,6 +35,7 @@
 ## Notes
 
 - Review 2026-11-20: 5 stories, 28 FR, 11 SC; thêm field interface chuẩn, activated_at, failed/retry audit và runtime health/receipt.
+- Rà soát 2026-11-26: User Story 6, FR-029–032 và SC-012–014 quy định mức độ của cảnh báo. Bốn kịch bản bao phủ mức lấy từ rule, bản tin có mức khác/thiếu mức, trạng thái và phiên bản thay đổi, cấu hình sai. Checklist nội dung đạt 16/16 trong lần rà soát tài liệu.
 - Tổng 8 bảng chung: 7 bảng dữ liệu/correlation và pipeline_runtime_status. Không thêm bảng theo hãng/rule hoặc bảng tài khoản.
 - Truy vết mới FR-024–028 qua US5, SC-010/011 và I01–07/I11–15 của 005, C33–48 của 003.
 - Raw giữ nguyên, trạng thái lỗi/thử lại và receipt không bị ghi đè khi heartbeat; cold-load giữ bằng chứng/ranh giới.

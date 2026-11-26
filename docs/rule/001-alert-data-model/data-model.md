@@ -164,6 +164,10 @@ Mỗi dòng là một revision bất biến đã công bố. Hai revision của 
 - Không xóa revision có alert tham chiếu; tắt luật không xóa/giải quyết cảnh báo cũ.
 - definition không chứa SQL/Python tùy ý. Giới hạn field/phép so sánh/kiểu được hỗ trợ, truy vấn phải tham số hóa.
 
+### Gán mức độ nghiêm trọng khi tạo cảnh báo
+
+Chính sách gán mức và tiêu chí nghiệm thu nằm ở [spec 001](spec.md#quy-ước-gán-mức-độ-nghiêm-trọng). Khi công bố revision, kiểm tra `rules.alert_severity` là số nguyên từ `0` đến `7` và có mặt trong cấu hình. Khi Lifecycle tạo alert, lấy mức từ revision do engine chọn và ghi `alerts.severity` cùng `alerts.rule_id` trong giao dịch tạo cảnh báo. Mức của syslog bằng chứng vẫn ở `events.severity` và được xem qua liên kết bằng chứng. Các chuyển trạng thái và hiệu chỉnh giữ nguyên `alerts.severity` của cùng alert.
+
 Ví dụ phần definition trong file bản nháp tắt của handler đếm ít nhất 3 log interface down cùng thiết bị/interface trong 300 giây; chưa phải snapshot đã công bố. Đây là rule đếm sự kiện, khác [LinkFlapRule ở feature 004](../004-link-flap-rule/link-flap-design.md). recovery chưa chọn nên không được bật:
 
 ```json

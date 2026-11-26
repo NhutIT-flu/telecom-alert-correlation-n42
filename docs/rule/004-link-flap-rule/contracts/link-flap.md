@@ -6,6 +6,8 @@
 ## Input
 Canonical event theo [006](../../006-correlation-input-contract/contracts/normalized-event.md): event_id, event_time tin cậy, device_id, interface_name, interface_state UP/DOWN, interface_layer physical. Thiếu/mâu thuẫn được dispatcher xử lý theo [006 disposition](../../006-correlation-input-contract/contracts/input-disposition.md). Handler không parse raw hoặc tự chọn alias/lớp.
 
+Dispatcher kiểm tra giờ nguồn `parsed` và `inferred` theo [tiêu chí thời gian 006](../../006-correlation-input-contract/contracts/normalized-event.md#điều-kiện-dùng-thời-gian-suy-ra) trước khi chuyển sự kiện cho LinkFlap. `target_ip` là trường tùy chọn đối với rule này.
+
 ## Evaluation
 Quan sát đầu là baseline. Chuyển UP↔DOWN tính một; log lặp vẫn xét/giữ nhưng không đếm. N≥5 trong (T−60,T] → ACTIVATE; cùng episode không tạo alert mới mỗi log. 3 giây reorder chỉ ở engine. Log trễ có thể thay baseline/hai cạnh; yêu cầu thêm history/baseline khi cần, INCOMPLETE nếu không đủ.
 

@@ -49,6 +49,8 @@ Ví dụ file JSON đã bổ sung điều kiện link flap hiện tại; vẫn t
 
 Cấu hình này kết thúc điều kiện flap khi 60 giây không ghi nhận chuyển mới, trả outcome theo trạng thái cuối: flap_stopped_up hoặc flap_stopped_down. Không chờ UP để kết thúc flap ở DOWN. Đây là suy luận theo dữ liệu đã nhận và mốc chốt an toàn, không phải kiểm tra trực tiếp thiết bị; không tự ACK/CLOSE và không tạo LinkDown.
 
+`alert_severity: 4` đặt mức Warning cho cảnh báo LinkFlap mới theo [chính sách 001](../001-alert-data-model/spec.md#quy-ước-gán-mức-độ-nghiêm-trọng). Ngưỡng LinkFlap dựa trên số lần đổi trạng thái hợp lệ. Mức của từng syslog bằng chứng được giữ để tra cứu.
+
 Rule không đủ schema/điều kiện vẫn bị chặn bật. Ví dụ này không còn recovery=null; enabled=false chỉ ngăn hiểu nhầm tài liệu đã triển khai. Bản nháp chưa công bố có thể hoàn thiện; snapshot đã công bố chỉ thay bằng revision mới.
 
 Khóa nhóm đầy đủ là (rule_key, config_version, handler_revision, correlation_scope, device_id, interface_name); lớp tín hiệu cố định trong revision cấu hình. Nếu một cấu hình thực sự xử lý nhiều lớp thì phải đưa lớp vào identity trước công bố, không trộn state. rules.id đại diện revision khi lưu; group_values chứa đúng group_by. Không thay device_id bằng hostname hoặc sender_ip.

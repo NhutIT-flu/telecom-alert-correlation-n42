@@ -26,7 +26,7 @@
 
 **Constraints**: Reorder 3 giây áp một lần ở engine; một worker sở hữu state; không parse raw trong handler; không đổi event_time/received_at/raw; không đánh dấu processed trước commit; không tự ACK/CLOSE; không giả UDP giao đủ.
 
-**Scale/Scope**: Đợt đầu một rule nghiệp vụ LinkFlap và dữ liệu lab Cisco/Juniper; test hợp đồng nhiều handler bằng rule thử. Bài tải tham chiếu 1.000 interface, 900.000 chuyển/giờ của 004, chưa là năng lực đã chứng minh.
+**Scale/Scope**: Đợt đầu tập trung LinkFlap với Cisco XRv là thiết bị lab dự kiến. Dùng handler thử để kiểm chứng hợp đồng nhiều rule. Bài tải tham chiếu là 1.000 interface và 900.000 lần chuyển/giờ theo 004.
 
 ## Constitution Check
 
@@ -80,6 +80,8 @@ telecom-alert-correlation-n42/
 
 Biên bản họp bổ sung `target_ip` và chính sách đánh dấu thiếu dữ liệu. `target_ip` chỉ là field có điều kiện theo event_type/rule, không thành yêu cầu cho LinkFlap; xem [đối chiếu schema](../001-alert-data-model/meeting-schema-alignment.md).
 
+Prototype ghi lý do thiếu dữ liệu và giữ chặn timer liên quan khi căn cứ còn thiếu. Phần xử lý lại syslog thiếu trường, gỡ chặn theo từng interface và hiển thị lý do trên giao diện nằm trong [phạm vi sau prototype](spec.md#phạm-vi-phát-triển-sau-prototype).
+
 ## Phase 0: Research and decisions
 
 Kết quả ở [research.md](research.md): lựa chọn xử lý event/rule, diagnostic/guard bền vững, thứ tự thời gian, phạm vi prototype và các phương án không chọn. Không còn placeholder NEEDS CLARIFICATION trong Technical Context; version/thư viện/path mã nguồn được ghi là quyết định phải xác minh trước implementation, không tự suy đoán.
@@ -91,7 +93,7 @@ Kết quả ở [research.md](research.md): lựa chọn xử lý event/rule, di
 - [contracts/input-disposition.md](contracts/input-disposition.md): kết quả theo event/rule, mã lý do, guard/coverage, thời điểm được đánh dấu hoàn tất.
 - [quickstart.md](quickstart.md): kiểm tra tài liệu chạy được ngay và kịch bản nghiệm thu cần chạy sau khi có implementation.
 
-**Post-design Constitution Check:** PASS với cùng 10 nguyên tắc ở trên. Chỗ chưa chốt có nhãn rõ: phạm vi chống trùng giữa ID khác nhau, ngưỡng time/clock lab, ứng dụng/phiên bản thư viện, chi phí index JSONB. Không dùng các chỗ này để bỏ qua yêu cầu bảo toàn raw, xử lý lại cùng ID hoặc coverage an toàn.
+**Post-design Constitution Check:** PASS với cùng 10 nguyên tắc ở trên. Prototype xử lý riêng mỗi ID đầu vào. Ngưỡng time/clock lab, ứng dụng/phiên bản thư viện và chi phí index JSONB còn cần xác minh. Các yêu cầu bảo toàn raw, xử lý lại cùng ID và coverage an toàn tiếp tục áp dụng.
 
 ## Complexity Tracking
 

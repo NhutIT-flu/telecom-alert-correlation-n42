@@ -35,7 +35,7 @@ Với `interface_state_change`, `fields` có `interface_name` string không rỗ
 
 Giá trị ID trong ví dụ là nhãn minh họa, không tuyên bố UUID hợp lệ. Thao tác release giữ lý do và mốc audit; không xóa entry cũ. Giới hạn bytes/entry và index cần được đo, không giả rằng JSONB tìm guard nhanh. Nếu một event có nhiều rule ứng viên, disposition phải gắn rule_id cụ thể; rule không đăng ký event_type không cần được ghi thành hàng loạt NOT_APPLICABLE.
 
-**Điều kiện bất biến:** processed chỉ khi mọi candidate có disposition cuối, guard cần thiết đã lưu và result/checkpoint/evidence đã commit; guard còn mở vẫn có thể cùng tồn tại với event processed. Guard chỉ release khi có căn cứ coverage mới hoặc sửa được ambiguity theo quy trình có audit; không release vì processed. Nếu không có căn cứ, timer liên quan chờ. Khi gap không dựng lại được, safe_since phải khởi từ đầu đoạn quan sát lành mạnh mới và đủ quiet period của handler.
+**Điều kiện bất biến:** `processed` chỉ khi mọi candidate có disposition cuối, guard cần thiết đã lưu và result/checkpoint/evidence đã commit. Guard còn mở vẫn chặn timer liên quan dù event đã `processed`. Với bản tin thiếu trường, phương án khôi phục căn cứ và gỡ guard theo nhóm thuộc [phạm vi sau prototype](contracts/input-disposition.md#xử-lý-sau-prototype).
 
 ## State transitions của event
 

@@ -8,3 +8,5 @@ ACK và CLOSE nhận alert ID + expected_state_version; actor lấy từ danh t�
 
 ## Output
 alerts là snapshot hai trục; alert_state_history append-only với from/to, actor, source, effective_at và recorded_at; alert_events giữ bằng chứng trigger/recovery/correction. Tạo, cập nhật snapshot, history/evidence và checkpoint của engine cùng commit. Closed bất biến; correction về sau ghi diagnostic riêng. Quy tắc chi tiết và T01–T39: [lifecycle-design.md](../lifecycle-design.md).
+
+Khi tạo alert, Lifecycle lấy mức độ từ revision đã đánh giá. Các cập nhật trên cùng alert giữ nguyên mức đã gán theo [chính sách 001](../../001-alert-data-model/spec.md#quy-ước-gán-mức-độ-nghiêm-trọng).

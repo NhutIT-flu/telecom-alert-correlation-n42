@@ -8,6 +8,8 @@
 
 **Input**: User description: "Tách phần rule link flap ra riêng đi."
 
+**Phạm vi prototype (26/11/2026)**: LinkFlap là rule nghiệp vụ nhóm đang tập trung phát triển. Thiết bị lab dự kiến là Cisco XRv. Dùng log trạng thái interface vật lý từ XRv để kiểm chứng luồng từ syslog tới cảnh báo theo [hợp đồng đầu vào 006](../006-correlation-input-contract/spec.md).
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Phát hiện đúng interface đang flap (Priority: P1)

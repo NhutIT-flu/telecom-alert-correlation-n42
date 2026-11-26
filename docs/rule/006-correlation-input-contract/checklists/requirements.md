@@ -34,3 +34,4 @@
 - 16/16 items checked by document review. This is not application testing or leader approval.
 - FR-012 is a proposed conservative scope policy, explicitly marked for leader review; no unresolved placeholder remains.
 - Existing 001/003/005 own storage, execution and normalization respectively. This feature only defines their input boundary.
+- Rà soát bổ sung ngày 26/11/2026: ba mức kiểm tra đầu vào, tiêu chí thời gian suy ra và kết quả theo rule có ví dụ kiểm chứng trong User Stories 2–3, SC-008 và Q13–Q15 ở [quickstart](../quickstart.md). Các mục checklist vẫn đạt ở mức rà soát tài liệu.

@@ -24,7 +24,7 @@ Kỳ vọng thấy spec/plan/research/data-model/quickstart, thiết kế [integ
 
 1. UDP/API/file accepted chỉ sau raw commit.
 2. file nhập dở giữ batch đã commit.
-3. Cisco/Juniper canonical/diagnostic.
+3. Cisco XRv canonical/diagnostic trong prototype. Kiểm chứng thêm hãng thứ hai khi có mẫu và adapter tương ứng.
 4. viewer/operator/ingest/maintenance phân quyền.
 5. API 409 version cũ.
 6. UI stale/reconnect.

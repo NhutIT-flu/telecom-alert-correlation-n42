@@ -14,6 +14,8 @@
 
 **Updated**: 2026-11-20 — thống nhất dữ liệu interface, trạng thái lỗi/thử lại và bảo toàn state sau eviction; tích hợp feature 005.
 
+**Cập nhật 2026-11-26** ghi nhận chính sách [mức độ nghiêm trọng của cảnh báo](#quy-ước-gán-mức-độ-nghiêm-trọng) trong prototype LinkFlap.
+
 **Input**: User description: "Thiết kế chi tiết từng bảng cho hệ thống thu thập và phân tích syslog từ router, switch, firewall; giải thích vai trò từng thành phần. Lưu cả syslog thô và dữ liệu chuẩn hóa, hỗ trợ Cisco, Juniper và mở rộng nhiều hãng."
 
 ## User Scenarios & Testing *(mandatory)*
@@ -94,6 +96,21 @@ Người vận hành muốn kết quả có thể tiếp tục và kiểm chứn
 2. **Given** sự kiện failed được đưa lại chờ có audit, **When** thử lại, **Then** giữ ID/raw và không nhân đôi bằng chứng.
 3. **Given** nhóm recovered bị thu hồi, **When** nạp lại, **Then** giữ đúng cảnh báo và xác nhận hiện hành.
 
+### User Story 6 - Hiểu và truy vết mức độ nghiêm trọng của cảnh báo (Priority: P1)
+
+Người giám sát muốn biết mức độ của cảnh báo và phiên bản rule đã gán mức đó, để ưu tiên xem cảnh báo và hiểu các bằng chứng khi tra lại.
+
+**Lý do ưu tiên.** LinkFlap có thể được phát hiện từ nhiều bản tin mang các mức khác nhau. Người giám sát cần một mức thống nhất cho cảnh báo và vẫn thấy được mức của từng bản tin khi tra cứu.
+
+**Kiểm thử độc lập.** Dùng hai chuỗi đủ ngưỡng LinkFlap với severity syslog khác nhau. Tạo cảnh báo, thay đổi trạng thái, rồi công bố một phiên bản rule thử có mức khác và đối chiếu cảnh báo trước và sau thay đổi.
+
+**Kịch bản nghiệm thu**
+
+1. **Given** LinkFlap đã cấu hình mức `Warning (4)` và chuỗi đủ 5 lần chuyển trong 60 giây có bản tin `Error (3)` hoặc bản tin chưa biết severity, **When** hệ thống tạo cảnh báo, **Then** cảnh báo mang `Warning (4)` và mức của các bản tin vẫn truy xuất được theo bằng chứng.
+2. **Given** cảnh báo LinkFlap đã được tạo, **When** có ACK, phục hồi (`recovered`), tái phát khi cảnh báo chưa đóng, hiệu chỉnh bằng chứng hoặc CLOSE hợp lệ, **Then** hệ thống áp dụng thay đổi theo 002 và giữ mức độ đã gán cho cùng cảnh báo.
+3. **Given** rule thử có phiên bản cũ ở mức `4` và phiên bản mới ở mức `3`, **When** phiên bản mới tạo một cảnh báo sau khi cảnh báo cũ đã đóng, **Then** cảnh báo cũ giữ mức `4` và cảnh báo mới có mức `3`, mỗi mức truy được về đúng phiên bản.
+4. **Given** một phiên bản rule thiếu mức độ hoặc khai báo `-1`, `8` hay `4.5`, **When** nhóm thử công bố phiên bản đó, **Then** hệ thống từ chối công bố, chỉ rõ trường và lý do không hợp lệ. Phiên bản hợp lệ đang hoạt động tiếp tục được sử dụng.
+
 ### Edge Cases
 
 - Thiếu năm/múi giờ: giữ chuỗi gốc; chỉ suy ra khi có ngữ cảnh rõ ràng, không tự lấy năm hiện tại cho tệp lịch sử.
@@ -110,6 +127,8 @@ Người vận hành muốn kết quả có thể tiếp tục và kiểm chứn
 - Tên trường trạng thái khác nhau giữa nguồn và projection; không có căn cứ lớp vật lý/giao thức.
 - Lỗi tạm retry và lỗi logic failed phải được chọn lại có kiểm soát, không mắc kẹt hoặc coi là đã xử lý.
 - Cache recovered bị thu hồi rồi người giám sát CLOSE trước khi có log mới; cold-load phải đọc snapshot hiện hành.
+- Syslog bằng chứng có severity khác nhau hoặc chưa xác định severity. Điều kiện rule quyết định khi nào tạo cảnh báo, còn mức của cảnh báo lấy từ phiên bản rule tương ứng.
+- Kết thúc flap với trạng thái quan sát cuối là `DOWN` vẫn giữ mức độ đã gán. Kết quả `flap_stopped_down` được ghi riêng theo 004.
 
 ## Requirements *(mandatory)*
 
@@ -146,13 +165,27 @@ Người vận hành muốn kết quả có thể tiếp tục và kiểm chứn
 - **FR-027**: Mốc kích hoạt phiên bản rule và lịch sử đưa lại sự kiện lỗi MUST được lưu đủ để truy vết, không tự thay phiên bản đánh giá trong một lượt thử lại.
 
 - **FR-028**: Sức khỏe và workset pipeline MUST có định danh thành phần/ngữ cảnh, freshness, căn cứ quan sát và tiến độ bền vững riêng với syslog; ghi heartbeat không được làm mất receipt chưa hoàn tất.
+- **FR-029**: Mỗi phiên bản rule được công bố MUST có đúng một mức độ cảnh báo bằng mã nguyên từ `0` đến `7`. Hệ thống MUST từ chối công bố phiên bản thiếu hoặc khai báo sai mức, ghi rõ lý do và giữ nguyên phiên bản hợp lệ đang hoạt động nếu có.
+- **FR-030**: Khi tạo cảnh báo, hệ thống MUST gán mức từ đúng phiên bản rule đã đánh giá. LinkFlap trong prototype MUST dùng `Warning (4)`. Severity khác nhau hoặc chưa xác định trên các syslog bằng chứng không thay đổi mức được gán.
+- **FR-031**: Cùng một cảnh báo MUST giữ mức độ được gán lúc tạo qua ACK, phục hồi, tái phát, hiệu chỉnh bằng chứng, CLOSE và thay đổi phiên bản rule. Thay đổi mức trong cấu hình MUST tạo phiên bản mới và chỉ áp dụng cho cảnh báo do phiên bản đó tạo.
+- **FR-032**: Khi tra cứu một cảnh báo, người giám sát MUST xác định được mức của cảnh báo và phiên bản rule đã gán mức. Khi xem bằng chứng, mức của từng bản tin MUST được phân biệt rõ với mức cảnh báo. Mức chưa xác định của syslog phải được biểu diễn rõ.
+
+### Quy ước gán mức độ nghiêm trọng
+
+Mã nhỏ hơn biểu thị mức độ cao hơn. Prototype dùng **Warning (4)** cho LinkFlap vì syslog cho thấy interface dao động nhưng chưa đủ để đánh giá tác động dịch vụ. Các mức còn lại trong bảng là gợi ý để review khi thiết kế thêm rule.
+
+| Mức | Tiêu chí đề xuất | Ví dụ |
+|---|---|---|
+| Warning (`4`) | Bất thường cần theo dõi, mức ảnh hưởng dịch vụ chưa rõ | Interface đạt ngưỡng LinkFlap. |
+| Error (`3`) | Bằng chứng cho thấy một kết nối hoặc chức năng cụ thể bị gián đoạn | Một rule tương lai xác nhận kết nối gián đoạn vượt ngưỡng. |
+| Critical (`2`) | Bằng chứng đủ theo tiêu chí ảnh hưởng nghiêm trọng đã được nhóm định nghĩa | Mất nhiều kết nối trọng yếu theo điều kiện của một rule tương quan tương lai. |
 
 ### Key Entities *(include if feature involves data)*
 
 - **Thiết bị**: Định danh ổn định, tên, hostname cấu hình, hãng, loại, hệ điều hành, địa chỉ quản trị chính và trạng thái sử dụng; không lưu thông tin đăng nhập.
 - **Sự kiện**: Một syslog với đầu vào gốc, dữ liệu nhận diện, nguồn/ngữ cảnh, thời gian và trạng thái xử lý; có thể chưa biết thiết bị.
 - **Phiên bản luật**: Nội dung bất biến của một luật logic; điều kiện, gom nhóm, mức độ. Được phép bật/tắt.
-- **Cảnh báo**: Kết quả thỏa một phiên bản luật, có định danh sự cố, hai chiều trạng thái và khoảng thời gian bằng chứng; không sao chép sự kiện.
+- **Cảnh báo**: Kết quả thỏa một phiên bản luật, có định danh sự cố, mức độ đã gán khi tạo, hai chiều trạng thái và khoảng thời gian bằng chứng; không sao chép sự kiện.
 - **Liên kết cảnh báo–sự kiện**: Ghi sự kiện nào góp vào cảnh báo nào, vai trò phát sinh/phục hồi và thời điểm liên kết; mỗi cặp kèm vai trò duy nhất.
 - **Lịch sử trạng thái**: Ghi thứ tự thay đổi, trước/sau, chủ thể và bằng chứng theo feature 002; bổ sung vào năm thực thể nền.
 - **Checkpoint trạng thái nhóm**: Phiên bản thuật toán và trạng thái đếm/nhận định cần khôi phục theo feature 003; tách khỏi lịch sử và xác nhận người giám sát.
@@ -174,12 +207,15 @@ Người vận hành muốn kết quả có thể tiếp tục và kiểm chứn
 - **SC-008**: Bộ mẫu timer/correction của 002/003 giữ đúng outcome, mốc hiệu lực và thời gian ghi; timer không tạo raw giả, lặp facts không tăng audit revision.
 - **SC-009**: Với state bị evict và log trễ sau đó, 100% case khôi phục chung ở 003 và rule LinkFlap ở 004 khôi phục đúng baseline/bằng chứng, không đếm đôi hoặc xóa dữ liệu bền vững.
 
-- **SC-010**: Bộ mẫu interface hai hãng, giá trị cũ được ánh xạ và trường thiếu/sai lớp cho đúng 100% kết quả chuẩn hóa hoặc lý do không đủ điều kiện, theo hợp đồng 005.
+- **SC-010**: Bộ mẫu interface Cisco XRv đã gán nhãn, gồm giá trị cũ, trường thiếu và sai lớp, cho đúng 100% kết quả chuẩn hóa hoặc lý do không đủ điều kiện trong prototype, theo hợp đồng 005. Bộ mẫu của hãng thứ hai được dùng khi kiểm chứng mở rộng.
 - **SC-011**: Trong bộ thử lỗi tạm, lỗi logic, đưa lại chờ xét và cold-load cảnh báo recovered chưa đóng, 100% giữ định danh/bằng chứng, health/receipt và không nhân đôi kết quả.
+- **SC-012**: Với mọi chuỗi thử đủ ngưỡng LinkFlap, gồm chuỗi có severity bằng chứng khác nhau hoặc chưa biết, 100% cảnh báo mới có mức `Warning (4)` và người kiểm thử truy được mức của từng syslog theo bằng chứng.
+- **SC-013**: Trong tất cả ca ACK, phục hồi, tái phát, hiệu chỉnh bằng chứng, CLOSE và đổi phiên bản, mỗi cảnh báo hiện có giữ đúng mức ban đầu. Mỗi cảnh báo mới truy được về đúng mức của phiên bản đã tạo nó.
+- **SC-014**: Tất cả cấu hình thiếu mức hoặc có mã ngoài `0–7` hay giá trị không nguyên trong bộ thử đều bị từ chối với lý do cụ thể. Cấu hình hợp lệ đang hoạt động vẫn tiếp tục được dùng.
 
 ## Assumptions
 
-- Đây là bản đề xuất từ cuộc trao đổi, chưa được phê duyệt; không lấy mã nguồn/hợp đồng triển khai cũ làm nguồn yêu cầu.
+- Prototype dùng [mô hình database hiện tại](database-proposal.md) làm cơ sở thiết kế.
 - Người dùng là người giám sát và vận hành lab. Hợp đồng danh tính/giao diện thuộc [005](../005-monitoring-integration/spec.md); vòng đời và engine tiếp tục ở 002/003.
 - Giả định một sự kiện được tham gia nhiều cảnh báo; mỗi cảnh báo do một phiên bản luật tạo ra. Chưa có thực thể sự cố độc lập.
 - Lần đầu ưu tiên điều kiện bằng nhau kết hợp, đếm trong khoảng thời gian và gom theo thuộc tính xác định được. Luật chuỗi, nguyên nhân gốc và sửa toàn bộ bằng chứng lịch sử là bước sau.
@@ -189,5 +225,6 @@ Người vận hành muốn kết quả có thể tiếp tục và kiểm chứn
 - Danh mục ban đầu chỉ có địa chỉ quản trị chính; quản lý nhiều địa chỉ/site/VRF chưa nằm trong phạm vi. Nhận diện mơ hồ giữ trạng thái chưa biết.
 - Thông tin hãng/hệ điều hành/loại trên sự kiện là bản ghi nhận lúc chuẩn hóa; ghi nguồn xác định để phân biệt nội dung log và dữ liệu danh mục.
 - Mốc dữ liệu/thời gian ở SC-001 đến SC-003 là đề xuất kiểm chứng, cần xác nhận trước dùng làm nghiệm thu.
-- Phụ thuộc: danh mục lab, bộ mẫu hai hãng có nhãn, quy ước thuộc tính, ngữ cảnh thời gian và định nghĩa luật.
+- Phụ thuộc prototype: danh mục lab Cisco XRv, mẫu syslog XRv có nhãn, quy ước thuộc tính, ngữ cảnh thời gian và định nghĩa LinkFlap. Dữ liệu giả lập đa hãng vẫn dùng được để kiểm tra mô hình lưu trữ.
 - Tài liệu đi kèm `data-model.md` giải thích phương án bảng/field/ràng buộc; chưa phải migration đã chạy hay phương án được duyệt.
+- Prototype gán mức độ cố định theo phiên bản rule. Nâng mức động theo vai trò interface hoặc tác động dịch vụ, và sửa trực tiếp mức của cảnh báo hiện hữu thuộc phạm vi xem xét sau prototype. Bố cục, màu sắc và bộ lọc của màn hình thuộc thiết kế frontend riêng.

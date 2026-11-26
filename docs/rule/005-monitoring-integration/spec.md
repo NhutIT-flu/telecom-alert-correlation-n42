@@ -8,6 +8,8 @@
 
 **Input**: User description: "Bổ sung các vấn đề đã đề xuất vào tài liệu hiện có; phần không phù hợp có thể tạo tài liệu mới."
 
+**Phạm vi prototype (26/11/2026)**: Nhóm đang chốt Cisco XRv cho lab và ưu tiên luồng syslog phục vụ LinkFlap. Phần frontend hiện ở mức đề xuất tích hợp. Nghiệm thu các chức năng màn hình theo thiết kế frontend khi nhóm thống nhất thiết kế chi tiết.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Tiếp nhận log qua lab và nhập dữ liệu (Priority: P1)
@@ -31,7 +33,7 @@ Người giám sát muốn cùng hiện tượng từ Cisco/Juniper dùng đư�
 
 **Why this priority**: Sai hợp đồng trường có thể khiến rule bỏ qua toàn bộ dữ liệu hoặc đếm nhầm.
 
-**Independent Test**: Dùng mẫu hai hãng có nhãn, field cũ, lớp vật lý/giao thức, lỗi byte và thời gian thiếu căn cứ.
+**Independent Test**: Dùng mẫu Cisco XRv có nhãn cho prototype, gồm field cũ, lớp vật lý/giao thức, lỗi byte và thời gian thiếu căn cứ. Thêm mẫu của hãng tiếp theo khi kiểm chứng tương đương giữa các hãng.
 
 **Acceptance Scenarios**:
 
@@ -107,7 +109,7 @@ Người giám sát muốn phân biệt thiết bị không gửi log với hệ
 - **FR-006**: Dữ liệu đã chuẩn hóa đầu vào MUST giữ đúng bản đã nhận và đánh dấu nguồn; không giả là có nguyên bản thiết bị.
 - **FR-007**: Thông tin do nguồn tự khai MUST được kiểm tra; server sở hữu định danh, thời gian nhận, phạm vi, trạng thái xử lý và danh tính thao tác.
 - **FR-008**: Cùng loại sự kiện interface MUST có hợp đồng trường/kiểu/trạng thái/lớp duy nhất; chuyển field cũ chỉ thực hiện tại biên.
-- **FR-009**: Parser MUST có mẫu Cisco/Juniper được gán nhãn đúng ngữ nghĩa; hãng chưa hỗ trợ vẫn lưu raw và không suy đoán ánh xạ.
+- **FR-009**: Parser MUST có mẫu được gán nhãn đúng ngữ nghĩa cho nguồn được hỗ trợ. Prototype ưu tiên Cisco XRv cho LinkFlap. Hãng chưa hỗ trợ vẫn lưu raw và ghi nhận giới hạn ánh xạ.
 - **FR-010**: Field cũ và chuẩn mâu thuẫn, lớp không rõ hoặc thời gian thiếu căn cứ MUST có diagnostic; không tự điền để đạt điều kiện rule.
 - **FR-011**: Chuẩn hóa thành công/một phần MUST làm dữ liệu sẵn sàng cho cơ chế nhận việc 003; không phụ thuộc việc gọi từng handler.
 - **FR-012**: Người xem MUST tìm/lọc log và cảnh báo, xem snapshot/bằng chứng/lịch sử theo 001/002, với phân trang ổn định và lỗi/rỗng rõ.
@@ -137,7 +139,7 @@ Người giám sát muốn phân biệt thiết bị không gửi log với hệ
 ### Measurable Outcomes
 
 - **SC-001**: Trong bộ 1.000 đầu vào hợp lệ/lỗi/đã chuẩn hóa/tệp nhập dở, 100% đầu vào đã báo lưu thành công truy được đúng bản gốc và nguồn; không có thành công giả khi lỗi ghi.
-- **SC-002**: Với ít nhất 40 mẫu Cisco/Juniper có nhãn gồm field cũ, sai lớp và thiếu thời gian, 100% khớp kết quả chuẩn hoặc diagnostic mong đợi.
+- **SC-002**: Với ít nhất 40 mẫu Cisco XRv có nhãn gồm field cũ, sai lớp và thiếu thời gian, 100% khớp kết quả chuẩn hoặc diagnostic mong đợi.
 - **SC-003**: Bộ thử quyền bao phủ mọi thao tác với từng nhóm quyền; 100% yêu cầu thiếu quyền bị từ chối mà không đổi dữ liệu.
 - **SC-004**: Sau mất kết nối và đọc lại, 100% tình huống màn hình khớp snapshot đã lưu và giữ đúng lịch sử/phiên bản; thao tác stale không ghi đè.
 - **SC-005**: Màn hình đang hoạt động có chu kỳ làm mới mục tiêu lab 1 giây; đo tổng độ trễ cùng 003/004, không gọi 1 giây là SLA nhận log đến hiển thị.
@@ -149,7 +151,7 @@ Người giám sát muốn phân biệt thiết bị không gửi log với hệ
 
 - Feature mới chỉ sở hữu hợp đồng tích hợp còn thiếu; bảng nền thuộc [001](../001-alert-data-model/spec.md), vòng đời [002](../002-alert-lifecycle/spec.md), engine [003](../003-rule-dispatch-correlation/spec.md), LinkFlap [004](../004-link-flap-rule/spec.md).
 - [integration-design.md](integration-design.md) định nghĩa giao tiếp, field, quyền, health và giá trị thử; không triển khai code/SQL trong lần specify.
-- Màn hình bản đầu đọc lại trạng thái có chu kỳ; chưa yêu cầu phát lại mọi thông báo tức thời hoặc thêm broker.
+- Đọc lại trạng thái theo chu kỳ là phương án đề xuất cho bước thiết kế chi tiết frontend.
 - Danh tính lab dùng cấu hình server được bảo vệ; không thêm chức năng đăng ký tài khoản hoặc quản trị rule trên giao diện. Tích hợp danh tính production là nhiệm vụ riêng.
 - Tám bảng chung sau khi thêm sức khỏe pipeline; không tạo bảng riêng theo hãng/rule, không tạo syslog giả cho heartbeat.
 - Không bảo đảm nhận đủ UDP hoặc khôi phục mọi sự kiện chưa từng được lưu. Retention production, HA và triển khai production chưa được chốt.

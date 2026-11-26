@@ -2,7 +2,7 @@
 
 **Dự án:** Thu thập và phân tích cảnh báo syslog từ router, switch, firewall  
 **Ngày:** 2026-11-25  
-**Trạng thái:** Bản đề xuất để leader review; chưa phải schema đã triển khai hoặc migration.  
+**Trạng thái:** Mô hình được chọn làm cơ sở thiết kế database cho prototype theo trao đổi ngày 26/11/2026. Các lựa chọn còn mở cho migration được ghi bên dưới.  
 **Phạm vi:** PostgreSQL cho prototype. Mô hình gốc ở [001](data-model.md); vòng đời cảnh báo ở [002](../002-alert-lifecycle/lifecycle-design.md); worker/rule ở [003](../003-rule-dispatch-correlation/engine-design.md); hợp đồng đầu vào đang dự thảo ở [006](../006-correlation-input-contract/spec.md).
 
 **Đối chiếu biên bản họp mới:** Repo ứng dụng còn đề xuất bảng `alert_events`/`grouped_incidents` trong tài liệu v0.9, chưa có DDL ứng dụng. Hướng đổi sang tên thể hiện `event`/`alert`, thêm `target_ip` và đánh giá dữ liệu thiếu được ghi tại [meeting-schema-alignment.md](meeting-schema-alignment.md). Tên bảng vật lý singular/plural và cách lưu `target_ip` cần TL/BE2/BE3 chốt; các tên `events`/`alerts` bên dưới là tên logic của bản đề xuất này, không tuyên bố migration repo đã chạy.
@@ -14,7 +14,7 @@
 3. Một cảnh báo là định danh sự cố trong phạm vi này. Nhiều event có thể góp vào một alert và một event có thể góp vào nhiều alert. Không cần bảng `incidents` riêng.
 4. Logic rule ở code; `rules` giữ snapshot cấu hình/phiên bản đã công bố. Một `rule_group_states` row cho một revision/scope/nhóm đang có state, không tạo bảng hoặc tiến trình theo interface.
 5. Tín hiệu của hệ thống (`active/recovered`) tách khỏi xác nhận của người giám sát (`new/acknowledged/closed`). Dữ liệu sức khỏe pipeline không giả thành syslog.
-6. Chưa chốt chính sách nhận diện **hai lần tiếp nhận có ID khác nhau** là trùng nhau. Schema không UNIQUE theo raw/hash. Xử lý lại cùng một event ID vẫn phải nhất quán.
+6. Trong prototype, **mỗi ID đầu vào khác nhau là một sự kiện riêng**, kể cả khi nội dung giống nhau. Schema không dùng UNIQUE theo raw/hash. Xử lý lại cùng một event ID phải giữ kết quả nhất quán. Chính sách nhận diện trùng giữa các ID sẽ được xem xét sau prototype.
 
 **Quy ước:** UUID cho thiết bị/rule/alert; BIGINT identity cho event; TIMESTAMPTZ lưu mốc tuyệt đối và kết nối dùng UTC; TEXT + CHECK cho tập trạng thái đang còn thay đổi; JSONB phải là object. NULL nghĩa là chưa biết/không áp dụng, không thay bằng `unknown` nếu `unknown` không phải giá trị nghiệp vụ. FK dùng `ON DELETE RESTRICT`; prototype không tự xóa lịch sử.
 
@@ -105,7 +105,7 @@ Ví dụ trong `attributes`: `{"interface_name":"GigabitEthernet0/0","interface_
 | description | TEXT NULL | Diễn giải |
 | handler_key, handler_revision | TEXT NOT NULL | Logic code đúng phiên bản |
 | definition | JSONB object NOT NULL | Subscription, group_by, parameters, recovery |
-| alert_severity | SMALLINT NOT NULL 0..7 | Severity alert mặc định |
+| alert_severity | SMALLINT NOT NULL 0..7 | Mức độ được khai báo cho revision, dùng khi tạo alert theo [spec 001](spec.md#quy-ước-gán-mức-độ-nghiêm-trọng) |
 | is_enabled | BOOLEAN NOT NULL DEFAULT false | Được chọn cho nhóm mới |
 | created_at | TIMESTAMPTZ NOT NULL | Tạo revision |
 | activated_at | TIMESTAMPTZ NULL trước công bố | Mốc kích hoạt đầu tiên, không tự đổi khi bật lại |
@@ -139,7 +139,7 @@ Ví dụ trong `attributes`: `{"interface_name":"GigabitEthernet0/0","interface_
 
 CHECK: `first_event_at<=last_event_at`; `active` đi với `recovered_at=NULL`; `closed` chỉ khi `recovered` và đủ cặp actor/timestamp ACK/CLOSE, thứ tự thao tác hợp lệ. Operator không được tự đặt signal_status. Tái phát trước CLOSE giữ cùng alert ID và ACK; sau CLOSE tạo episode mới khi đủ ngưỡng. Closed và history cũ bất biến.
 
-**Khóa chưa đóng hiện có trong thiết kế 001:** unique có điều kiện `(rule_id,correlation_scope,group_values) WHERE workflow_status<>'closed'`. Với prototype, phạm vi chống trùng **giữa các revision hoặc giữa các ID đầu vào khác nhau chưa được leader chốt**; không diễn giải index này là đã giải quyết toàn bộ bài toán đó. Worker vẫn cần đọc owner revision hiện hành theo 003. Nếu leader quyết định thêm bảo đảm ở mức rule logic, sẽ cần quyết định riêng về khóa và migration.
+**Khóa chưa đóng hiện có trong thiết kế 001:** unique có điều kiện `(rule_id,correlation_scope,group_values) WHERE workflow_status<>'closed'`. Khóa bảo vệ cảnh báo trong cùng revision, scope và nhóm. Worker vẫn cần đọc owner revision hiện hành theo 003. Bảo đảm bổ sung ở mức rule logic giữa các revision cần quyết định riêng về khóa và migration. Quy tắc về định danh sự kiện áp dụng theo mục 1.
 
 ## 7. Bằng chứng: `alert_events`
 
@@ -237,7 +237,7 @@ PK `(component,correlation_scope)`. CHECK `coverage_started_at<=heartbeat_at` v�
 | Lưu field nghiệp vụ | Cột chung + `attributes` JSONB + `vendor_fields` JSONB; projection có kiểu trong worker, không lưu bản `fields` thứ hai |
 | Nguồn cấu hình rule | File được kiểm tra rồi công bố snapshot bất biến vào `rules`; chưa có UI sửa rule |
 | State | Một bảng checkpoint chung, RAM là cache; một worker tương quan trong prototype |
-| Chống trùng giữa hai lần tiếp nhận khác ID | **Chưa chốt**; không UNIQUE raw/hash, không tuyên bố exactly-once đầu vào |
+| Hai lần tiếp nhận khác ID | Lưu và xét như hai sự kiện riêng trong prototype. Xem xét nhận diện trùng sau prototype. |
 | Chống tạo alert đồng thời trong một revision/group | Unique hiện đề xuất theo rule_id/scope/group; owner qua revision khác do worker giải quyết, chưa coi là bảo đảm cross-revision đã được duyệt |
 | Retention/partition | Lab không tự xóa; chưa partition; phải đánh giá FK/JSON refs trước khi bật retention |
 | Index interface và tìm full-text | Chờ truy vấn cụ thể + EXPLAIN/bài đo; không index mọi JSONB field |

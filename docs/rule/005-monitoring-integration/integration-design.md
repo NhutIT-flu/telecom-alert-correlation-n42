@@ -10,7 +10,7 @@ Ngày: 2026-11-20. Trạng thái: đề xuất, chưa triển khai/đo tải.
 
 | Phương án | Quyết định/đánh đổi |
 |---|---|
-| Polling PostgreSQL + frontend polling API | Chọn bản đầu: ít thành phần, nguồn kết quả bền vững, thêm độ trễ chu kỳ đọc |
+| Polling PostgreSQL + frontend polling API | Worker polling theo 003. Polling API là đề xuất cho frontend, với độ trễ phụ thuộc chu kỳ đọc. |
 | NOTIFY/SSE hoặc WebSocket | Để sau khi có nhu cầu giảm chu kỳ; wake-up không thay việc đọc bù/snapshot |
 | Broker/outbox và nhiều worker | Chưa chọn; cân nhắc khi cần tải/HA hoặc bảo đảm phát từng thông báo |
 
@@ -50,8 +50,7 @@ Heartbeat và receipt là dữ liệu hệ thống trong pipeline_runtime_status
   Biểu diễn lưu chuẩn chỉ dùng interface_state; raw đầu vào giữ nguyên.
 - Giá trị văn bản được ánh xạ enum tại biên; không lower-case/đổi alias interface.
   Thông điệp LINK và LINEPROTO được parser xác định lớp, không mặc định physical khi thiếu.
-- Hãng/OS/type dựa inventory/message có căn cứ, lưu nguồn nhận diện. Cisco/Juniper phải
-  có fixture thật từ lab hoặc giả lập đã gán nhãn trước bật mapping; format khác giữ raw.
+- Hãng/OS/type dựa inventory/message có căn cứ, lưu nguồn nhận diện. Mỗi định dạng cần mẫu đã gán nhãn trước khi bật mapping. Prototype ưu tiên mẫu lab Cisco XRv. Các định dạng còn lại vẫn giữ raw.
 - Byte lỗi giữ raw_bytes, text escape chỉ phục vụ hiển thị. JSON đã chuẩn hóa giữ nguyên
   JSON text ở raw_message, source_metadata.raw_kind=normalized_json; không giả raw thiết bị.
 - Source tự khai thời gian/thiết bị được kiểm tra, không nhận correlation_status, actor,
@@ -66,6 +65,8 @@ Cấu hình nguồn lab có timezone/year inference, căn cứ clock_trusted và
 không có policy đáng tin thì không bật quiet recovery cho nguồn đó. Inferred phải có nguồn
 bổ sung rõ, không tự dùng giờ nhận làm giờ thiết bị. Timestamp quá tương lai theo giới hạn
 cấu hình hoặc sequence mâu thuẫn tạo diagnostic và guard nhóm/scope; không treo vô hạn heap.
+Parser giữ căn cứ bổ sung năm/múi giờ trong `source_metadata` để worker áp dụng
+[tiêu chí thời gian của hợp đồng 006](../006-correlation-input-contract/contracts/normalized-event.md#điều-kiện-dùng-thời-gian-suy-ra).
 Đánh giá độ lệch không phân biệt chắc chắn được trễ vận chuyển với clock sai; không tuyên bố
 đã đo offset thiết bị chỉ từ received_at-event_time, không polling thiết bị trong phạm vi này.
 
@@ -145,6 +146,8 @@ hiện hành khi có quyền, không nhân đôi audit. Không nhận signal_sta
 
 ### 5.2. Frontend polling
 
+Phần này mô tả phương án tích hợp đề xuất để nhóm frontend xem xét khi thiết kế chi tiết.
+
 - active_view_refresh_ms=1000 là giá trị thử; chỉ một request đang chạy cho cùng view,
   không chồng request khi server chậm. Response về trễ từ bộ lọc cũ không được ghi đè view mới.
 - Bản đầu tải lại snapshot trang hiện hành và bộ đếm theo filter, không dùng MAX(id) như
@@ -210,7 +213,7 @@ thiết bị DOWN/UP. Từng nhóm có guard riêng nếu clock/order mâu thu�
 | I01 | UDP/API/file hợp lệ và lỗi byte/format | Raw đúng, nguồn/ID/scope và parse status đúng |
 | I02 | Quá event/request/file limit hoặc DB lỗi giữa lô | Từ chối/partial rõ, không thành công giả hoặc mất phần đã lưu |
 | I03 | JSON đã tách và field cũ/mâu thuẫn | raw_kind đúng, một schema chuẩn hoặc diagnostic |
-| I04 | Cisco/Juniper cùng hiện tượng và sai lớp | Cùng mapping đúng; không gộp physical/protocol |
+| I04 | Cisco XRv báo trạng thái interface với các mẫu đúng/sai lớp. Kiểm chứng thêm hãng thứ hai khi có mẫu tương ứng. | Mapping đúng lớp. Cùng hiện tượng đã được xác minh dùng cùng schema. |
 | I05 | Source tự đặt actor/scope/status hoặc thiếu quyền | Từ chối/ghi trường server, không vượt quyền |
 | I06 | Tệp search-only và replay chủ động | Scope tách, không thay live |
 | I07 | Worker tự nhận sau normalization commit | Không cần gọi rule trực tiếp; rollback không tạo dữ liệu sẵn sàng giả |
