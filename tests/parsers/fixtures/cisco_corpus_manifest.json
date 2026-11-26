@@ -1,0 +1,24 @@
+{
+  "ticket": "N42-23",
+  "schema_version": "1.0",
+  "mapping_version": "0.9-n42-23",
+  "ip_policy": "TEST-NET (192.0.2.0/24, 198.51.100.0/24) and RFC1918 lab ranges only",
+  "minimum_per_format_ac02": 200,
+  "datasets": [
+    {
+      "file": "cisco_ios_xr.jsonl",
+      "count": 210,
+      "sha256": "601330fb27b2fba1fda29034b5f368d72f9a8102030ec721f1227374043287c5"
+    },
+    {
+      "file": "cisco_ios.jsonl",
+      "count": 210,
+      "sha256": "8a1300aeb4978da85d6d826e0a7acf763e8c56f07a348f188d65012aed111f78"
+    },
+    {
+      "file": "cisco_nexus.jsonl",
+      "count": 210,
+      "sha256": "1db735a205b9dbf9ff89955c05bfb91c8257c2f3e48b556f3265b309374d9cac"
+    }
+  ]
+}
