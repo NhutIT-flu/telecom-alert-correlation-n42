@@ -300,7 +300,9 @@ def test_cisco_corpus_manifest_and_sha256():
     for ds in manifest["datasets"]:
         fpath = FIXTURES_DIR / ds["file"]
         assert fpath.exists()
-        actual_sha = hashlib.sha256(fpath.read_bytes()).hexdigest()
+        # Chuẩn hóa CRLF -> LF khi tính SHA-256 để khớp giữa Windows (autocrlf) và Linux CI
+        canonical_bytes = fpath.read_bytes().replace(b"\r\n", b"\n")
+        actual_sha = hashlib.sha256(canonical_bytes).hexdigest()
         assert actual_sha == ds["sha256"], f"Sai lệch SHA-256 cho {ds['file']}"
         assert ds["count"] >= 200, f"Corpus {ds['file']} chưa đạt 200 mẫu"
 
