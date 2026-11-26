@@ -13,7 +13,10 @@ from uuid import UUID, uuid4
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 VendorType = Literal["cisco", "huawei", "fortinet", "linux", "unknown"]
-ParseStatusType = Literal["parsed", "fallback"]
+ParseStatusType = Literal["parsed", "partial", "fallback"]
+NormalizedSeverityType = Literal["CRITICAL", "MAJOR", "WARNING", "INFO", "DEBUG", "UNKNOWN"]
+PortStateType = Literal["UP", "DOWN"]
+TimestampOriginType = Literal["PARSED", "INFERRED", "RECEIVED_FALLBACK"]
 
 
 class AlertEvent(BaseModel):
@@ -33,22 +36,78 @@ class AlertEvent(BaseModel):
         default=True,
         description="True nếu năm/múi giờ được suy diễn (mặc định True với RFC 3164 và fallback)",
     )
+    timestamp_origin: Optional[TimestampOriginType] = Field(
+        default=None,
+        description="Nguồn gốc thời gian sự kiện (PARSED, INFERRED, RECEIVED_FALLBACK)",
+    )
     source_ip: str = Field(description="Địa chỉ IP nguồn gửi bản tin (transport IP)")
-    hostname: str = Field(description="Tên thiết bị bóc tách từ header hoặc IP nguồn khi fallback")
-    facility: int = Field(ge=0, le=23, description="Mã phân loại dịch vụ theo RFC 5424 (0-23)")
-    severity: int = Field(ge=0, le=7, description="Mức độ nghiêm trọng theo RFC 5424 (0-7)")
+    hostname: str = Field(description="Tên thiết bị bóc tách từ header hoặc IP nguồn khi thiếu hostname")
+    card_location: Optional[str] = Field(
+        default=None,
+        description="Vị trí card/module phần cứng (ví dụ LC/0/1/CPU0), tách riêng khỏi hostname",
+    )
+    facility: Optional[int] = Field(
+        default=None,
+        ge=0,
+        le=23,
+        description="Mã phân loại dịch vụ theo RFC 5424 (0-23); None nếu bản tin không có PRI",
+    )
+    severity: Optional[int] = Field(
+        default=None,
+        ge=0,
+        le=7,
+        description="Mức độ nghiêm trọng theo Syslog PRI RFC 5424 (0-7); None nếu không có PRI",
+    )
+    vendor_severity: Optional[int] = Field(
+        default=None,
+        ge=0,
+        le=7,
+        description="Mức độ nghiêm trọng gốc do hãng ghi trong mã cảnh báo (0-7)",
+    )
+    normalized_severity: Optional[NormalizedSeverityType] = Field(
+        default=None,
+        description="Mức độ nghiệp vụ chuẩn hóa (CRITICAL/MAJOR/WARNING/INFO/DEBUG/UNKNOWN)",
+    )
+    severity_conflict: bool = Field(
+        default=False,
+        description="True nếu mức từ PRI mâu thuẫn với mức gốc của hãng",
+    )
     vendor: VendorType = Field(description="Hãng thiết bị viễn thông hoặc unknown")
     program: Optional[str] = Field(default=None, description="Tên tiến trình/tag phát sinh cảnh báo")
     mnemonic: Optional[str] = Field(default=None, description="Mã nhận dạng sự kiện của hãng")
     category: str = Field(default="unknown", description="Phân loại nghiệp vụ chuẩn hóa")
+    interface: Optional[str] = Field(
+        default=None,
+        description="Tên cổng/giao diện mạng được chuẩn hóa (ví dụ TenGigE0/1/0/4, GigabitEthernet0/1)",
+    )
+    state: Optional[PortStateType] = Field(
+        default=None,
+        description="Trạng thái vận hành của cổng (UP hoặc DOWN)",
+    )
+    duplicate_ip: Optional[str] = Field(
+        default=None,
+        description="Địa chỉ IP trùng lặp trong cảnh báo xung đột IP (ví dụ %IP-4-DUPADDR)",
+    )
+    mac_address: Optional[str] = Field(
+        default=None,
+        description="Địa chỉ MAC nguồn trong cảnh báo xung đột IP",
+    )
     message: str = Field(default="", description="Nội dung thông điệp cảnh báo đã bóc tách")
     raw_payload: str = Field(default="", description="Bản tin gốc đầy đủ nguyên trạng")
-    parse_status: ParseStatusType = Field(default="parsed", description="Trạng thái bóc tách (parsed hoặc fallback)")
-    parse_error: Optional[str] = Field(default=None, description="Mã lỗi khi parse_status=fallback")
+    parse_status: ParseStatusType = Field(
+        default="parsed",
+        description="Trạng thái bóc tách (parsed, partial hoặc fallback)",
+    )
+    parse_error: Optional[str] = Field(
+        default=None,
+        description="Mã lỗi khi parse_status là partial hoặc fallback",
+    )
 
-    @field_validator("facility", "severity", mode="before")
+    @field_validator("facility", "severity", "vendor_severity", mode="before")
     @classmethod
-    def validate_strict_int(cls, v: object) -> int:
+    def validate_strict_int(cls, v: object) -> Optional[int]:
+        if v is None:
+            return None
         if isinstance(v, bool):
             raise ValueError("Boolean values are not allowed for facility/severity")
         if not isinstance(v, int):
