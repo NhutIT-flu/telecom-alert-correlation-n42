@@ -1,3 +1,6 @@
+"""Package Receiver: Chứa các adapter tiếp nhận dữ liệu (Module M1 - BE1)."""
+
+from app.receiver.file_tailer import FileTailer, FileTailerConfig, FileTailerMetrics
 from app.receiver.metrics import ReceiverMetrics
 from app.receiver.protocol import SyslogUDPProtocol
 from app.receiver.server import (
@@ -9,6 +12,9 @@ from app.receiver.server import (
 )
 
 __all__ = [
+    "FileTailer",
+    "FileTailerConfig",
+    "FileTailerMetrics",
     "ReceiverMetrics",
     "SyslogUDPProtocol",
     "SyslogReceiverServer",

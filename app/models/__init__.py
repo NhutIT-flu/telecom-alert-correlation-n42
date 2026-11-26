@@ -1,4 +1,4 @@
-"""Package Models: Các đối tượng dữ liệu Pydantic v2."""
+"""Package Models: Các đối tượng dữ liệu Pydantic v2 và Dataclasses."""
 
 from app.models.alert_event import AlertEvent
 from app.models.ingest import BatchImportResponse, IngestRequest, IngestResponse
