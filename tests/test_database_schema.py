@@ -1,16 +1,15 @@
-"""Bộ kiểm thử xác thực Lược đồ Cơ sở Dữ liệu TimescaleDB và Ràng buộc Toàn vẹn (TC-DB-001..005).
+"""Bộ kiểm thử xác thực Lược đồ Cơ sở Dữ liệu TimescaleDB và Ràng buộc Toàn vẹn (TC-DB-001..004).
 
 Thực hiện cho ticket Jira N42-16 (BE2 - Phạm Tấn Thành).
-Cập nhật theo Biên bản họp ngày 23/11/2026 (MEET-N42-23112026) - Đã chốt bởi TL:
-  - Đổi tên bảng: alert_events -> events, incidents -> alerts, incident_events -> alert_events
-  - Bổ sung target_ip, cơ chế đánh giá dữ liệu thiếu/đầy đủ (completeness_status, missing_fields)
-  - Bổ sung bảng định nghĩa: event_definitions, alert_definitions
-  - Hỗ trợ mô hình trạng thái song song (status, admin_status) và quan hệ (root_cause, correlated, symptom)
+Căn cứ:
+  - docker/init-db.sql
+  - docs/N42-16_DESIGN.md
+  - docs/TEST_CASE_SPECIFICATION.md (Mục 6.10: TC-DB-001..004)
+  - docs/DECISIONS.md (D-02)
 """
 
 from __future__ import annotations
 
-import json
 import re
 import sqlite3
 import uuid
@@ -36,87 +35,46 @@ def init_db_sql() -> str:
 
 @pytest.fixture
 def memory_db() -> sqlite3.Connection:
-    """Tạo CSDL in-memory SQLite mô phỏng cấu trúc DDL mới để kiểm thử ràng buộc quan hệ."""
+    """Tạo CSDL in-memory SQLite mô phỏng cấu trúc DDL để kiểm thử ràng buộc quan hệ."""
     conn = sqlite3.connect(":memory:")
     conn.execute("PRAGMA foreign_keys = ON;")
 
-    # Bảng định nghĩa sự kiện & cảnh báo
+    # Bảng alert_events (tương thích SQLite syntax)
     conn.execute("""
-        CREATE TABLE event_definitions (
-            id TEXT PRIMARY KEY,
-            code TEXT NOT NULL UNIQUE,
-            name TEXT NOT NULL,
-            vendor TEXT DEFAULT 'unknown',
-            category TEXT DEFAULT 'unknown',
-            default_severity INTEGER CHECK (
-                default_severity IS NULL OR (default_severity >= 0 AND default_severity <= 7)
-            ),
-            description TEXT,
-            is_active INTEGER NOT NULL DEFAULT 1,
-            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
-        );
-        """)
-
-    conn.execute("""
-        CREATE TABLE alert_definitions (
-            id TEXT PRIMARY KEY,
-            code TEXT NOT NULL UNIQUE,
-            name TEXT NOT NULL,
-            root_cause_type TEXT NOT NULL,
-            default_severity INTEGER CHECK (
-                default_severity IS NULL OR (default_severity >= 0 AND default_severity <= 7)
-            ),
-            description TEXT,
-            is_active INTEGER NOT NULL DEFAULT 1,
-            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
-        );
-        """)
-
-    # Bảng events (tương thích SQLite syntax, hỗ trợ dữ liệu thiếu/đầy đủ)
-    conn.execute("""
-        CREATE TABLE events (
+        CREATE TABLE alert_events (
             id TEXT NOT NULL,
             event_timestamp TEXT NOT NULL,
             received_at TEXT NOT NULL,
             timestamp_inferred INTEGER DEFAULT 1,
             source_ip TEXT NOT NULL,
-            target_ip TEXT,
-            hostname TEXT,
-            facility INTEGER CHECK (facility IS NULL OR (facility >= 0 AND facility <= 23)),
-            severity INTEGER CHECK (severity IS NULL OR (severity >= 0 AND severity <= 7)),
-            vendor TEXT DEFAULT 'unknown',
+            hostname TEXT NOT NULL,
+            facility INTEGER NOT NULL CHECK (facility >= 0 AND facility <= 23),
+            severity INTEGER NOT NULL CHECK (severity >= 0 AND severity <= 7),
+            vendor TEXT NOT NULL,
             program TEXT,
             mnemonic TEXT,
             category TEXT DEFAULT 'unknown',
-            message TEXT,
+            message TEXT NOT NULL,
             raw_payload TEXT NOT NULL,
             parse_status TEXT DEFAULT 'parsed',
             parse_error TEXT,
-            completeness_status TEXT NOT NULL DEFAULT 'complete'
-                CHECK (completeness_status IN ('complete', 'partial', 'incomplete')),
-            missing_fields TEXT NOT NULL DEFAULT '[]',
             schema_version TEXT DEFAULT '1.0',
-            CONSTRAINT pk_events PRIMARY KEY (id, event_timestamp)
+            CONSTRAINT pk_alert_events PRIMARY KEY (id, event_timestamp)
         );
         """)
 
-    # Bảng alerts (M6 - đổi tên từ incidents, bổ sung admin_status)
+    # Bảng incidents (M6)
     conn.execute("""
-        CREATE TABLE alerts (
+        CREATE TABLE incidents (
             id TEXT PRIMARY KEY,
-            definition_id TEXT REFERENCES alert_definitions(id),
-            alert_name TEXT NOT NULL,
+            incident_name TEXT NOT NULL,
             rule_key TEXT NOT NULL,
             hostname TEXT NOT NULL,
             root_cause_type TEXT NOT NULL,
-            root_cause_event_id TEXT,
+            root_cause_alert_id TEXT,
             severity INTEGER NOT NULL CHECK (severity >= 0 AND severity <= 7),
             status TEXT NOT NULL DEFAULT 'OPEN'
                 CHECK (status IN ('OPEN', 'INVESTIGATING', 'RESOLVED', 'CLOSED')),
-            admin_status TEXT NOT NULL DEFAULT 'new'
-                CHECK (admin_status IN ('new', 'acknowledged', 'resolved', 'ignored')),
             first_seen TEXT NOT NULL,
             last_seen TEXT NOT NULL,
             event_count INTEGER NOT NULL DEFAULT 1 CHECK (event_count >= 1),
@@ -127,29 +85,27 @@ def memory_db() -> sqlite3.Connection:
         );
         """)
 
-    # Bảng alert_events (liên kết nhiều-nhiều với CASCADE và phân loại quan hệ)
+    # Bảng incident_events (liên kết nhiều-nhiều với CASCADE)
     conn.execute("""
-        CREATE TABLE alert_events (
-            alert_id TEXT NOT NULL REFERENCES alerts(id) ON DELETE CASCADE,
-            event_id TEXT NOT NULL,
+        CREATE TABLE incident_events (
+            incident_id TEXT NOT NULL REFERENCES incidents(id) ON DELETE CASCADE,
+            alert_id TEXT NOT NULL,
             event_timestamp TEXT NOT NULL,
-            relation_type TEXT NOT NULL DEFAULT 'correlated'
-                CHECK (relation_type IN ('root_cause', 'correlated', 'symptom')),
+            relation_type TEXT DEFAULT 'correlated',
             matched_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            CONSTRAINT pk_alert_events PRIMARY KEY (alert_id, event_id, event_timestamp)
+            CONSTRAINT pk_incident_events PRIMARY KEY (incident_id, alert_id, event_timestamp)
         );
         """)
 
     # Chỉ mục B-tree
-    conn.execute("CREATE INDEX idx_events_ts_sev ON events (event_timestamp DESC, severity);")
-    conn.execute("CREATE INDEX idx_events_host_ts ON events (hostname, event_timestamp DESC);")
-    conn.execute("CREATE INDEX idx_events_ts_host_sev ON events (event_timestamp DESC, hostname, severity);")
-    conn.execute("CREATE INDEX idx_events_vendor_ts ON events (vendor, event_timestamp DESC);")
-    conn.execute("CREATE INDEX idx_events_target_ip_ts ON events (target_ip, event_timestamp DESC);")
-    conn.execute("CREATE INDEX idx_alerts_status_last_seen ON alerts (status, admin_status, last_seen DESC);")
-    conn.execute("CREATE INDEX idx_alerts_host_last_seen ON alerts (hostname, last_seen DESC);")
-    conn.execute("CREATE INDEX idx_alerts_severity ON alerts (severity, last_seen DESC);")
-    conn.execute("CREATE INDEX idx_alert_events_event ON alert_events (event_id, event_timestamp);")
+    conn.execute("CREATE INDEX idx_alerts_ts_sev ON alert_events (event_timestamp DESC, severity);")
+    conn.execute("CREATE INDEX idx_alerts_host_ts ON alert_events (hostname, event_timestamp DESC);")
+    conn.execute("CREATE INDEX idx_alerts_ts_host_sev ON alert_events (event_timestamp DESC, hostname, severity);")
+    conn.execute("CREATE INDEX idx_alerts_vendor_ts ON alert_events (vendor, event_timestamp DESC);")
+    conn.execute("CREATE INDEX idx_incidents_status_last_seen ON incidents (status, last_seen DESC);")
+    conn.execute("CREATE INDEX idx_incidents_host_last_seen ON incidents (hostname, last_seen DESC);")
+    conn.execute("CREATE INDEX idx_incidents_severity ON incidents (severity, last_seen DESC);")
+    conn.execute("CREATE INDEX idx_incident_events_alert ON incident_events (alert_id, event_timestamp);")
 
     conn.commit()
     yield conn
@@ -173,67 +129,63 @@ def test_timescaledb_extension_and_sonarqube(init_db_sql: str) -> None:
     assert re.search(r"CREATE\s+DATABASE\s+sonarqube", init_db_sql, re.IGNORECASE)
 
 
-def test_events_and_definitions_tables_definition(init_db_sql: str) -> None:
-    """Xác nhận bảng events, alerts, alert_events và các bảng định nghĩa có đầy đủ cột chuẩn."""
-    for tbl in ["event_definitions", "alert_definitions", "events", "alerts", "alert_events"]:
-        assert re.search(
-            rf"CREATE\s+TABLE\s+IF\s+NOT\s+EXISTS\s+{tbl}\b", init_db_sql, re.IGNORECASE
-        ), f"Thiếu khai báo bảng {tbl}"
+def test_alert_events_table_definition(init_db_sql: str) -> None:
+    """Xác nhận bảng alert_events có đầy đủ các trường và khóa chính composite."""
+    # Kiểm tra khai báo bảng
+    assert re.search(r"CREATE\s+TABLE\s+IF\s+NOT\s+EXISTS\s+alert_events", init_db_sql, re.IGNORECASE)
 
+    # Kiểm tra các trường bắt buộc
     expected_columns = [
-        "id",
-        "event_timestamp",
-        "received_at",
-        "timestamp_inferred",
-        "source_ip",
-        "target_ip",
-        "hostname",
-        "facility",
-        "severity",
-        "vendor",
-        "program",
-        "mnemonic",
-        "category",
-        "message",
-        "raw_payload",
-        "parse_status",
-        "parse_error",
-        "completeness_status",
-        "missing_fields",
-        "schema_version",
+        "id UUID NOT NULL",
+        "event_timestamp TIMESTAMPTZ NOT NULL",
+        "received_at TIMESTAMPTZ NOT NULL",
+        "timestamp_inferred BOOLEAN DEFAULT TRUE",
+        "source_ip VARCHAR(45) NOT NULL",
+        "hostname VARCHAR(255) NOT NULL",
+        "facility SMALLINT NOT NULL",
+        "severity SMALLINT NOT NULL",
+        "vendor VARCHAR(30) NOT NULL",
+        "program VARCHAR(100)",
+        "mnemonic VARCHAR(100)",
+        "category VARCHAR(50)",
+        "message TEXT NOT NULL",
+        "raw_payload TEXT NOT NULL",
+        "parse_status VARCHAR(20)",
+        "parse_error VARCHAR(50)",
+        "schema_version VARCHAR(10)",
     ]
     for col in expected_columns:
-        assert re.search(rf"\b{col}\b", init_db_sql, re.IGNORECASE), f"Thiếu cột {col} trong DDL"
+        col_name = col.split()[0]
+        assert re.search(rf"\b{col_name}\b", init_db_sql, re.IGNORECASE), f"Thiếu cột {col_name} trong alert_events"
 
-    # Khóa chính composite bắt buộc của TimescaleDB trên bảng events
+    # Kiểm tra khóa chính composite bắt buộc của TimescaleDB
     assert re.search(
-        r"CONSTRAINT\s+pk_events\s+PRIMARY\s+KEY\s*\(\s*id\s*,\s*event_timestamp\s*\)",
+        r"CONSTRAINT\s+pk_alert_events\s+PRIMARY\s+KEY\s*\(\s*id\s*,\s*event_timestamp\s*\)",
         init_db_sql,
         re.IGNORECASE,
-    ), "Thiếu khóa chính composite PRIMARY KEY (id, event_timestamp) trên bảng events"
+    ), "Thiếu khóa chính composite PRIMARY KEY (id, event_timestamp)"
 
 
 def test_hypertable_creation_call(init_db_sql: str) -> None:
-    """Xác nhận kịch bản gọi hàm create_hypertable cho bảng events với chu kỳ phân vùng 1 ngày."""
+    """Xác nhận kịch bản gọi hàm create_hypertable với chu kỳ phân vùng 1 ngày (Quyết định D-02)."""
     hypertable_pattern = (
-        r"SELECT\s+create_hypertable\s*\(\s*'events'\s*,\s*'event_timestamp'\s*,"
+        r"SELECT\s+create_hypertable\s*\(\s*'alert_events'\s*,\s*'event_timestamp'\s*,"
         r"\s*chunk_time_interval\s*=>\s*INTERVAL\s*'1 day'\s*,\s*if_not_exists\s*=>\s*TRUE\s*\);"
     )
     assert re.search(hypertable_pattern, init_db_sql, re.IGNORECASE)
 
 
 def test_index_definitions_exist(init_db_sql: str) -> None:
-    """Xác nhận các chỉ mục B-tree tối ưu hóa truy vấn được khai báo đầy đủ."""
+    """Xác nhận 8 chỉ mục B-tree tối ưu hóa truy vấn được khai báo đầy đủ."""
     expected_indexes = [
-        "idx_events_ts_sev",
-        "idx_events_host_ts",
-        "idx_events_ts_host_sev",
-        "idx_events_vendor_ts",
-        "idx_events_target_ip_ts",
-        "idx_alerts_status_last_seen",
-        "idx_alerts_host_last_seen",
-        "idx_alerts_severity",
-        "idx_alert_events_event",
+        "idx_alerts_ts_sev",
+        "idx_alerts_host_ts",
+        "idx_alerts_ts_host_sev",
+        "idx_alerts_vendor_ts",
+        "idx_incidents_status_last_seen",
+        "idx_incidents_host_last_seen",
+        "idx_incidents_severity",
+        "idx_incident_events_alert",
     ]
     for idx in expected_indexes:
         assert idx in init_db_sql, f"Thiếu định nghĩa chỉ mục {idx} trong docker/init-db.sql"
@@ -241,11 +193,15 @@ def test_index_definitions_exist(init_db_sql: str) -> None:
 
 def test_proposed_compression_and_retention_policy(init_db_sql: str) -> None:
     """Xác nhận đề xuất chính sách Compression và Retention không được kích hoạt tự động trong DDL bootstrap."""
+    # 1. Đề xuất cú pháp mẫu vẫn phải có trong DDL để tham chiếu tài liệu
     assert "timescaledb.compress" in init_db_sql
     assert "timescaledb.compress_segmentby" in init_db_sql
     assert "add_compression_policy" in init_db_sql
     assert "add_retention_policy" in init_db_sql
 
+    # 2. NGHIÊM NGẶT (Review N42-16 ngày 22/11/2026):
+    # Tuyệt đối KHÔNG có câu lệnh add_retention_policy hoặc add_compression_policy nào được kích hoạt
+    # trong các câu lệnh SQL thực thi (uncommented).
     active_lines = [
         line.strip() for line in init_db_sql.splitlines() if line.strip() and not line.strip().startswith("--")
     ]
@@ -259,41 +215,46 @@ def test_proposed_compression_and_retention_policy(init_db_sql: str) -> None:
 
 
 def test_model_parity_with_ddl() -> None:
-    """Xác thực tính đồng bộ 100% giữa Pydantic model AlertEvent và cấu trúc bảng events trong DDL."""
+    """Xác thực tính đồng bộ 100% giữa Pydantic model AlertEvent và cấu trúc bảng DDL."""
     ddl_content = INIT_DB_PATH.read_text(encoding="utf-8")
     model_fields = AlertEvent.model_fields.keys()
 
     for field in model_fields:
         assert re.search(
             rf"\b{field}\b", ddl_content, re.IGNORECASE
-        ), f"Trường model '{field}' không xuất hiện trong DDL events"
+        ), f"Trường model '{field}' không xuất hiện trong DDL alert_events"
 
 
 # ==============================================================================
-# 2. KIỂM THỬ RÀNG BUỘC TOÀN VẸN & NGHIỆP VỤ (TC-DB-001..005)
+# 2. KIỂM THỬ RÀNG BUỘC TOÀN VẸN (TC-DB-001..004)
 # ==============================================================================
 
 
 def test_tc_db_001_primary_key_uniqueness(memory_db: sqlite3.Connection) -> None:
-    """TC-DB-001: Ràng buộc Unique trên (id, event_timestamp) của bảng events."""
+    """TC-DB-001: Ràng buộc Unique trên (id, event_timestamp) - Primary Key Integrity.
+
+    Kỳ vọng: Insert trùng (id, event_timestamp) ném lỗi IntegrityError.
+    """
     event_id = str(uuid.uuid4())
     ts = datetime.now(timezone.utc).isoformat()
 
+    # Insert lần 1 thành công
     memory_db.execute(
         """
-        INSERT INTO events (
-            id, event_timestamp, received_at, source_ip, target_ip, hostname,
+        INSERT INTO alert_events (
+            id, event_timestamp, received_at, source_ip, hostname,
             facility, severity, vendor, message, raw_payload
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
         """,
-        (event_id, ts, ts, "192.0.2.1", "192.0.2.254", "r-core-01", 16, 3, "cisco", "Link down", "<131>Link down"),
+        (event_id, ts, ts, "192.0.2.1", "r-core-01", 16, 3, "cisco", "Link down", "<131>Link down"),
     )
     memory_db.commit()
 
+    # Thử insert lần 2 với cùng id và event_timestamp -> phải ném IntegrityError
     with pytest.raises(sqlite3.IntegrityError):
         memory_db.execute(
             """
-            INSERT INTO events (
+            INSERT INTO alert_events (
                 id, event_timestamp, received_at, source_ip, hostname,
                 facility, severity, vendor, message, raw_payload
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
@@ -302,79 +263,62 @@ def test_tc_db_001_primary_key_uniqueness(memory_db: sqlite3.Connection) -> None
         )
         memory_db.commit()
 
-    cur = memory_db.execute("SELECT COUNT(*) FROM events WHERE id = ?;", (event_id,))
-    assert cur.fetchone()[0] == 1
+    # Kiểm tra chỉ 1 bản ghi tồn tại
+    cur = memory_db.execute("SELECT COUNT(*) FROM alert_events WHERE id = ?;", (event_id,))
+    count = cur.fetchone()[0]
+    assert count == 1
 
 
-def test_tc_db_002_core_required_and_completeness_tracking(memory_db: sqlite3.Connection) -> None:
-    """TC-DB-002: Phân tách trường lõi bắt buộc (NOT NULL) và cơ chế đánh dấu bản tin thiếu trường.
+def test_tc_db_002_not_null_constraints(memory_db: sqlite3.Connection) -> None:
+    """TC-DB-002: Ràng buộc NOT NULL trên các trường bắt buộc.
 
-    Theo biên bản 23/11/2026 Mục 3.3c:
-    - Các trường lõi (id, event_timestamp, received_at, source_ip, raw_payload) vẫn bắt buộc NOT NULL.
-    - Các trường có thể thiếu (hostname, facility, severity, target_ip, message) được phép NULL
-      khi được đánh dấu completeness_status = 'partial' hoặc 'incomplete' kèm missing_fields.
+    Kỳ vọng: Insert thiếu trường bắt buộc (raw_payload, event_timestamp, hostname, ...) ném lỗi IntegrityError.
     """
     event_id = str(uuid.uuid4())
     ts = datetime.now(timezone.utc).isoformat()
 
-    # 1. Thiếu trường lõi raw_payload -> phải báo lỗi IntegrityError
+    # 1. Thử insert thiếu raw_payload (NULL)
     with pytest.raises(sqlite3.IntegrityError):
         memory_db.execute(
             """
-            INSERT INTO events (
-                id, event_timestamp, received_at, source_ip, raw_payload
-            ) VALUES (?, ?, ?, ?, NULL);
+            INSERT INTO alert_events (
+                id, event_timestamp, received_at, source_ip, hostname,
+                facility, severity, vendor, message, raw_payload
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL);
             """,
-            (event_id, ts, ts, "192.0.2.1"),
+            (event_id, ts, ts, "192.0.2.1", "sw-edge-01", 16, 4, "huawei", "Msg"),
         )
 
-    # 2. Thiếu trường lõi event_timestamp -> phải báo lỗi IntegrityError
+    # 2. Thử insert thiếu event_timestamp (NULL)
     with pytest.raises(sqlite3.IntegrityError):
         memory_db.execute(
             """
-            INSERT INTO events (
-                id, event_timestamp, received_at, source_ip, raw_payload
-            ) VALUES (?, NULL, ?, ?, ?);
+            INSERT INTO alert_events (
+                id, event_timestamp, received_at, source_ip, hostname,
+                facility, severity, vendor, message, raw_payload
+            ) VALUES (?, NULL, ?, ?, ?, ?, ?, ?, ?, ?);
             """,
-            (event_id, ts, "192.0.2.1", "Raw syslog"),
+            (event_id, ts, "192.0.2.1", "sw-edge-01", 16, 4, "huawei", "Msg", "Raw"),
         )
 
-    # 3. Bản tin thiếu hostname, severity, target_ip nhưng đủ trường lõi -> LƯU THÀNH CÔNG với đánh dấu 'partial'
-    missing = json.dumps(["hostname", "severity", "target_ip"])
-    memory_db.execute(
-        """
-        INSERT INTO events (
-            id, event_timestamp, received_at, source_ip, hostname,
-            facility, severity, vendor, message, raw_payload,
-            completeness_status, missing_fields
-        ) VALUES (?, ?, ?, ?, NULL, NULL, NULL, 'unknown', 'Unparsed body', 'Raw syslog', 'partial', ?);
-        """,
-        (event_id, ts, ts, "192.0.2.10", missing),
-    )
-    memory_db.commit()
-
-    cur = memory_db.execute(
-        "SELECT completeness_status, missing_fields FROM events WHERE id = ?;",
-        (event_id,),
-    )
-    row = cur.fetchone()
-    assert row[0] == "partial"
-    assert json.loads(row[1]) == ["hostname", "severity", "target_ip"]
-
-    # 4. completeness_status ngoài miền ('complete', 'partial', 'incomplete') -> lỗi CHECK
+    # 3. Thử insert thiếu hostname (NULL)
     with pytest.raises(sqlite3.IntegrityError):
         memory_db.execute(
             """
-            INSERT INTO events (
-                id, event_timestamp, received_at, source_ip, raw_payload, completeness_status
-            ) VALUES (?, ?, ?, '192.0.2.10', 'Raw', 'invalid_status');
+            INSERT INTO alert_events (
+                id, event_timestamp, received_at, source_ip, hostname,
+                facility, severity, vendor, message, raw_payload
+            ) VALUES (?, ?, ?, ?, NULL, ?, ?, ?, ?, ?);
             """,
-            (str(uuid.uuid4()), ts, ts),
+            (event_id, ts, ts, "192.0.2.1", 16, 4, "huawei", "Msg", "Raw"),
         )
 
 
 def test_tc_db_003_check_constraints_and_indexes(memory_db: sqlite3.Connection) -> None:
-    """TC-DB-003: Kiểm tra ràng buộc CHECK (facility, severity, status, admin_status) và Index Plan."""
+    """TC-DB-003: Kiểm tra ràng buộc CHECK (facility 0-23, severity 0-7, status) và Index Plan.
+
+    Kỳ vọng: Giá trị ngoài biên bị từ chối; EXPLAIN QUERY PLAN sử dụng index đã tạo.
+    """
     event_id = str(uuid.uuid4())
     ts = datetime.now(timezone.utc).isoformat()
 
@@ -382,7 +326,7 @@ def test_tc_db_003_check_constraints_and_indexes(memory_db: sqlite3.Connection) 
     with pytest.raises(sqlite3.IntegrityError):
         memory_db.execute(
             """
-            INSERT INTO events (
+            INSERT INTO alert_events (
                 id, event_timestamp, received_at, source_ip, hostname,
                 facility, severity, vendor, message, raw_payload
             ) VALUES (?, ?, ?, ?, ?, -1, 3, 'cisco', 'Msg', 'Raw');
@@ -390,11 +334,23 @@ def test_tc_db_003_check_constraints_and_indexes(memory_db: sqlite3.Connection) 
             (event_id, ts, ts, "192.0.2.1", "r-core-01"),
         )
 
-    # 2. Severity vượt ngưỡng (> 7) -> lỗi
+    # 2. Facility vượt ngưỡng (> 23) -> lỗi
     with pytest.raises(sqlite3.IntegrityError):
         memory_db.execute(
             """
-            INSERT INTO events (
+            INSERT INTO alert_events (
+                id, event_timestamp, received_at, source_ip, hostname,
+                facility, severity, vendor, message, raw_payload
+            ) VALUES (?, ?, ?, ?, ?, 24, 3, 'cisco', 'Msg', 'Raw');
+            """,
+            (event_id, ts, ts, "192.0.2.1", "r-core-01"),
+        )
+
+    # 3. Severity vượt ngưỡng (> 7) -> lỗi
+    with pytest.raises(sqlite3.IntegrityError):
+        memory_db.execute(
+            """
+            INSERT INTO alert_events (
                 id, event_timestamp, received_at, source_ip, hostname,
                 facility, severity, vendor, message, raw_payload
             ) VALUES (?, ?, ?, ?, ?, 16, 8, 'cisco', 'Msg', 'Raw');
@@ -402,181 +358,236 @@ def test_tc_db_003_check_constraints_and_indexes(memory_db: sqlite3.Connection) 
             (event_id, ts, ts, "192.0.2.1", "r-core-01"),
         )
 
-    # 3. Status hoặc admin_status không hợp lệ trên alerts -> lỗi
+    # 4. Status Incident không hợp lệ -> lỗi
     with pytest.raises(sqlite3.IntegrityError):
         memory_db.execute(
             """
-            INSERT INTO alerts (
-                id, alert_name, rule_key, hostname, root_cause_type,
-                severity, status, admin_status, first_seen, last_seen
-            ) VALUES (?, 'Test Alert', 'RULE_1', 'r-core-01', 'LINK_FLAP', 2, 'INVALID', 'new', ?, ?);
+            INSERT INTO incidents (
+                id, incident_name, rule_key, hostname, root_cause_type,
+                severity, status, first_seen, last_seen
+            ) VALUES (?, 'Test Inc', 'RULE_1', 'r-core-01', 'LINK_FLAP', 2, 'INVALID_STATUS', ?, ?);
             """,
             (str(uuid.uuid4()), ts, ts),
         )
 
-    with pytest.raises(sqlite3.IntegrityError):
-        memory_db.execute(
-            """
-            INSERT INTO alerts (
-                id, alert_name, rule_key, hostname, root_cause_type,
-                severity, status, admin_status, first_seen, last_seen
-            ) VALUES (?, 'Test Alert', 'RULE_1', 'r-core-01', 'LINK_FLAP', 2, 'OPEN', 'BAD_ADMIN', ?, ?);
-            """,
-            (str(uuid.uuid4()), ts, ts),
-        )
-
-    # 4. Kiểm tra Query Plan sử dụng B-tree index
+    # 5. Kiểm tra Query Plan sử dụng B-tree index
     explain_cursor = memory_db.execute("""
         EXPLAIN QUERY PLAN
-        SELECT * FROM events
+        SELECT * FROM alert_events
         WHERE hostname = 'r-core-01'
         ORDER BY event_timestamp DESC;
         """)
-    plan_output = " ".join(str(row) for row in explain_cursor.fetchall())
-    assert "USING INDEX idx_events_host_ts" in plan_output, f"Query không dùng idx_events_host_ts: {plan_output}"
+    plan_output = " ".join([str(row) for row in explain_cursor.fetchall()])
+    assert "USING INDEX idx_alerts_host_ts" in plan_output, f"Query không dùng idx_alerts_host_ts: {plan_output}"
 
 
-def test_tc_db_004_cascade_and_relation_types(memory_db: sqlite3.Connection) -> None:
-    """TC-DB-004: Kiểm tra CASCADE, bảng định nghĩa và các kiểu quan hệ (root_cause, correlated, symptom)."""
-    def_id = str(uuid.uuid4())
-    alert_id = str(uuid.uuid4())
+def test_tc_db_004_cascade_referential_integrity(memory_db: sqlite3.Connection) -> None:
+    """TC-DB-004: Kiểm tra tính toàn vẹn tham chiếu và cơ chế Cascade khi xóa Incident.
+
+    Kỳ vọng:
+      1. Xóa Incident khỏi bảng incidents thì các liên kết trong incident_events tự động bị xóa (CASCADE).
+      2. Các bản ghi sự kiện trong alert_events vẫn tồn tại nguyên vẹn.
+    """
+    incident_id = str(uuid.uuid4())
     ts = datetime.now(timezone.utc).isoformat()
 
-    # 1. Tạo alert_definition và alert
+    # 1. Tạo 1 Incident
     memory_db.execute(
         """
-        INSERT INTO alert_definitions (id, code, name, root_cause_type, default_severity)
-        VALUES (?, 'DEF_LINK_FLAP', 'Link Flap Storm', 'LINK_FLAP', 2);
+        INSERT INTO incidents (
+            id, incident_name, rule_key, hostname, root_cause_type,
+            severity, status, first_seen, last_seen, event_count
+        ) VALUES (?, 'Link Flap Storm', 'RULE_LINK_FLAP_01', 'r-agg-02', 'LINK_FLAP', 1, 'OPEN', ?, ?, 5);
         """,
-        (def_id,),
-    )
-    memory_db.execute(
-        """
-        INSERT INTO alerts (
-            id, definition_id, alert_name, rule_key, hostname, root_cause_type,
-            severity, status, admin_status, first_seen, last_seen, event_count
-        ) VALUES (?, ?, 'Link Flap Storm', 'RULE_LINK_FLAP_01', 'r-agg-02', 'LINK_FLAP', 1, 'OPEN', 'new', ?, ?, 3);
-        """,
-        (alert_id, def_id, ts, ts),
+        (incident_id, ts, ts),
     )
 
-    # 2. Tạo 3 sự kiện với 3 kiểu quan hệ: root_cause, correlated, symptom
-    relations = ["root_cause", "correlated", "symptom"]
-    for i, rel in enumerate(relations):
-        ev_id = str(uuid.uuid4())
+    # 2. Tạo 5 cảnh báo trong alert_events và liên kết vào incident_events
+    alert_ids = []
+    for i in range(5):
+        a_id = str(uuid.uuid4())
+        alert_ids.append(a_id)
+        # Chèn alert
         memory_db.execute(
             """
-            INSERT INTO events (
-                id, event_timestamp, received_at, source_ip, target_ip, hostname,
+            INSERT INTO alert_events (
+                id, event_timestamp, received_at, source_ip, hostname,
                 facility, severity, vendor, message, raw_payload
-            ) VALUES (?, ?, ?, '192.0.2.1', '192.0.2.2', 'r-agg-02', 16, 3, 'cisco', ?, ?);
+            ) VALUES (?, ?, ?, ?, 'r-agg-02', 16, 3, 'cisco', ?, ?);
             """,
-            (ev_id, ts, ts, f"Event {rel} {i}", f"<131>Event {rel} {i}"),
+            (a_id, ts, ts, "192.0.2.1", f"Interface down {i}", f"<131>Interface down {i}"),
         )
+        # Chèn link
         memory_db.execute(
             """
-            INSERT INTO alert_events (alert_id, event_id, event_timestamp, relation_type)
-            VALUES (?, ?, ?, ?);
+            INSERT INTO incident_events (incident_id, alert_id, event_timestamp)
+            VALUES (?, ?, ?);
             """,
-            (alert_id, ev_id, ts, rel),
+            (incident_id, a_id, ts),
         )
 
     memory_db.commit()
 
-    # 3. Kiểm tra relation_type ngoài danh mục cho phép -> lỗi
-    with pytest.raises(sqlite3.IntegrityError):
-        memory_db.execute(
-            """
-            INSERT INTO alert_events (alert_id, event_id, event_timestamp, relation_type)
-            VALUES (?, ?, ?, 'unknown_rel');
-            """,
-            (alert_id, str(uuid.uuid4()), ts),
-        )
+    # Xác nhận trước khi xóa
+    cur = memory_db.execute("SELECT COUNT(*) FROM incident_events WHERE incident_id = ?;", (incident_id,))
+    assert cur.fetchone()[0] == 5
 
-    assert memory_db.execute("SELECT COUNT(*) FROM alert_events WHERE alert_id = ?;", (alert_id,)).fetchone()[0] == 3
+    cur = memory_db.execute("SELECT COUNT(*) FROM alert_events WHERE hostname = 'r-agg-02';")
+    assert cur.fetchone()[0] == 5
 
-    # 4. Xóa Alert -> CASCADE xóa alert_events nhưng bảo toàn bảng events
-    memory_db.execute("DELETE FROM alerts WHERE id = ?;", (alert_id,))
+    # 3. Xóa Incident
+    memory_db.execute("DELETE FROM incidents WHERE id = ?;", (incident_id,))
     memory_db.commit()
 
-    assert memory_db.execute("SELECT COUNT(*) FROM alert_events WHERE alert_id = ?;", (alert_id,)).fetchone()[0] == 0
-    assert memory_db.execute("SELECT COUNT(*) FROM events WHERE hostname = 'r-agg-02';").fetchone()[0] == 3
+    # 4. Xác nhận CASCADE: incident_events bị xóa hết
+    cur = memory_db.execute("SELECT COUNT(*) FROM incident_events WHERE incident_id = ?;", (incident_id,))
+    assert cur.fetchone()[0] == 0, "Bản ghi liên kết trong incident_events chưa bị xóa CASCADE"
+
+    # 5. Xác nhận alert_events gốc vẫn còn nguyên
+    cur = memory_db.execute("SELECT COUNT(*) FROM alert_events WHERE hostname = 'r-agg-02';")
+    assert cur.fetchone()[0] == 5, "Sự kiện cảnh báo gốc trong alert_events bị mất sau khi xóa incident"
 
 
 def test_tc_db_005_record_locator_and_explain(memory_db: sqlite3.Connection) -> None:
-    """TC-DB-005: Kiểm chứng chiến lược định vị bản ghi (Locator Strategy) và EXPLAIN Query Plan."""
+    """TC-DB-005: Kiểm chứng chiến lược định vị bản ghi (Locator Strategy) và EXPLAIN Query Plan.
+
+    Thực hiện theo yêu cầu rà soát N42-16 ngày 22/11/2026:
+    - Chứng minh truy vấn định vị theo cặp locator (id, event_timestamp) sử dụng trực tiếp
+      chỉ mục khóa chính pk_alert_events (Point lookup đạt độ phức tạp O(log N)).
+    - Chứng minh truy vấn định vị theo đơn id (GET /api/v1/events/{id}) vẫn tận dụng B-tree index
+      của leading column trong khóa chính composite mà không cần quét toàn bảng (Full Table Scan).
+    - Chứng minh tính xác định (deterministic reconciliation): lấy đúng duy nhất 1 bản ghi mục tiêu.
+    """
+    # 1. Chuẩn bị 10 bản ghi sự kiện với timestamp khác nhau
     inserted_records = []
-    base_time = 1731600000
+    base_time = 1731600000  # Unix timestamp chuẩn
     for i in range(10):
         ev_id = str(uuid.uuid4())
         ts = datetime.fromtimestamp(base_time + i * 60, timezone.utc).isoformat()
         rec_time = datetime.fromtimestamp(base_time + i * 60 + 2, timezone.utc).isoformat()
         memory_db.execute(
             """
-            INSERT INTO events (
-                id, event_timestamp, received_at, source_ip, target_ip, hostname,
+            INSERT INTO alert_events (
+                id, event_timestamp, received_at, source_ip, hostname,
                 facility, severity, vendor, message, raw_payload
-            ) VALUES (?, ?, ?, '192.0.2.10', '192.0.2.20', 'router-core-vnpt-01', 16, 3, 'cisco', ?, ?);
+            ) VALUES (?, ?, ?, '192.0.2.10', 'router-core-vnpt-01', 16, 3, 'cisco', ?, ?);
             """,
             (ev_id, ts, rec_time, f"Interface GigabitEthernet0/0/{i} changed state to down", f"<131>Link {i} down"),
         )
         inserted_records.append((ev_id, ts, rec_time))
     memory_db.commit()
 
-    target_id, target_ts, _ = inserted_records[4]
+    # Chọn bản ghi thứ 5 làm mẫu tra cứu đối soát
+    target_id, target_ts, target_rec = inserted_records[4]
 
-    # 1. Locator đầy đủ (id, event_timestamp)
+    # 2. Kiểm chứng Truy vấn với Locator đầy đủ: (id, event_timestamp)
+    # Kịch bản API tối ưu cho TimescaleDB Chunk Pruning: GET /api/v1/events/{id}?event_timestamp={ts}
     explain_full = memory_db.execute(
         """
         EXPLAIN QUERY PLAN
-        SELECT * FROM events
+        SELECT * FROM alert_events
         WHERE id = ? AND event_timestamp = ?;
         """,
         (target_id, target_ts),
     ).fetchall()
     plan_full_text = " ".join(str(row) for row in explain_full)
+    # Chứng minh sử dụng khóa chính composite (PostgreSQL: pk_alert_events, SQLite: sqlite_autoindex_alert_events_1)
     assert (
-        "pk_events" in plan_full_text or "sqlite_autoindex_events" in plan_full_text
+        "pk_alert_events" in plan_full_text or "sqlite_autoindex_alert_events" in plan_full_text
     ) and "SCAN TABLE" not in plan_full_text, (
         f"Truy vấn locator (id, event_timestamp) không dùng index: {plan_full_text}"
     )
 
-    row = memory_db.execute(
-        "SELECT id, event_timestamp, target_ip, message FROM events WHERE id = ? AND event_timestamp = ?;",
+    # Đối soát dữ liệu thực tế
+    cur = memory_db.execute(
+        "SELECT id, event_timestamp, message FROM alert_events WHERE id = ? AND event_timestamp = ?;",
         (target_id, target_ts),
-    ).fetchone()
-    assert row is not None
+    )
+    row = cur.fetchone()
+    assert row is not None, "Không tìm thấy bản ghi theo locator (id, event_timestamp)"
     assert row[0] == target_id
     assert row[1] == target_ts
-    assert row[2] == "192.0.2.20"
-    assert "Interface GigabitEthernet0/0/4 changed state to down" in row[3]
+    assert "Interface GigabitEthernet0/0/4 changed state to down" in row[2]
 
-    # 2. Single ID Locator (id)
+    # 3. Kiểm chứng Truy vấn với Single ID Locator: (id)
+    # Kịch bản API: GET /api/v1/events/{id}
     explain_single = memory_db.execute(
         """
         EXPLAIN QUERY PLAN
-        SELECT * FROM events
+        SELECT * FROM alert_events
         WHERE id = ?;
         """,
         (target_id,),
     ).fetchall()
     plan_single_text = " ".join(str(row) for row in explain_single)
+    # Vì id là cột đứng đầu (leading column) của pk_alert_events (id, event_timestamp),
+    # query engine vẫn dùng index pk_alert_events thay vì SCAN TABLE!
     assert (
-        "pk_events" in plan_single_text or "sqlite_autoindex_events" in plan_single_text
+        "pk_alert_events" in plan_single_text or "sqlite_autoindex_alert_events" in plan_single_text
     ) and "SCAN TABLE" not in plan_single_text, (
         f"Truy vấn single id không dùng index leading column: {plan_single_text}"
     )
 
-    single_rows = memory_db.execute("SELECT id, event_timestamp FROM events WHERE id = ?;", (target_id,)).fetchall()
-    assert len(single_rows) == 1
+    cur = memory_db.execute("SELECT id, event_timestamp FROM alert_events WHERE id = ?;", (target_id,))
+    single_rows = cur.fetchall()
+    assert len(single_rows) == 1, f"Kỳ vọng 1 bản ghi duy nhất, nhận được {len(single_rows)}"
     assert single_rows[0][0] == target_id
 
-    # 3. Negative case: sai event_timestamp
+    # 4. Kiểm chứng trường hợp Negative: ID đúng nhưng sai event_timestamp
     wrong_ts = datetime.fromtimestamp(base_time + 9999, timezone.utc).isoformat()
-    assert (
-        memory_db.execute(
-            "SELECT id FROM events WHERE id = ? AND event_timestamp = ?;",
-            (target_id, wrong_ts),
-        ).fetchone()
-        is None
+    cur = memory_db.execute(
+        "SELECT id FROM alert_events WHERE id = ? AND event_timestamp = ?;",
+        (target_id, wrong_ts),
     )
+    assert cur.fetchone() is None, "Truy vấn sai timestamp không được trả về dữ liệu"
+
+    # 5. Kiểm chứng ca CÙNG id, KHÁC event_timestamp (theo yêu cầu review N42-16 ngày 27/11/2026)
+    # Khóa chính tổ hợp (id, event_timestamp) cho phép tồn tại nhiều bản ghi cùng id nếu khác event_timestamp.
+    # Do đó, API bắt buộc phải định vị theo cặp (id, event_timestamp) mới đảm bảo lấy đúng 1 sự kiện duy nhất.
+    shared_id = str(uuid.uuid4())
+    ts_1 = datetime.fromtimestamp(base_time + 3600, timezone.utc).isoformat()
+    ts_2 = datetime.fromtimestamp(base_time + 7200, timezone.utc).isoformat()
+
+    memory_db.execute(
+        """
+        INSERT INTO alert_events (
+            id, event_timestamp, received_at, source_ip, hostname,
+            facility, severity, vendor, message, raw_payload
+        ) VALUES (?, ?, ?, '192.0.2.10', 'router-core-vnpt-01', 16, 3, 'cisco', 'Event at T1', '<131>T1');
+        """,
+        (shared_id, ts_1, ts_1),
+    )
+    memory_db.execute(
+        """
+        INSERT INTO alert_events (
+            id, event_timestamp, received_at, source_ip, hostname,
+            facility, severity, vendor, message, raw_payload
+        ) VALUES (?, ?, ?, '192.0.2.10', 'router-core-vnpt-01', 16, 3, 'cisco', 'Event at T2', '<131>T2');
+        """,
+        (shared_id, ts_2, ts_2),
+    )
+    memory_db.commit()
+
+    # Truy vấn chỉ theo đơn id -> trả về 2 bản ghi (không phân định được duy nhất 1 sự kiện)
+    rows_by_id_only = memory_db.execute(
+        "SELECT id, event_timestamp, message FROM alert_events WHERE id = ?;",
+        (shared_id,),
+    ).fetchall()
+    assert (
+        len(rows_by_id_only) == 2
+    ), f"Kỳ vọng 2 bản ghi cùng id khác event_timestamp, nhận được {len(rows_by_id_only)}"
+
+    # Truy vấn theo cặp khóa chuẩn (id, event_timestamp) -> trả về chính xác 1 bản ghi duy nhất
+    row_t1 = memory_db.execute(
+        "SELECT id, event_timestamp, message FROM alert_events WHERE id = ? AND event_timestamp = ?;",
+        (shared_id, ts_1),
+    ).fetchall()
+    assert len(row_t1) == 1
+    assert row_t1[0][2] == "Event at T1"
+
+    row_t2 = memory_db.execute(
+        "SELECT id, event_timestamp, message FROM alert_events WHERE id = ? AND event_timestamp = ?;",
+        (shared_id, ts_2),
+    ).fetchall()
+    assert len(row_t2) == 1
+    assert row_t2[0][2] == "Event at T2"

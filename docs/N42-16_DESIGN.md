@@ -1,23 +1,22 @@
 # N42-16 - Thiết kế Schema TimescaleDB, Index và Đề xuất Chính sách Retention / Compression
 
-- **Phiên bản:** 2.0, Cập nhật ngày 25/11/2026 (theo Biên bản họp 23/11/2026 `MEET-N42-23112026` đã được TL chốt).
-- **Trạng thái:** UPDATED PER TL DECISION (Sẵn sàng review).
+- **Phiên bản:** 1.0, Ngày 12/11/2026.
+- **Trạng thái:** DRAFT / PROPOSED FOR REVIEW (Chờ Team Leader và QA Lead phê duyệt).
 - **Kỹ sư phụ trách:** Phạm Tấn Thành (Backend Engineer 2 - BE2).
 - **Thẻ Jira:** [N42-16](https://nhutp2945-1793259952237.atlassian.net/browse/N42-16).
-- **Truy vết yêu cầu:** FR-06 (Lưu trữ và lập chỉ mục chuỗi thời gian), AC-07 (Khởi tạo database tự động qua Docker Compose), TC-DB-001..005 (Đặc tả kiểm thử CSDL).
-- **Tài liệu căn cứ:** [TDD](TECHNICAL_DESIGN_DOCUMENT.md), [Thiết kế dữ liệu và API](DATA_AND_API_DESIGN.md), [Kiến trúc hệ thống](ARCHITECTURE_DESIGN.md), [Quyết định kỹ thuật](DECISIONS.md) (D-02, D-05), [Thiết kế sơ bộ BE2](BE2_PRELIMINARY_MODULE_DESIGN.md).
+- **Truy vết yêu cầu:** FR-06 (Lưu trữ và lập chỉ mục chuỗi thời gian), AC-07 (Khởi tạo database tự động qua Docker Compose), TC-DB-001..004 (Đặc tả kiểm thử CSDL).
+- **Tài liệu căn cứ:** [TDD](TECHNICAL_DESIGN_DOCUMENT.md), [Thiết kế dữ liệu và API](DATA_AND_API_DESIGN.md), [Kiến trúc hệ thống](ARCHITECTURE_DESIGN.md), [Quyết định kỹ thuật](DECISIONS.md) (D-02, D-05).
 
 ---
 
 ## 1. Phạm vi kỹ thuật
 
-Thiết kế kiến trúc cơ sở dữ liệu chuỗi thời gian (Time-Series Database) cho Hệ thống thu thập và phân tích cảnh báo mạng viễn thông N4.2 (cập nhật đồng bộ theo quyết định cuộc họp 23/11/2026):
-1. Đổi tên bảng chuẩn hóa: `alert_events` $\rightarrow$ **`events`** (Hypertable), `incidents` $\rightarrow$ **`alerts`**, `incident_events` $\rightarrow$ **`alert_events`**.
-2. Bổ sung trường `target_ip` và cơ chế kiểm tra độ đầy đủ dữ liệu (`completeness_status`, `missing_fields`) thay cho `NOT NULL` cứng nhắc.
-3. Bổ sung 2 bảng danh mục định nghĩa: **`event_definitions`** và **`alert_definitions`**.
-4. Thiết lập Hypertable TimescaleDB trên bảng `events` với khóa phân vùng thời gian `event_timestamp` và chu kỳ chunk 1 ngày (`INTERVAL '1 day'`) theo Quyết định D-02.
-5. Hỗ trợ mô hình 2 nhóm trạng thái song song (`status` hệ thống + `admin_status` người quản trị) trên `alerts` và phân loại quan hệ (`root_cause`, `correlated`, `symptom`) trên `alert_events`.
-6. Đề xuất định lượng chính sách Nén dữ liệu (Compression) và Lưu trữ (Retention) ở dạng tham chiếu (không tự kích hoạt khi bootstrap).
+Thiết kế kiến trúc cơ sở dữ liệu chuỗi thời gian (Time-Series Database) cho Hệ thống thu thập và phân tích cảnh báo mạng viễn thông N4.2:
+1. Định nghĩa lược đồ bảng dữ liệu sự kiện chuẩn hóa `alert_events` tương thích 100% với model Pydantic v2 `AlertEvent` (đã hoàn thành ở N42-15).
+2. Thiết lập Hypertable TimescaleDB với khóa phân vùng thời gian `event_timestamp` và chu kỳ phân đoạn chunk 1 ngày (`INTERVAL '1 day'`) theo Quyết định D-02.
+3. Thiết kế hệ thống chỉ mục B-tree đa chiều tối ưu hóa cho các truy vấn thời gian thực và tổng hợp thống kê.
+4. Thiết kế lược đồ bảng sự cố gốc `incidents` và bảng quan hệ liên kết `incident_events` phục vụ Module tương quan M6.
+5. Soạn thảo đề xuất định lượng về chính sách Nén dữ liệu (Native Compression) và chính sách Lưu trữ (Retention Policy) phù hợp với tải trọng 1.000 msg/s.
 
 ---
 
@@ -25,12 +24,9 @@ Thiết kế kiến trúc cơ sở dữ liệu chuỗi thời gian (Time-Series 
 
 Toàn bộ kịch bản DDL được đóng gói trong tệp [`docker/init-db.sql`](../docker/init-db.sql):
 
-### 2.1. Bảng `events` (Hypertable — đổi tên từ `alert_events`)
-- Lưu trữ toàn bộ các bản tin sự kiện mạng sau khi chuẩn hóa bởi Module M2.
+### 2.1. Bảng `alert_events` (Hypertable)
+- Lưu trữ toàn bộ các bản tin cảnh báo viễn thông sau khi chuẩn hóa bởi Module M2.
 - **Quy tắc TimescaleDB:** Khóa chính bắt buộc phải là khóa composite chứa cột phân vùng thời gian `(id, event_timestamp)`.
-- **Cơ chế đánh giá dữ liệu thiếu/đầy đủ (Mục 3.3c):**
-  - *Trường lõi bắt buộc (`NOT NULL`):* `id`, `event_timestamp`, `received_at`, `source_ip`, `raw_payload`, `completeness_status`.
-  - *Trường có thể thiếu (cho phép `NULL`):* `hostname`, `facility`, `severity`, `target_ip`, `program`, `mnemonic`, `message`. Khi thiếu trường, bản ghi vẫn được lưu và gắn `completeness_status = 'partial'` hoặc `'incomplete'` cùng danh sách tên trường thiếu trong `missing_fields`.
 
 | Cột | Kiểu dữ liệu | Ràng buộc | Ý nghĩa nghiệp vụ |
 | :--- | :--- | :--- | :--- |
@@ -39,20 +35,17 @@ Toàn bộ kịch bản DDL được đóng gói trong tệp [`docker/init-db.sq
 | `received_at` | `TIMESTAMPTZ` | `NOT NULL` | Thời điểm hệ thống tiếp nhận bản tin |
 | `timestamp_inferred` | `BOOLEAN` | `DEFAULT TRUE` | Đánh dấu thời gian có được suy diễn (RFC 3164) hay không |
 | `source_ip` | `VARCHAR(45)` | `NOT NULL` | Địa chỉ IP nguồn (hỗ trợ cả IPv4 và IPv6) |
-| `target_ip` | `VARCHAR(45)` | `NULL` | Địa chỉ IP đích liên quan đến sự kiện (bổ sung theo Mục 3.3b) |
-| `hostname` | `VARCHAR(255)` | `NULL` | Tên thiết bị mạng phát sinh sự kiện (có thể thiếu nếu fallback) |
-| `facility` | `SMALLINT` | `CHECK (NULL or 0..23)` | Phân loại dịch vụ theo chuẩn RFC 5424 |
-| `severity` | `SMALLINT` | `CHECK (NULL or 0..7)` | Mức độ nghiêm trọng theo chuẩn RFC 5424 (0=Emergency..7=Debug) |
-| `vendor` | `VARCHAR(30)` | `DEFAULT 'unknown'` | Hãng thiết bị (cisco, huawei, fortinet, juniper, linux, unknown) |
+| `hostname` | `VARCHAR(255)` | `NOT NULL` | Tên thiết bị mạng phát sinh cảnh báo |
+| `facility` | `SMALLINT` | `CHECK (0..23)` | Phân loại dịch vụ theo chuẩn RFC 5424 |
+| `severity` | `SMALLINT` | `CHECK (0..7)` | Mức độ nghiêm trọng theo chuẩn RFC 5424 (0=Emergency..7=Debug) |
+| `vendor` | `VARCHAR(30)` | `NOT NULL` | Hãng thiết bị (cisco, huawei, fortinet, linux, unknown) |
 | `program` | `VARCHAR(100)` | `NULL` | Tên tiến trình/tiện ích phát sinh log |
-| `mnemonic` | `VARCHAR(100)` | `NULL` | Mã định danh sự kiện của hãng |
+| `mnemonic` | `VARCHAR(100)` | `NULL` | Mã định danh cảnh báo của hãng |
 | `category` | `VARCHAR(50)` | `DEFAULT 'unknown'` | Phân loại nghiệp vụ (chờ mapping M5) |
-| `message` | `TEXT` | `NULL` | Nội dung thông điệp đã bóc tách |
+| `message` | `TEXT` | `NOT NULL` | Nội dung thông điệp cảnh báo đã bóc tách |
 | `raw_payload` | `TEXT` | `NOT NULL` | Bản tin syslog thô ban đầu |
 | `parse_status` | `VARCHAR(20)` | `DEFAULT 'parsed'` | Trạng thái bóc tách (`parsed` hoặc `fallback`) |
 | `parse_error` | `VARCHAR(50)` | `NULL` | Mã lỗi nếu rơi vào trường hợp fallback |
-| `completeness_status` | `VARCHAR(20)` | `NOT NULL DEFAULT 'complete'` | Đánh giá độ đầy đủ (`complete`, `partial`, `incomplete`) |
-| `missing_fields` | `JSONB` | `NOT NULL DEFAULT '[]'` | Danh sách tên các trường bị thiếu thông tin |
 | `schema_version` | `VARCHAR(10)` | `DEFAULT '1.0'` | Phiên bản cấu trúc schema |
 
 #### 2.1.1. Luận chứng Kỹ thuật về Khóa chính và Bộ định vị bản ghi (Record Locator Strategy)
@@ -67,17 +60,10 @@ Toàn bộ kịch bản DDL được đóng gói trong tệp [`docker/init-db.sq
    - Cảnh báo mạng viễn thông gắn liền với thời điểm vật lý xuất hiện sự cố trên phần cứng (`event_timestamp`). Đây là mốc thời gian khách quan để xác định chuỗi nhân quả (causality) giữa các cảnh báo (ví dụ Router báo Link Down lúc $T_0$, kéo theo hàng loạt BGP Neighbor Down tại $T_0 + 50ms$).
    - `received_at` chỉ là mốc nhận tin tại cổng Ingest, bị phụ thuộc vào độ trễ đường truyền mạng và độ sâu hàng đợi, có thể bị đến muộn hoặc xáo trộn (out-of-order), không thể đại diện cho danh tính vật lý của sự kiện.
 
-3. **Chiến lược Định vị bản ghi (Locator) & Hiệu năng EXPLAIN:**
-   - **Tuple Locator `(id, event_timestamp)`:**
-     - Kịch bản API tối ưu: `GET /api/v1/events/{id}?event_timestamp={ts}`.
-     - TimescaleDB thực thi cơ chế **Chunk Pruning**: Bỏ qua toàn bộ các chunk không liên quan, định tuyến thẳng tới duy nhất 1 chunk chứa `event_timestamp`, sau đó thực hiện B-tree lookup trên `pk_alert_events`.
-     - Kế hoạch truy vấn: `Index Scan using pk_alert_events on _hyper_1_chunk (cost=0.15..8.17 rows=1)`.
-   - **Single ID Locator `id`:**
-     - Kịch bản API RESTful chuẩn: `GET /api/v1/events/{id}`.
-     - Vì `id` là **cột dẫn đầu (leading column)** trong chỉ mục B-tree tổ hợp `pk_alert_events (id, event_timestamp)`, hệ thống PostgreSQL thực hiện quét trực tiếp trên chỉ mục khóa chính tại các chunk mà **hoàn toàn không cần quét toàn bảng (Full Table Scan / Seq Scan)**.
-   - **Đồng bộ với hợp đồng N42-62:**
-     - Ticket N42-62 thiết kế cursor phân trang ổn định dựa trên cặp `(event_timestamp, id)`.
-     - Lược đồ DDL và cấu trúc khóa chính `(id, event_timestamp)` đồng bộ 100% với định dạng con trỏ cursor của API N42-62.
+3. **Chiến lược Định vị bản ghi (Event Locator Contract) — Thống nhất với N42-62:**
+   - **Hợp đồng định vị chốt với N42-62:** Thay thế đề xuất nháp cũ `id + received_at` (OpenAPI `review.2`) bằng cặp khóa chuẩn **`(id, event_timestamp)`**. Đối chiếu trực tiếp với nhánh `feature/N42-62-api-event-contract-v1` (`docs/N42-62_DESIGN.md`, `app/schemas/event_contract.py` - DEC-03), N42-62 đã chốt dùng cặp `(event_timestamp, id)` làm cursor phân trang và định danh truy vấn SQL (`WHERE (event_timestamp, id) < (:cursor_ts, :cursor_id)`).
+   - **Lý do bắt buộc cặp `(id, event_timestamp)` cho API lấy 1 sự kiện:** Vì khóa chính tổ hợp `PRIMARY KEY (id, event_timestamp)` cho phép tồn tại nhiều bản ghi cùng `id` nhưng khác `event_timestamp` (thuộc các chunk khác nhau), truy vấn chỉ theo `id` đơn lẻ không đảm bảo tính duy nhất. Endpoint `GET /api/v1/events/{id}` bắt buộc đi kèm `event_timestamp` (`GET /api/v1/events/{id}?event_timestamp={ts}`) để định vị chính xác 1 bản ghi duy nhất.
+   - **Hiệu năng Chunk Pruning:** Với cặp `(id, event_timestamp)`, TimescaleDB loại bỏ toàn bộ các chunk không liên quan, định tuyến thẳng tới 1 chunk duy nhất và thực hiện `Index Scan using pk_alert_events`.
 
 ### 2.2. Bảng `incidents` (Module M6)
 - Lưu vết các sự cố mạng sau khi chạy thuật toán tương quan gom nhóm và phân tích nguyên nhân gốc (RCA).
@@ -165,11 +151,42 @@ Toàn bộ các tiêu chí kiểm thử đã được tự động hóa tại [`
 3. **TC-DB-003 (CHECK Constraints & Index Query Plan):** Kiểm chứng giá trị biên của `facility` (0–23), `severity` (0–7), `incidents.status` ('OPEN', 'INVESTIGATING', 'RESOLVED', 'CLOSED'); EXPLAIN QUERY PLAN chứng minh query engine sử dụng B-tree index `idx_alerts_host_ts`.
 4. **TC-DB-004 (Referential Integrity & Cascade):** Kiểm chứng xóa Incident sẽ kích hoạt `ON DELETE CASCADE` dọn dẹp quan hệ trong `incident_events` mà vẫn bảo toàn 100% các bản ghi sự kiện gốc trong `alert_events`.
 5. **TC-DB-005 (Record Locator & EXPLAIN Query Plan):** Kiểm chứng toàn diện chiến lược định vị bản ghi:
-   - Truy vấn locator đầy đủ `(id, event_timestamp)` tối ưu hóa chunk pruning và sử dụng `pk_alert_events`.
-   - Truy vấn single ID `id` (API `GET /api/v1/events/{id}`) tận dụng leading column của B-tree index `pk_alert_events` mà không cần Full Table Scan.
-   - Đối soát dữ liệu (reconciliation) đảm bảo trả về chính xác 1 bản ghi duy nhất, truy vấn sai timestamp trả về rỗng.
+   - Kiểm chứng ca **cùng `id`, khác `event_timestamp`** (`T1`, `T2`): DB cho phép cả 2 bản ghi tồn tại; truy vấn đơn `id` trả về 2 bản ghi; truy vấn theo cặp khóa chuẩn `(id, event_timestamp)` trả về chính xác 1 bản ghi duy nhất.
+   - `EXPLAIN QUERY PLAN` chứng minh truy vấn dùng index `pk_alert_events`, không dùng `SCAN TABLE`.
 6. **Không kích hoạt Retention/Compression tại Bootstrap:** Khẳng định 100% không có lệnh `add_retention_policy` hoặc `add_compression_policy` nào chạy chủ động trong DDL khởi tạo.
 7. **Model Parity:** Kiểm chứng 100% khớp trường giữa Pydantic model `AlertEvent` và cấu trúc DDL PostgreSQL.
 8. **Bảo mật & Chất lượng mã nguồn:** Quét `tools/check_sensitive.py` không rò rỉ credential hay IP thật; Flake8 & Black đạt chuẩn PEP 8.
+
+### 5.2. Bằng chứng Nghiệm thu thực tế trên TimescaleDB Lab sạch (Docker)
+
+- **Môi trường kiểm chứng:** Container `n42-db` dựng mới hoàn toàn từ volume sạch (`docker compose down -v` $\rightarrow$ `docker compose up -d db`), image `timescale/timescaledb:latest-pg16`.
+- **Phiên bản CSDL:** `PostgreSQL 16.15 on x86_64-pc-linux-musl` + Extension **`timescaledb 2.31.0`**.
+- **Log áp DDL (`docker/init-db.sql`):**
+  ```text
+  CREATE EXTENSION (timescaledb, pgcrypto)
+  CREATE DATABASE (sonarqube)
+  CREATE TABLE (alert_events)
+  SELECT create_hypertable('alert_events', 'event_timestamp', chunk_time_interval => INTERVAL '1 day')
+  CREATE INDEX x4 (idx_alerts_ts_sev, idx_alerts_host_ts, idx_alerts_ts_host_sev, idx_alerts_vendor_ts)
+  CREATE TABLE (incidents, incident_events) + CREATE INDEX x4 + COMMENT x5
+  database system is ready to accept connections
+  ```
+- **Xác minh Hypertable & Jobs (không có job retention/compression tự chạy):**
+  ```text
+  hypertable_name | num_dimensions | compression_enabled
+  alert_events    | 1              | f
+  timescaledb_information.jobs WHERE hypertable_name = 'alert_events' -> (0 rows)
+  ```
+- **Đối soát truy vấn cùng `id`, khác `event_timestamp` trên 2 chunk khác nhau (`2026-11-27` và `2026-11-28`, cùng 1.000 bản ghi giả lập):**
+  - Truy vấn đơn `WHERE id = '11111111-1111-4111-8111-111111111111'` $\rightarrow$ trả về **2 rows** (`Event at Day 1`, `Event at Day 2`).
+  - Truy vấn theo cặp khóa chuẩn `WHERE id = '11111111-1111-4111-8111-111111111111' AND event_timestamp = '2026-11-27 01:00:00+00'` $\rightarrow$ trả về **1 row duy nhất** (`Event at Day 1`).
+- **Kết quả `EXPLAIN (ANALYZE, BUFFERS)` thực tế trên TimescaleDB:**
+  ```text
+  Index Scan using "1_pk_alert_events" on _hyper_1_1_chunk  (cost=0.28..2.49 rows=1 width=41) (actual time=0.009..0.010 rows=1 loops=1)
+    Index Cond: ((id = '11111111-1111-4111-8111-111111111111'::uuid) AND (event_timestamp = '2026-11-27 01:00:00+00'::timestamp with time zone))
+    Buffers: shared hit=3
+  Planning Time: 0.261 ms
+  Execution Time: 0.018 ms
+  ```
 
 
