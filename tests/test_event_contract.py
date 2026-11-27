@@ -1,7 +1,8 @@
-"""Bộ kiểm thử xác thực Hợp đồng API và DTO Sự kiện v1.0 (N42-62).
+"""Bộ kiểm thử xác thực Hợp đồng API và DTO Sự kiện v1.0.0 (N42-62).
 
 Căn cứ:
   - docs/N42-62_DESIGN.md
+  - docs/openapi-v1.yaml
   - app/schemas/event_contract.py
   - tests/fixtures/contract_v1/
 """
@@ -14,20 +15,26 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 import pytest
+import yaml
 from pydantic import ValidationError
 
 from app.models.alert_event import AlertEvent
 from app.schemas.event_contract import (
+    CONTRACT_VERSION,
     EventIngestBatchRequest,
     EventIngestRequest,
     EventIngestResponse,
+    EventListQuery,
     EventListResponse,
+    EventLocatorQuery,
     EventView,
     decode_cursor,
     encode_cursor,
 )
 
-FIXTURES_DIR = Path(__file__).resolve().parent / "fixtures" / "contract_v1"
+ROOT_DIR = Path(__file__).resolve().parents[1]
+FIXTURES_DIR = ROOT_DIR / "tests" / "fixtures" / "contract_v1"
+OPENAPI_PATH = ROOT_DIR / "docs" / "openapi-v1.yaml"
 
 
 def test_event_view_from_fixture() -> None:
@@ -89,11 +96,9 @@ def test_event_ingest_request_valid() -> None:
 
 def test_event_ingest_request_validation_errors() -> None:
     """Xác thực bắt lỗi schema khi dữ liệu Ingest không hợp lệ."""
-    # 1. raw_message rỗng
     with pytest.raises(ValidationError):
         EventIngestRequest(raw_message="")
 
-    # 2. source_ip không phải địa chỉ IP hợp lệ
     with pytest.raises(ValidationError):
         EventIngestRequest(raw_message="<134>test", source_ip="not-an-ip")
 
@@ -111,19 +116,81 @@ def test_event_ingest_batch_request() -> None:
 
 def test_event_ingest_responses() -> None:
     """Xác thực cả hai dạng response: bền vững (persisted) và hàng đợi (queued)."""
-    # 1. Durable response
     durable_data = json.loads((FIXTURES_DIR / "ingest_response_durable.json").read_text(encoding="utf-8"))
     durable_resp = EventIngestResponse.model_validate(durable_data)
     assert durable_resp.status == "persisted"
     assert durable_resp.event_id is not None
     assert durable_resp.receipt_id is None
 
-    # 2. Queued response
     queued_data = json.loads((FIXTURES_DIR / "ingest_response_queued.json").read_text(encoding="utf-8"))
     queued_resp = EventIngestResponse.model_validate(queued_data)
     assert queued_resp.status == "queued"
     assert queued_resp.receipt_id is not None
     assert queued_resp.event_id is None
+
+
+def test_event_ingest_response_rejects_missing_ack_id() -> None:
+    """Từ chối ACK persisted thiếu event_id và ACK queued thiếu receipt_id."""
+    with pytest.raises(ValidationError, match="event_id is required"):
+        EventIngestResponse(status="persisted", event_id=None)
+
+    with pytest.raises(ValidationError, match="receipt_id is required"):
+        EventIngestResponse(status="queued", receipt_id=None)
+
+    with pytest.raises(ValidationError, match="timezone-aware"):
+        EventIngestResponse(
+            status="persisted",
+            event_id=uuid.uuid4(),
+            received_at=datetime(2026, 11, 16, 7, 0, 0),
+        )
+
+
+def test_event_list_query_from_to_and_validation() -> None:
+    """Xác thực tham số from/to đồng nhất OpenAPI, từ chối datetime thiếu múi giờ và khoảng thời gian đảo."""
+    # 1. Hợp lệ với alias OpenAPI 'from' / 'to'
+    valid_query = EventListQuery.model_validate(
+        {
+            "from": "2026-11-16T07:00:00Z",
+            "to": "2026-11-16T08:00:00Z",
+            "hostname": "r-core-01",
+            "limit": 50,
+        }
+    )
+    assert valid_query.from_time == datetime(2026, 11, 16, 7, 0, 0, tzinfo=timezone.utc)
+    assert valid_query.to_time == datetime(2026, 11, 16, 8, 0, 0, tzinfo=timezone.utc)
+
+    # 2. Từ chối datetime thiếu múi giờ (naive datetime)
+    with pytest.raises(ValidationError, match="timezone-aware"):
+        EventListQuery.model_validate(
+            {
+                "from": "2026-11-16T07:00:00",
+                "to": "2026-11-16T08:00:00Z",
+            }
+        )
+
+    with pytest.raises(ValidationError, match="timezone-aware"):
+        EventListQuery(
+            from_time=datetime(2026, 11, 16, 7, 0, 0, tzinfo=timezone.utc),
+            to_time=datetime(2026, 11, 16, 8, 0, 0),
+        )
+
+    # 3. Từ chối khoảng thời gian đảo (from > to)
+    with pytest.raises(ValidationError, match="less than or equal"):
+        EventListQuery.model_validate(
+            {
+                "from": "2026-11-16T09:00:00Z",
+                "to": "2026-11-16T08:00:00Z",
+            }
+        )
+
+
+def test_event_locator_query_matches_n42_16() -> None:
+    """Xác thực EventLocatorQuery yêu cầu event_timestamp có múi giờ để định vị cặp khóa (id, event_timestamp)."""
+    valid_loc = EventLocatorQuery.model_validate({"event_timestamp": "2026-11-16T07:15:30Z"})
+    assert valid_loc.event_timestamp.tzinfo == timezone.utc
+
+    with pytest.raises(ValidationError, match="timezone-aware"):
+        EventLocatorQuery(event_timestamp=datetime(2026, 11, 16, 7, 15, 30))
 
 
 def test_event_list_response() -> None:
@@ -143,22 +210,45 @@ def test_cursor_encode_decode_roundtrip() -> None:
     original_id = uuid.uuid4()
     original_ts = datetime(2026, 11, 16, 7, 30, 0, 123456, tzinfo=timezone.utc)
 
-    # Mã hóa cursor
     cursor_str = encode_cursor(original_ts, original_id)
     assert isinstance(cursor_str, str)
     assert len(cursor_str) > 0
 
-    # Giải mã cursor
     decoded_ts, decoded_id = decode_cursor(cursor_str)
     assert decoded_id == original_id
     assert decoded_ts == original_ts
 
 
-def test_cursor_decode_invalid() -> None:
-    """Xác thực giải mã cursor hỏng ném ngoại lệ ValueError an toàn."""
+def test_cursor_decode_invalid_and_naive() -> None:
+    """Xác thực từ chối cursor hỏng hoặc timestamp thiếu múi giờ."""
+    with pytest.raises(ValueError, match="timezone-aware"):
+        encode_cursor(datetime(2026, 11, 16, 7, 30, 0), uuid.uuid4())
+
     with pytest.raises(ValueError, match="Invalid pagination cursor"):
         decode_cursor("not-a-valid-base64-string!!!")
 
     with pytest.raises(ValueError, match="Invalid pagination cursor"):
-        # Base64 hợp lệ nhưng không phải JSON
         decode_cursor("SGVsbG8gV29ybGQ=")
+
+
+def test_openapi_schema_and_version_parity() -> None:
+    """Xác nhận OpenAPI, Pydantic CONTRACT_VERSION và tham số from/to/locator đồng bộ cùng phiên bản 1.0.0."""
+    assert OPENAPI_PATH.exists(), f"Không tìm thấy tệp OpenAPI: {OPENAPI_PATH}"
+    spec = yaml.safe_load(OPENAPI_PATH.read_text(encoding="utf-8"))
+
+    assert spec["info"]["version"] == CONTRACT_VERSION == "1.0.0"
+
+    # Kiểm tra GET /api/v1/events dùng đúng 'from' và 'to'
+    list_params = {p["name"]: p for p in spec["paths"]["/api/v1/events"]["get"]["parameters"]}
+    assert "from" in list_params and list_params["from"]["required"] is True
+    assert "to" in list_params and list_params["to"]["required"] is True
+    assert "from_time" not in list_params and "to_time" not in list_params
+
+    # Kiểm tra GET /api/v1/events/{id} dùng đúng locator event_timestamp thống nhất N42-16
+    detail_params = {p["name"]: p for p in spec["paths"]["/api/v1/events/{id}"]["get"]["parameters"]}
+    assert "event_timestamp" in detail_params and detail_params["event_timestamp"]["required"] is True
+
+    # Kiểm tra ACK required IDs trong OpenAPI schemas
+    schemas = spec["components"]["schemas"]
+    assert "event_id" in schemas["EventIngestPersistedResponse"]["required"]
+    assert "receipt_id" in schemas["EventIngestQueuedResponse"]["required"]

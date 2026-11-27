@@ -81,10 +81,10 @@ Các mục sau không phải FR của sản phẩm, nhưng xuất hiện trong C
 Khi FR, API/schema, rule hoặc AC đổi, cập nhật SRS, thiết kế dữ liệu/API, acceptance criteria, test plan, test-case specification và ma trận trong cùng work item. Mỗi test phải truy ngược tới ít nhất một requirement; requirement chưa có test phải được ghi rõ là gap, owner và milestone.
 
 
-## Implementation amendment N42-62 — 16/11/2026
+## Implementation amendment N42-62 — 16/11/2026 (Cập nhật Review 27/11/2026)
 
-Local FR-02/AC-01 & FR-07/AC-03 → TC-ING-007..010, TC-UI-002: Đã hoàn thành đóng băng tài liệu thiết kế Hợp đồng API & Sự kiện v1.0 tại `docs/N42-62_DESIGN.md`.
-- **DEC-01 (Entity/DTO):** Thống nhất chuẩn `AlertEvent` (UTC timestamp, `hostname`) và DTO `EventView` phục vụ Dashboard (lược bỏ `raw_payload`, bổ sung `severity_label`).
-- **DEC-02 (REST Ingest):** Chốt endpoint `POST /api/v1/events` (alias `/ingest`), header `Idempotency-Key`, phân định mã `201 Created` (durable commit) và `202 Accepted` (RAM queue), cùng các mã lỗi 400/409/422/503.
-- **DEC-03 (Query & Pagination):** Chốt endpoint `GET /api/v1/events` với Cursor-based pagination (`next_cursor` mã hóa Base64 cặp `(event_timestamp, id)`), đáp ứng truy vấn dưới 2 giây trên tập 1M bản tin.
-- **Hiện thực hóa & Kiểm thử:** Xây dựng Pydantic v2 schemas tại `app/schemas/event_contract.py`, bộ fixture mẫu tại `tests/fixtures/contract_v1/`, và bộ unit test xác thực tại `tests/test_event_contract.py` (9/9 passed). Owner: BE2 (Phạm Tấn Thành).
+Local FR-02/AC-01 & FR-07/AC-03 → TC-ING-007..010, TC-UI-002: Hoàn thành hợp đồng API & Sự kiện phiên bản `1.0.0` đồng bộ giữa `docs/N42-62_DESIGN.md`, `docs/openapi-v1.yaml`, `app/schemas/event_contract.py` và `tests/fixtures/contract_v1/`:
+- **DEC-01 (Entity/DTO):** Thống nhất `AlertEvent` (UTC timestamp, `hostname`) và `EventView` (lược bỏ `raw_payload`, bổ sung `severity_label`).
+- **DEC-02 (REST Ingest & ACK Contract):** Chốt `POST /api/v1/events`, header `Idempotency-Key`, ràng buộc bắt buộc ID theo từng loại ACK: `201 persisted` (chỉ trả sau commit DB bền vững, bắt buộc `event_id`) và `202 queued` (hàng đợi RAM, bắt buộc `receipt_id`), cùng mã lỗi 400/409/422/503.
+- **DEC-03 (Query, Filter & Event Locator):** Chốt `GET /api/v1/events` với tham số `from`/`to` (bắt buộc timezone-aware và `from <= to`) + cursor `(event_timestamp, id)`. Chốt locator chi tiết `GET /api/v1/events/{id}?event_timestamp={ts}` dùng cặp khóa `(id, event_timestamp)` thống nhất 100% với N42-16.
+- **Hiện thực hóa & Kiểm thử:** Xác thực bằng `tests/test_event_contract.py` (bao gồm các ca từ chối ACK thiếu ID, datetime thiếu múi giờ, khoảng thời gian đảo `from > to`, và đối soát phiên bản OpenAPI `1.0.0`). Owner: BE2 (Phạm Tấn Thành).

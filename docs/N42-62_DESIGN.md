@@ -1,7 +1,7 @@
-# N42-62 - Đặc tả Thiết kế Hợp đồng API và Sự kiện v1.0 (API & Event Contract v1)
+# N42-62 - Đặc tả Thiết kế Hợp đồng API và Sự kiện v1.0.0 (API & Event Contract v1)
 
-- **Phiên bản:** 1.0, Ngày 16/11/2026.
-- **Trạng thái:** PROPOSED FOR CROSS-MODULE REVIEW (Đề xuất thẩm định liên module).
+- **Phiên bản:** `1.0.0`, Cập nhật ngày 27/11/2026 (đồng bộ OpenAPI [`docs/openapi-v1.yaml`](openapi-v1.yaml), Pydantic schemas [`app/schemas/event_contract.py`](../app/schemas/event_contract.py) và fixtures [`tests/fixtures/contract_v1/`](../tests/fixtures/contract_v1/)).
+- **Trạng thái:** UPDATED PER TL REVIEW (Đã chốt ACK theo loại, tham số `from`/`to`, locator `(id, event_timestamp)` và đồng bộ phiên bản OpenAPI `1.0.0`).
 - **Kỹ sư phụ trách:** Phạm Tấn Thành (Backend Engineer 2 - BE2).
 - **Thẻ Jira:** [N42-62](https://nhutp2945-1793259952237.atlassian.net/browse/N42-62).
 - **Khối công việc:** Epic CHUANHOA (M3, M4).
@@ -83,25 +83,29 @@ Hoặc dạng nhận theo lô (Batch Ingest):
 }
 ```
 
-### 3.3. Phân định Ngữ nghĩa Trả về (ACK Semantics) & Mã lỗi HTTP
-- **`201 Created` (Durable Commit):**
-  - Trả về khi sự kiện đã được parse và ghi thành công xuống CSDL bền vững TimescaleDB (M4).
+### 3.3. Phân định Ngữ nghĩa Trả về (ACK Semantics), Ràng buộc ID & Mã lỗi HTTP
+- **Quy tắc ràng buộc hành vi ACK sau commit trong hợp đồng:**
+  - Việc hiện thực hóa luồng ghi bền vững thuộc các ticket triển khai ([N42-14](https://nhutp2945-1793259952237.atlassian.net/browse/N42-14), [N42-31](https://nhutp2945-1793259952237.atlassian.net/browse/N42-31)), nhưng **hợp đồng N42-62 bắt buộc phân tách rõ điều kiện phản hồi**:
+- **`201 Created` (`status: "persisted"` — Durable Commit):**
+  - **Điều kiện trả về:** Server **chỉ được phép** trả mã `201` sau khi sự kiện đã được parse và commit giao dịch bền vững xuống TimescaleDB (M4).
+  - **Ràng buộc Schema:** **BẮT BUỘC** có `event_id` (UUID khác `null`) để bên gọi đối soát bản ghi đã lưu; khuyến nghị trả kèm `event_timestamp` để khớp cặp khóa locator N42-16. Schema từ chối nếu `status="persisted"` mà thiếu `event_id`.
   - Body:
     ```json
     {
       "status": "persisted",
       "event_id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
-      "received_at": "2026-11-16T07:15:30.123Z"
+      "received_at": "2026-11-16T07:15:30.123456Z"
     }
     ```
-- **`202 Accepted` (RAM Queue Ingest - Phục vụ PoC N42-14):**
-  - Trả về khi hệ thống tiếp nhận bản tin thô vào hàng đợi bộ nhớ (RAM/Queue) và chờ worker nền bóc tách bất đồng bộ.
+- **`202 Accepted` (`status: "queued"` — RAM Queue Ingest):**
+  - **Điều kiện trả về:** Trả về khi hệ thống tiếp nhận bản tin thô vào hàng đợi bộ nhớ (RAM/Queue) và chờ worker nền bóc tách, ghi DB bất đồng bộ.
+  - **Ràng buộc Schema:** **BẮT BUỘC** có `receipt_id` (UUID khác `null`) làm biên lai theo dõi. Schema từ chối nếu `status="queued"` mà thiếu `receipt_id`.
   - Body:
     ```json
     {
       "status": "queued",
       "receipt_id": "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d",
-      "received_at": "2026-11-16T07:15:30.123Z"
+      "received_at": "2026-11-16T07:15:30.123456Z"
     }
     ```
 - **Các mã lỗi chuẩn hóa:**
@@ -119,11 +123,13 @@ Hoặc dạng nhận theo lô (Batch Ingest):
 - **Phương thức:** `GET`
 - **Mục đích:** Cung cấp dữ liệu danh sách cảnh báo thời gian thực cho Dashboard Frontend ([N42-34](https://nhutp2945-1793259952237.atlassian.net/browse/N42-34)).
 
-### 4.2. Tham số Truy vấn (Query Parameters)
+### 4.2. Tham số Truy vấn (Query Parameters - Khớp OpenAPI `from` / `to`)
+- **Ràng buộc dữ liệu:** Cả `from` và `to` đều **bắt buộc phải có múi giờ** (timezone-aware ISO-8601 UTC) và thỏa mãn **`from <= to`** (DTO `EventListQuery` dùng `alias="from"` / `alias="to"` với `populate_by_name=True` để đồng nhất 100% với OpenAPI `docs/openapi-v1.yaml`).
+
 | Tham số | Kiểu | Bắt buộc | Mặc định | Ý nghĩa |
 | :--- | :--- | :--- | :--- | :--- |
-| `from` | `string (ISO-8601)` | **Bắt buộc** | - | Mốc thời gian bắt đầu (UTC) |
-| `to` | `string (ISO-8601)` | **Bắt buộc** | - | Mốc thời gian kết thúc (UTC) |
+| `from` | `string (ISO-8601 UTC)` | **Bắt buộc** | - | Mốc thời gian bắt đầu (phải có múi giờ, `from <= to`) |
+| `to` | `string (ISO-8601 UTC)` | **Bắt buộc** | - | Mốc thời gian kết thúc (phải có múi giờ, `from <= to`) |
 | `hostname` | `string` | Không | `null` | Lọc chính xác theo tên thiết bị mạng |
 | `severity` | `int (0..7)` | Không | `null` | Lọc theo mức độ nghiêm trọng |
 | `vendor` | `string` | Không | `null` | Lọc theo nhà sản xuất (`cisco`, `huawei`...) |
@@ -169,6 +175,11 @@ Nhằm đảm bảo thời gian truy vấn **dưới 2 giây trên tập dữ li
   "has_more": true
 }
 ```
+
+### 4.5. Hợp đồng Định vị một Sự kiện Duy nhất (Event Locator — Thống nhất với N42-16)
+- **Đường dẫn chuẩn:** `GET /api/v1/events/{id}?event_timestamp={ts}` (`EventLocatorQuery`).
+- **Thống nhất với N42-16:** Thay thế đề xuất cũ `id + received_at` bằng cặp khóa **`(id, event_timestamp)`**.
+- **Cơ sở:** Lược đồ TimescaleDB N42-16 dùng `PRIMARY KEY (id, event_timestamp)` (cho phép tồn tại nhiều bản ghi cùng `id` nếu khác `event_timestamp`). Vì `event_timestamp` là cột phân vùng Hypertable, truyền đủ `(id, event_timestamp)` đảm bảo định vị chính xác 1 bản ghi duy nhất và kích hoạt Chunk Pruning.
 
 ---
 
