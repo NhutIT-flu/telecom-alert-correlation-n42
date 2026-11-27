@@ -18,7 +18,7 @@ Ma trận này là kế hoạch bao phủ FR/NFR đến tiêu chí nghiệm thu,
 | FR-03 File import | AC-01, AC-07 | BE1/QA | TC-ING-011–013; TC-SEC-006 | File fixture, report theo dòng, encoding/duplicate/path cases | Chưa có importer; quy tắc encoding/idempotency cần chốt | [N42-22](https://nhutp2945-1793259952237.atlassian.net/browse/N42-22) |
 | FR-04 Parser/normalization | AC-02 | BE2 | TC-PAR-001–009, 012 | Corpus ≥200 mẫu/format đã chốt; expected/actual từng field, error counts | Main có parser N42-15. Corpus nghiệm thu AC-02 cần kết quả riêng | [N42-15](https://nhutp2945-1793259952237.atlassian.net/browse/N42-15), [N42-23](https://nhutp2945-1793259952237.atlassian.net/browse/N42-23), [N42-24](https://nhutp2945-1793259952237.atlassian.net/browse/N42-24), [N42-25](https://nhutp2945-1793259952237.atlassian.net/browse/N42-25) |
 | FR-05 Parse fallback | AC-02 | BE2 | TC-PAR-010–011; TC-ING-003 | Malformed input, raw giữ nguyên, parse status, không crash | Main có fallback trong parser N42-15. Tích hợp và evidence theo build | [N42-15](https://nhutp2945-1793259952237.atlassian.net/browse/N42-15) |
-| FR-06 Durable storage | AC-07 | BE2 | TC-DB-001–004; TC-INT-001, 003 | Migration, write/read/restart/restore, ID reconciliation | Chưa có model/bảng/repository; DB chưa nối runtime | [N42-16](https://nhutp2945-1793259952237.atlassian.net/browse/N42-16), [N42-30](https://nhutp2945-1793259952237.atlassian.net/browse/N42-30), [N42-31](https://nhutp2945-1793259952237.atlassian.net/browse/N42-31), [N42-55](https://nhutp2945-1793259952237.atlassian.net/browse/N42-55) |
+| FR-06 Durable storage | AC-07 | BE2 | TC-DB-001–004; TC-INT-001, 003 | Migration, write/read/restart/restore, ID reconciliation | N42-16 hoàn thành DDL TimescaleDB, hypertable 1-day, index B-tree và test TC-DB-001..004; repo runtime chờ N42-30 | [N42-16](https://nhutp2945-1793259952237.atlassian.net/browse/N42-16), [N42-30](https://nhutp2945-1793259952237.atlassian.net/browse/N42-30), [N42-31](https://nhutp2945-1793259952237.atlassian.net/browse/N42-31), [N42-55](https://nhutp2945-1793259952237.atlassian.net/browse/N42-55) |
 | FR-07 Query/filter/pagination | AC-03 | BE2/FE | TC-UI-002–003; TC-SEC-004; TC-PERF-008 | Dataset/version, filter correctness, pagination ổn định, latency/config | Chưa có query endpoint | [N42-28](https://nhutp2945-1793259952237.atlassian.net/browse/N42-28), [N42-34](https://nhutp2945-1793259952237.atlassian.net/browse/N42-34), [N42-67](https://nhutp2945-1793259952237.atlassian.net/browse/N42-67) |
 | FR-08 Statistics | AC-04 | BE2/FE | TC-UI-001; TC-DB-003 | Known dataset, expected aggregates, API actual | Chưa có statistics endpoint | [N42-39](https://nhutp2945-1793259952237.atlassian.net/browse/N42-39), [N42-41](https://nhutp2945-1793259952237.atlassian.net/browse/N42-41) |
 | FR-09 Correlation | AC-05, AC-06 | BE3 | TC-COR-001–011; TC-INT-002 | Rule/version, event/evidence IDs, TP/FP/FN, raw/incident/standalone counts | Engine chưa có; semantics time-boundary, late event và multi-rule cần chốt | [N42-18](https://nhutp2945-1793259952237.atlassian.net/browse/N42-18), [N42-37](https://nhutp2945-1793259952237.atlassian.net/browse/N42-37), [N42-44](https://nhutp2945-1793259952237.atlassian.net/browse/N42-44), [N42-45](https://nhutp2945-1793259952237.atlassian.net/browse/N42-45), [N42-48](https://nhutp2945-1793259952237.atlassian.net/browse/N42-48), [N42-64](https://nhutp2945-1793259952237.atlassian.net/browse/N42-64), [N42-65](https://nhutp2945-1793259952237.atlassian.net/browse/N42-65), [N42-66](https://nhutp2945-1793259952237.atlassian.net/browse/N42-66) |
@@ -79,3 +79,52 @@ Các mục sau không phải FR của sản phẩm, nhưng xuất hiện trong C
 ## 7. Cách duy trì
 
 Khi FR, API/schema, rule hoặc AC đổi, cập nhật SRS, thiết kế dữ liệu/API, acceptance criteria, test plan, test-case specification và ma trận trong cùng work item. Mỗi test phải truy ngược tới ít nhất một requirement; requirement chưa có test phải được ghi rõ là gap, owner và milestone.
+
+
+## N42-17: crosswalk review draft ngày 12/11/2026
+
+Giữ nguyên mã lịch sử; bảng sau là đề xuất ánh xạ theo hành vi, chờ TL/QA đồng bộ
+nguồn chuẩn. Không renumber toàn RTM. SRS Confluence page3375211 v13, RTM page3440729 v7,
+TCS page3375173 v11; corpus đủ61 trang trong báo cáo review cùng ngày.
+
+| Namespace / version | Requirement nguồn | Hành vi | AC / TC | Jira / evidence hoặc gap |
+|---|---|---|---|---|
+| SRS page3375211 v13 | FR21/FR22 | cấu hình/validation luật | AC05; TC-RUL001–005 | N42-17; loader/schema/tests; QA nguồn kép pending |
+| SRS page3375211 v13 | FR23 | reload luật | AC05; TC-RUL006/007 | N42-38; NOT RUN, không thuộc loader stateless |
+| RTM page3440729 v7 / Jira N42-17 | FR15 | config và reload đang gộp | AC05/06; TC-RUL001–007 | cần tách evidence N17/N38, chưa nghiệm thu toàn dòng |
+| Feature local 001-n42-rule-config | FR001–014, SC001–006 | contract/fixture/truy vết N17 | spec và manifest theo từng FR/SC | local evidence hoặc dependency, không phải ID SRS |
+
+N42-17 có 3 mẫu disabled; số5 luật/KPI detector là mục tiêu dự án. Field missing
+interface/link_state/psu_slot/peer/session_state chờ N23/24/26/62/65.
+Fixture review không chứng minh engine N44/45/65 hoặc reload N38 chạy đạt.
+Các dòng khác trong RTM là baseline lịch sử; không suy trạng thái của module khác từ
+checkout riêng N17. CI chỉ được xác nhận theo run/commit; cached main có workflow nhưng
+nhánh N17 baseline883d048 chưa có workflow. Không dùng số unit tests thay coverage nghiệp vụ.
+
+
+## Implementation amendment N42-17 — 12/11/2026
+
+Local FR15/AC05 → TC-RUL008–011: bounded schema/severity, enabled field contract, optional SHA256 pin. Owner BE3; code/tests hiện có theo ủy quyền user, QA/TL sign-off sau. Không renumber nguồn; catalog0.1.1/MAJOR vẫn disabled.
+
+Local FR15/AC05 → TC-RUL012: startup dùng loader thật, valid→state catalog, invalid→startup fail; BE3; QA acceptance pending.
+
+
+## Implementation amendment N42-16 — 13/11/2026 (Cập nhật xử lý Review 22/11/2026)
+
+Local FR-06/AC-07 → TC-DB-001–005: Đã hoàn thiện thiết kế DDL TimescaleDB (`docker/init-db.sql`), thiết lập Hypertable phân vùng theo `event_timestamp` với chunk interval 1 ngày (`INTERVAL '1 day'`) theo Quyết định D-02. Hoàn thiện hệ thống chỉ mục B-tree (`idx_alerts_ts_sev`, `idx_alerts_host_ts`, `idx_alerts_ts_host_sev`, `idx_alerts_vendor_ts`), lược đồ sự cố M6 (`incidents`, `incident_events` với `ON DELETE CASCADE`), đề xuất chính sách Compression (7 ngày) và Retention (30 ngày Lab / 90 ngày Prod) tại `docs/N42-16_DESIGN.md`.
+
+Đã xử lý toàn bộ 4 nội dung theo yêu cầu rà soát (Request Changes) của Technical Lead:
+1. **Gỡ bỏ Retention & Compression khỏi bootstrap:** Toàn bộ lệnh `add_retention_policy` và `add_compression_policy` đã được chuyển thành comment tài liệu mẫu trong `docker/init-db.sql`, đảm bảo DB bootstrap không tự ý kích hoạt tác vụ xóa dữ liệu.
+2. **Chốt Locator bản ghi và thống nhất với N42-62:** Xác nhận khóa chính `(id, event_timestamp)` tuân thủ tuyệt đối quy tắc phân vùng TimescaleDB (bắt buộc cột phân vùng trong PK). Cung cấp phương án truy vấn single ID tận dụng leading column của PK và đồng bộ hoàn toàn với cursor pagination của N42-62.
+3. **Bổ sung bằng chứng nghiệm thu:** Bổ sung ca kiểm thử tự động TC-DB-005 xác thực EXPLAIN query plan và đối soát dữ liệu locator.
+4. **Giải quyết triệt để conflict:** Hoàn tất rebase trên nhánh `main`, cây thư mục sạch sẽ.
+
+Bộ kiểm thử tự động `tests/test_database_schema.py` (12 checks) xác thực 100% đạt chuẩn:
+- **TC-DB-001**: Khóa chính composite `(id, event_timestamp)` và ràng buộc Unique.
+- **TC-DB-002**: Ràng buộc `NOT NULL` trên toàn bộ các trường bắt buộc (`event_timestamp`, `source_ip`, `hostname`, `severity`, `facility`, `vendor`, `message`, `raw_payload`).
+- **TC-DB-003**: Ràng buộc `CHECK` giá trị miền (`facility` 0–23, `severity` 0–7, `status` sự cố) và kiểm chứng Query Plan tận dụng B-tree index.
+- **TC-DB-004**: Tính toàn vẹn tham chiếu khóa ngoại và cơ chế `ON DELETE CASCADE` tự động thu dọn liên kết sự cố mà vẫn bảo toàn cảnh báo gốc.
+- **TC-DB-005**: Kiểm chứng chiến lược định vị bản ghi `(id, event_timestamp)` thống nhất với N42-62, bao gồm ca **cùng `id`, khác `event_timestamp`** và `EXPLAIN (ANALYZE, BUFFERS)` thực tế trên TimescaleDB lab sạch (`PostgreSQL 16.15`, `timescaledb 2.31.0`, `Index Scan using "1_pk_alert_events" on _hyper_1_1_chunk`, `0.018 ms`).
+- **Kiểm tra an toàn DDL**: Xác thực không chứa lệnh `add_retention_policy` hoặc `add_compression_policy` kích hoạt chủ động trong bootstrap.
+Owner: BE2 (Phạm Tấn Thành); QA/TL nghiệm thu và kết nối DB runtime tại N42-30.
+
