@@ -12,8 +12,9 @@ from uuid import UUID, uuid4
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-VendorType = Literal["cisco", "huawei", "fortinet", "linux", "unknown"]
+VendorType = Literal["cisco", "huawei", "fortinet", "juniper", "linux", "unknown"]
 ParseStatusType = Literal["parsed", "fallback"]
+CompletenessStatusType = Literal["complete", "partial", "incomplete"]
 
 
 class AlertEvent(BaseModel):
@@ -34,21 +35,34 @@ class AlertEvent(BaseModel):
         description="True nếu năm/múi giờ được suy diễn (mặc định True với RFC 3164 và fallback)",
     )
     source_ip: str = Field(description="Địa chỉ IP nguồn gửi bản tin (transport IP)")
-    hostname: str = Field(description="Tên thiết bị bóc tách từ header hoặc IP nguồn khi fallback")
-    facility: int = Field(ge=0, le=23, description="Mã phân loại dịch vụ theo RFC 5424 (0-23)")
-    severity: int = Field(ge=0, le=7, description="Mức độ nghiêm trọng theo RFC 5424 (0-7)")
-    vendor: VendorType = Field(description="Hãng thiết bị viễn thông hoặc unknown")
+    target_ip: Optional[str] = Field(default=None, description="Địa chỉ IP đích liên quan đến sự kiện (nếu có)")
+    hostname: Optional[str] = Field(
+        default=None, description="Tên thiết bị bóc tách từ header hoặc IP nguồn khi fallback"
+    )
+    facility: Optional[int] = Field(default=None, ge=0, le=23, description="Mã phân loại dịch vụ theo RFC 5424 (0-23)")
+    severity: Optional[int] = Field(default=None, ge=0, le=7, description="Mức độ nghiêm trọng theo RFC 5424 (0-7)")
+    vendor: Optional[VendorType] = Field(default="unknown", description="Hãng thiết bị viễn thông hoặc unknown")
     program: Optional[str] = Field(default=None, description="Tên tiến trình/tag phát sinh cảnh báo")
     mnemonic: Optional[str] = Field(default=None, description="Mã nhận dạng sự kiện của hãng")
     category: str = Field(default="unknown", description="Phân loại nghiệp vụ chuẩn hóa")
-    message: str = Field(default="", description="Nội dung thông điệp cảnh báo đã bóc tách")
+    message: Optional[str] = Field(default="", description="Nội dung thông điệp cảnh báo đã bóc tách")
     raw_payload: str = Field(default="", description="Bản tin gốc đầy đủ nguyên trạng")
     parse_status: ParseStatusType = Field(default="parsed", description="Trạng thái bóc tách (parsed hoặc fallback)")
     parse_error: Optional[str] = Field(default=None, description="Mã lỗi khi parse_status=fallback")
+    completeness_status: CompletenessStatusType = Field(
+        default="complete",
+        description="Trạng thái đánh giá độ đầy đủ dữ liệu (complete, partial, incomplete)",
+    )
+    missing_fields: list[str] = Field(
+        default_factory=list,
+        description="Danh sách tên các trường bị thiếu thông tin",
+    )
 
     @field_validator("facility", "severity", mode="before")
     @classmethod
-    def validate_strict_int(cls, v: object) -> int:
+    def validate_strict_int(cls, v: object) -> Optional[int]:
+        if v is None:
+            return None
         if isinstance(v, bool):
             raise ValueError("Boolean values are not allowed for facility/severity")
         if not isinstance(v, int):
@@ -74,6 +88,19 @@ class AlertEvent(BaseModel):
             return str(ip)
         except ValueError as e:
             raise ValueError(f"Invalid IP address: {v}") from e
+
+    @field_validator("target_ip", mode="before")
+    @classmethod
+    def validate_target_ip(cls, v: object) -> Optional[str]:
+        if v is None or v == "":
+            return None
+        if not isinstance(v, str):
+            raise ValueError("target_ip must be a string")
+        try:
+            ip = ipaddress.ip_address(v.strip())
+            return str(ip)
+        except ValueError as e:
+            raise ValueError(f"Invalid target IP address: {v}") from e
 
     @property
     def timestamp(self) -> datetime:

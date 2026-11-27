@@ -109,22 +109,16 @@ Local FR15/AC05 → TC-RUL008–011: bounded schema/severity, enabled field cont
 Local FR15/AC05 → TC-RUL012: startup dùng loader thật, valid→state catalog, invalid→startup fail; BE3; QA acceptance pending.
 
 
-## Implementation amendment N42-16 — 13/11/2026 (Cập nhật xử lý Review 22/11/2026)
+## Implementation amendment N42-16 — 13/11/2026 (Cập nhật theo Biên bản họp 23/11/2026)
 
-Local FR-06/AC-07 → TC-DB-001–005: Đã hoàn thiện thiết kế DDL TimescaleDB (`docker/init-db.sql`), thiết lập Hypertable phân vùng theo `event_timestamp` với chunk interval 1 ngày (`INTERVAL '1 day'`) theo Quyết định D-02. Hoàn thiện hệ thống chỉ mục B-tree (`idx_alerts_ts_sev`, `idx_alerts_host_ts`, `idx_alerts_ts_host_sev`, `idx_alerts_vendor_ts`), lược đồ sự cố M6 (`incidents`, `incident_events` với `ON DELETE CASCADE`), đề xuất chính sách Compression (7 ngày) và Retention (30 ngày Lab / 90 ngày Prod) tại `docs/N42-16_DESIGN.md`.
+Local FR-06/AC-07 → TC-DB-001–005: Hoàn thiện thiết kế DDL TimescaleDB (`docker/init-db.sql`), thiết lập Hypertable phân vùng theo `event_timestamp` với chunk interval 1 ngày (`INTERVAL '1 day'`) theo Quyết định D-02. Đồng bộ tên bảng và cấu trúc theo chốt của TL tại Biên bản họp `MEET-N42-23112026`:
+1. **Đổi tên bảng chuẩn hóa**: `alert_events` $\rightarrow$ `events`, `incidents` $\rightarrow$ `alerts`, `incident_events` $\rightarrow$ `alert_events`.
+2. **Bổ sung trường & bảng định nghĩa**: Thêm `target_ip` vào `events`; thêm 2 bảng danh mục `event_definitions` và `alert_definitions`.
+3. **Cơ chế đánh giá dữ liệu thiếu/đầy đủ**: Phân tách trường lõi `NOT NULL` (`id`, `event_timestamp`, `received_at`, `source_ip`, `raw_payload`) và trường có thể thiếu (`hostname`, `facility`, `severity`, `target_ip`, `message`) kết hợp `completeness_status` (`complete`/`partial`/`incomplete`) và `missing_fields`.
+4. **Mô hình trạng thái & quan hệ**: Bổ sung `admin_status` (`new`, `acknowledged`, `resolved`, `ignored`) song song với `status` trên `alerts`; bổ sung `relation_type` (`root_cause`, `correlated`, `symptom`) trên `alert_events`.
+5. **An toàn bootstrap & Locator**: Giữ nguyên việc gỡ `add_retention_policy`/`add_compression_policy` khỏi bootstrap; chốt tuple locator `(id, event_timestamp)` đồng bộ với N42-62.
+6. **Tài liệu thiết kế sơ bộ BE2**: Bổ sung `docs/BE2_PRELIMINARY_MODULE_DESIGN.md` cho các module M2, M3, M4 theo Mục 3.19 biên bản 23/11.
 
-Đã xử lý toàn bộ 4 nội dung theo yêu cầu rà soát (Request Changes) của Technical Lead:
-1. **Gỡ bỏ Retention & Compression khỏi bootstrap:** Toàn bộ lệnh `add_retention_policy` và `add_compression_policy` đã được chuyển thành comment tài liệu mẫu trong `docker/init-db.sql`, đảm bảo DB bootstrap không tự ý kích hoạt tác vụ xóa dữ liệu.
-2. **Chốt Locator bản ghi và thống nhất với N42-62:** Xác nhận khóa chính `(id, event_timestamp)` tuân thủ tuyệt đối quy tắc phân vùng TimescaleDB (bắt buộc cột phân vùng trong PK). Cung cấp phương án truy vấn single ID tận dụng leading column của PK và đồng bộ hoàn toàn với cursor pagination của N42-62.
-3. **Bổ sung bằng chứng nghiệm thu:** Bổ sung ca kiểm thử tự động TC-DB-005 xác thực EXPLAIN query plan và đối soát dữ liệu locator.
-4. **Giải quyết triệt để conflict:** Hoàn tất rebase trên nhánh `main`, cây thư mục sạch sẽ.
-
-Bộ kiểm thử tự động `tests/test_database_schema.py` (12 checks) xác thực 100% đạt chuẩn:
-- **TC-DB-001**: Khóa chính composite `(id, event_timestamp)` và ràng buộc Unique.
-- **TC-DB-002**: Ràng buộc `NOT NULL` trên toàn bộ các trường bắt buộc (`event_timestamp`, `source_ip`, `hostname`, `severity`, `facility`, `vendor`, `message`, `raw_payload`).
-- **TC-DB-003**: Ràng buộc `CHECK` giá trị miền (`facility` 0–23, `severity` 0–7, `status` sự cố) và kiểm chứng Query Plan tận dụng B-tree index.
-- **TC-DB-004**: Tính toàn vẹn tham chiếu khóa ngoại và cơ chế `ON DELETE CASCADE` tự động thu dọn liên kết sự cố mà vẫn bảo toàn cảnh báo gốc.
-- **TC-DB-005**: Kiểm chứng chiến lược định vị bản ghi (Locator Strategy), đối soát dữ liệu và EXPLAIN Query Plan (Point lookup & Leading column B-tree).
-- **Kiểm tra an toàn DDL**: Xác thực không chứa lệnh `add_retention_policy` hoặc `add_compression_policy` kích hoạt chủ động trong bootstrap.
+Bộ kiểm thử tự động `tests/test_database_schema.py` (12 checks) xác thực 100% đạt chuẩn TC-DB-001..005.
 Owner: BE2 (Phạm Tấn Thành); QA/TL nghiệm thu và kết nối DB runtime tại N42-30.
 

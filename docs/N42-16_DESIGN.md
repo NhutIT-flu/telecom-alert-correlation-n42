@@ -1,22 +1,23 @@
 # N42-16 - Thiết kế Schema TimescaleDB, Index và Đề xuất Chính sách Retention / Compression
 
-- **Phiên bản:** 1.0, Ngày 12/11/2026.
-- **Trạng thái:** DRAFT / PROPOSED FOR REVIEW (Chờ Team Leader và QA Lead phê duyệt).
+- **Phiên bản:** 2.0, Cập nhật ngày 25/11/2026 (theo Biên bản họp 23/11/2026 `MEET-N42-23112026` đã được TL chốt).
+- **Trạng thái:** UPDATED PER TL DECISION (Sẵn sàng review).
 - **Kỹ sư phụ trách:** Phạm Tấn Thành (Backend Engineer 2 - BE2).
 - **Thẻ Jira:** [N42-16](https://nhutp2945-1793259952237.atlassian.net/browse/N42-16).
-- **Truy vết yêu cầu:** FR-06 (Lưu trữ và lập chỉ mục chuỗi thời gian), AC-07 (Khởi tạo database tự động qua Docker Compose), TC-DB-001..004 (Đặc tả kiểm thử CSDL).
-- **Tài liệu căn cứ:** [TDD](TECHNICAL_DESIGN_DOCUMENT.md), [Thiết kế dữ liệu và API](DATA_AND_API_DESIGN.md), [Kiến trúc hệ thống](ARCHITECTURE_DESIGN.md), [Quyết định kỹ thuật](DECISIONS.md) (D-02, D-05).
+- **Truy vết yêu cầu:** FR-06 (Lưu trữ và lập chỉ mục chuỗi thời gian), AC-07 (Khởi tạo database tự động qua Docker Compose), TC-DB-001..005 (Đặc tả kiểm thử CSDL).
+- **Tài liệu căn cứ:** [TDD](TECHNICAL_DESIGN_DOCUMENT.md), [Thiết kế dữ liệu và API](DATA_AND_API_DESIGN.md), [Kiến trúc hệ thống](ARCHITECTURE_DESIGN.md), [Quyết định kỹ thuật](DECISIONS.md) (D-02, D-05), [Thiết kế sơ bộ BE2](BE2_PRELIMINARY_MODULE_DESIGN.md).
 
 ---
 
 ## 1. Phạm vi kỹ thuật
 
-Thiết kế kiến trúc cơ sở dữ liệu chuỗi thời gian (Time-Series Database) cho Hệ thống thu thập và phân tích cảnh báo mạng viễn thông N4.2:
-1. Định nghĩa lược đồ bảng dữ liệu sự kiện chuẩn hóa `alert_events` tương thích 100% với model Pydantic v2 `AlertEvent` (đã hoàn thành ở N42-15).
-2. Thiết lập Hypertable TimescaleDB với khóa phân vùng thời gian `event_timestamp` và chu kỳ phân đoạn chunk 1 ngày (`INTERVAL '1 day'`) theo Quyết định D-02.
-3. Thiết kế hệ thống chỉ mục B-tree đa chiều tối ưu hóa cho các truy vấn thời gian thực và tổng hợp thống kê.
-4. Thiết kế lược đồ bảng sự cố gốc `incidents` và bảng quan hệ liên kết `incident_events` phục vụ Module tương quan M6.
-5. Soạn thảo đề xuất định lượng về chính sách Nén dữ liệu (Native Compression) và chính sách Lưu trữ (Retention Policy) phù hợp với tải trọng 1.000 msg/s.
+Thiết kế kiến trúc cơ sở dữ liệu chuỗi thời gian (Time-Series Database) cho Hệ thống thu thập và phân tích cảnh báo mạng viễn thông N4.2 (cập nhật đồng bộ theo quyết định cuộc họp 23/11/2026):
+1. Đổi tên bảng chuẩn hóa: `alert_events` $\rightarrow$ **`events`** (Hypertable), `incidents` $\rightarrow$ **`alerts`**, `incident_events` $\rightarrow$ **`alert_events`**.
+2. Bổ sung trường `target_ip` và cơ chế kiểm tra độ đầy đủ dữ liệu (`completeness_status`, `missing_fields`) thay cho `NOT NULL` cứng nhắc.
+3. Bổ sung 2 bảng danh mục định nghĩa: **`event_definitions`** và **`alert_definitions`**.
+4. Thiết lập Hypertable TimescaleDB trên bảng `events` với khóa phân vùng thời gian `event_timestamp` và chu kỳ chunk 1 ngày (`INTERVAL '1 day'`) theo Quyết định D-02.
+5. Hỗ trợ mô hình 2 nhóm trạng thái song song (`status` hệ thống + `admin_status` người quản trị) trên `alerts` và phân loại quan hệ (`root_cause`, `correlated`, `symptom`) trên `alert_events`.
+6. Đề xuất định lượng chính sách Nén dữ liệu (Compression) và Lưu trữ (Retention) ở dạng tham chiếu (không tự kích hoạt khi bootstrap).
 
 ---
 
@@ -24,9 +25,12 @@ Thiết kế kiến trúc cơ sở dữ liệu chuỗi thời gian (Time-Series 
 
 Toàn bộ kịch bản DDL được đóng gói trong tệp [`docker/init-db.sql`](../docker/init-db.sql):
 
-### 2.1. Bảng `alert_events` (Hypertable)
-- Lưu trữ toàn bộ các bản tin cảnh báo viễn thông sau khi chuẩn hóa bởi Module M2.
+### 2.1. Bảng `events` (Hypertable — đổi tên từ `alert_events`)
+- Lưu trữ toàn bộ các bản tin sự kiện mạng sau khi chuẩn hóa bởi Module M2.
 - **Quy tắc TimescaleDB:** Khóa chính bắt buộc phải là khóa composite chứa cột phân vùng thời gian `(id, event_timestamp)`.
+- **Cơ chế đánh giá dữ liệu thiếu/đầy đủ (Mục 3.3c):**
+  - *Trường lõi bắt buộc (`NOT NULL`):* `id`, `event_timestamp`, `received_at`, `source_ip`, `raw_payload`, `completeness_status`.
+  - *Trường có thể thiếu (cho phép `NULL`):* `hostname`, `facility`, `severity`, `target_ip`, `program`, `mnemonic`, `message`. Khi thiếu trường, bản ghi vẫn được lưu và gắn `completeness_status = 'partial'` hoặc `'incomplete'` cùng danh sách tên trường thiếu trong `missing_fields`.
 
 | Cột | Kiểu dữ liệu | Ràng buộc | Ý nghĩa nghiệp vụ |
 | :--- | :--- | :--- | :--- |
@@ -35,17 +39,20 @@ Toàn bộ kịch bản DDL được đóng gói trong tệp [`docker/init-db.sq
 | `received_at` | `TIMESTAMPTZ` | `NOT NULL` | Thời điểm hệ thống tiếp nhận bản tin |
 | `timestamp_inferred` | `BOOLEAN` | `DEFAULT TRUE` | Đánh dấu thời gian có được suy diễn (RFC 3164) hay không |
 | `source_ip` | `VARCHAR(45)` | `NOT NULL` | Địa chỉ IP nguồn (hỗ trợ cả IPv4 và IPv6) |
-| `hostname` | `VARCHAR(255)` | `NOT NULL` | Tên thiết bị mạng phát sinh cảnh báo |
-| `facility` | `SMALLINT` | `CHECK (0..23)` | Phân loại dịch vụ theo chuẩn RFC 5424 |
-| `severity` | `SMALLINT` | `CHECK (0..7)` | Mức độ nghiêm trọng theo chuẩn RFC 5424 (0=Emergency..7=Debug) |
-| `vendor` | `VARCHAR(30)` | `NOT NULL` | Hãng thiết bị (cisco, huawei, fortinet, linux, unknown) |
+| `target_ip` | `VARCHAR(45)` | `NULL` | Địa chỉ IP đích liên quan đến sự kiện (bổ sung theo Mục 3.3b) |
+| `hostname` | `VARCHAR(255)` | `NULL` | Tên thiết bị mạng phát sinh sự kiện (có thể thiếu nếu fallback) |
+| `facility` | `SMALLINT` | `CHECK (NULL or 0..23)` | Phân loại dịch vụ theo chuẩn RFC 5424 |
+| `severity` | `SMALLINT` | `CHECK (NULL or 0..7)` | Mức độ nghiêm trọng theo chuẩn RFC 5424 (0=Emergency..7=Debug) |
+| `vendor` | `VARCHAR(30)` | `DEFAULT 'unknown'` | Hãng thiết bị (cisco, huawei, fortinet, juniper, linux, unknown) |
 | `program` | `VARCHAR(100)` | `NULL` | Tên tiến trình/tiện ích phát sinh log |
-| `mnemonic` | `VARCHAR(100)` | `NULL` | Mã định danh cảnh báo của hãng |
+| `mnemonic` | `VARCHAR(100)` | `NULL` | Mã định danh sự kiện của hãng |
 | `category` | `VARCHAR(50)` | `DEFAULT 'unknown'` | Phân loại nghiệp vụ (chờ mapping M5) |
-| `message` | `TEXT` | `NOT NULL` | Nội dung thông điệp cảnh báo đã bóc tách |
+| `message` | `TEXT` | `NULL` | Nội dung thông điệp đã bóc tách |
 | `raw_payload` | `TEXT` | `NOT NULL` | Bản tin syslog thô ban đầu |
 | `parse_status` | `VARCHAR(20)` | `DEFAULT 'parsed'` | Trạng thái bóc tách (`parsed` hoặc `fallback`) |
 | `parse_error` | `VARCHAR(50)` | `NULL` | Mã lỗi nếu rơi vào trường hợp fallback |
+| `completeness_status` | `VARCHAR(20)` | `NOT NULL DEFAULT 'complete'` | Đánh giá độ đầy đủ (`complete`, `partial`, `incomplete`) |
+| `missing_fields` | `JSONB` | `NOT NULL DEFAULT '[]'` | Danh sách tên các trường bị thiếu thông tin |
 | `schema_version` | `VARCHAR(10)` | `DEFAULT '1.0'` | Phiên bản cấu trúc schema |
 
 #### 2.1.1. Luận chứng Kỹ thuật về Khóa chính và Bộ định vị bản ghi (Record Locator Strategy)
