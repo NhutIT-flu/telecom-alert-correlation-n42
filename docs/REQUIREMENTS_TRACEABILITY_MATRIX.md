@@ -14,7 +14,7 @@ Ma trận này là kế hoạch bao phủ FR/NFR đến tiêu chí nghiệm thu,
 | Requirement | AC | Owner | Mã ca kiểm thử đặc tả | Evidence cần thu | Hiện trạng repo | Jira |
 |---|---|---|---|---|---|---|
 | FR-01 UDP ingest | AC-01 | BE1 | TC-ING-001–006, 014–015; TC-INT-001, 004 | Fixture/IDs gửi nhận, counters, raw/event đã lưu, log | Chỉ health endpoint; receiver chưa có | [N42-13](https://nhutp2945-1793259952237.atlassian.net/browse/N42-13), [N42-32](https://nhutp2945-1793259952237.atlassian.net/browse/N42-32) |
-| FR-02 REST ingest | AC-01 | BE1/BE2 | TC-ING-007–010, 016; TC-INT-004 | Request/response, status, event ID và persistence result | Nhánh N42-14 có route RAM. TC-ING-016 xác minh từ chối khi đầy; ACK sau commit chờ N42-62 | [N42-14](https://nhutp2945-1793259952237.atlassian.net/browse/N42-14) |
+| FR-02 REST ingest | AC-01 | BE1/BE2 | TC-ING-007–010, 016; TC-INT-004 | Request/response, status, event ID và persistence result | N42-62 hoàn thành chốt hợp đồng API v1 (Idempotency-Key, 201/202, DTO EventView). Nhánh N42-14 triển khai runtime | [N42-14](https://nhutp2945-1793259952237.atlassian.net/browse/N42-14), [N42-62](https://nhutp2945-1793259952237.atlassian.net/browse/N42-62) |
 | FR-03 File import | AC-01, AC-07 | BE1/QA | TC-ING-011–013; TC-SEC-006 | File fixture, report theo dòng, encoding/duplicate/path cases | Chưa có importer; quy tắc encoding/idempotency cần chốt | [N42-22](https://nhutp2945-1793259952237.atlassian.net/browse/N42-22) |
 | FR-04 Parser/normalization | AC-02 | BE2 | TC-PAR-001–009, 012 | Corpus ≥200 mẫu/format đã chốt; expected/actual từng field, error counts | Main có parser N42-15. Corpus nghiệm thu AC-02 cần kết quả riêng | [N42-15](https://nhutp2945-1793259952237.atlassian.net/browse/N42-15), [N42-23](https://nhutp2945-1793259952237.atlassian.net/browse/N42-23), [N42-24](https://nhutp2945-1793259952237.atlassian.net/browse/N42-24), [N42-25](https://nhutp2945-1793259952237.atlassian.net/browse/N42-25) |
 | FR-05 Parse fallback | AC-02 | BE2 | TC-PAR-010–011; TC-ING-003 | Malformed input, raw giữ nguyên, parse status, không crash | Main có fallback trong parser N42-15. Tích hợp và evidence theo build | [N42-15](https://nhutp2945-1793259952237.atlassian.net/browse/N42-15) |
@@ -79,3 +79,12 @@ Các mục sau không phải FR của sản phẩm, nhưng xuất hiện trong C
 ## 7. Cách duy trì
 
 Khi FR, API/schema, rule hoặc AC đổi, cập nhật SRS, thiết kế dữ liệu/API, acceptance criteria, test plan, test-case specification và ma trận trong cùng work item. Mỗi test phải truy ngược tới ít nhất một requirement; requirement chưa có test phải được ghi rõ là gap, owner và milestone.
+
+
+## Implementation amendment N42-62 — 16/11/2026 (Cập nhật Review 27/11/2026)
+
+Local FR-02/AC-01 & FR-07/AC-03 → TC-ING-007..010, TC-UI-002: Hoàn thành hợp đồng API & Sự kiện phiên bản `1.0.0` đồng bộ giữa `docs/N42-62_DESIGN.md`, `docs/openapi-v1.yaml`, `app/schemas/event_contract.py` và `tests/fixtures/contract_v1/`:
+- **DEC-01 (Entity/DTO):** Thống nhất `AlertEvent` (UTC timestamp, `hostname`) và `EventView` (lược bỏ `raw_payload`, bổ sung `severity_label`).
+- **DEC-02 (REST Ingest & ACK Contract):** Chốt `POST /api/v1/events`, header `Idempotency-Key`, ràng buộc bắt buộc ID theo từng loại ACK: `201 persisted` (chỉ trả sau commit DB bền vững, bắt buộc `event_id`) và `202 queued` (hàng đợi RAM, bắt buộc `receipt_id`), cùng mã lỗi 400/409/422/503.
+- **DEC-03 (Query, Filter & Event Locator):** Chốt `GET /api/v1/events` với tham số `from`/`to` (bắt buộc timezone-aware và `from <= to`) + cursor `(event_timestamp, id)`. Chốt locator chi tiết `GET /api/v1/events/{id}?event_timestamp={ts}` dùng cặp khóa `(id, event_timestamp)` thống nhất 100% với N42-16.
+- **Hiện thực hóa & Kiểm thử:** Xác thực bằng `tests/test_event_contract.py` (bao gồm các ca từ chối ACK thiếu ID, datetime thiếu múi giờ, khoảng thời gian đảo `from > to`, và đối soát phiên bản OpenAPI `1.0.0`). Owner: BE2 (Phạm Tấn Thành).

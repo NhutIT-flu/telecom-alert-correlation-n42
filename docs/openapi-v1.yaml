@@ -1,0 +1,300 @@
+openapi: 3.1.0
+info:
+  title: N4.2 Telecom Alert Correlation — Event & Ingest API Contract
+  version: "1.0.0"
+  description: |
+    Hợp đồng API chính thức v1.0.0 (Ticket N42-62), đồng bộ với lược đồ TimescaleDB N42-16:
+    - ACK bền vững (`201 persisted`) CHỈ trả về sau khi commit TimescaleDB thành công và BẮT BUỘC có `event_id`.
+    - ACK hàng đợi RAM (`202 queued`) BẮT BUỘC có `receipt_id`.
+    - Bộ lọc danh sách chuẩn hóa dùng cặp tham số `from` và `to` (ISO-8601 timezone-aware, `from <= to`).
+    - Định vị một sự kiện duy nhất dùng cặp khóa `(id, event_timestamp)` khớp khóa chính Hypertable N42-16.
+
+servers:
+  - url: http://localhost:8080
+    description: Local Lab / FastAPI Server
+
+paths:
+  /api/v1/events:
+    post:
+      summary: Tiếp nhận bản tin syslog đơn lẻ hoặc theo lô
+      operationId: ingestEvents
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: false
+          schema:
+            type: string
+            format: uuid
+          description: Mã định danh chống trùng lặp khi client retry
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: "#/components/schemas/EventIngestRequest"
+                - $ref: "#/components/schemas/EventIngestBatchRequest"
+      responses:
+        "201":
+          description: Đã parse và commit bền vững vào TimescaleDB (chỉ trả sau commit)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EventIngestPersistedResponse"
+        "202":
+          description: Đã đưa bản tin vào hàng đợi RAM xử lý bất đồng bộ
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EventIngestQueuedResponse"
+        "400":
+          description: Malformed JSON hoặc thiếu trường bắt buộc
+        "409":
+          description: Trùng Idempotency-Key nhưng khác payload
+        "422":
+          description: Vi phạm ràng buộc Pydantic schema
+        "503":
+          description: Hàng đợi đầy hoặc CSDL TimescaleDB tạm ngắt kết nối
+
+    get:
+      summary: Truy vấn danh sách sự kiện phân trang theo Cursor
+      operationId: listEvents
+      parameters:
+        - name: from
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date-time
+          description: Mốc thời gian bắt đầu (ISO-8601 bắt buộc có múi giờ UTC, from <= to)
+        - name: to
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date-time
+          description: Mốc thời gian kết thúc (ISO-8601 bắt buộc có múi giờ UTC, from <= to)
+        - name: hostname
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: severity
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            maximum: 7
+        - name: vendor
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 500
+            default: 50
+        - name: cursor
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Base64 URL-safe cursor mã hóa cặp (event_timestamp, id)
+      responses:
+        "200":
+          description: Danh sách sự kiện hợp lệ
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EventListResponse"
+        "422":
+          description: Thời gian thiếu múi giờ hoặc khoảng thời gian đảo (from > to)
+
+  /api/v1/events/{id}:
+    get:
+      summary: Lấy chi tiết đúng một sự kiện theo cặp khóa (id, event_timestamp)
+      operationId: getEventByLocator
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: event_timestamp
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date-time
+          description: Thời điểm xảy ra sự kiện (UTC) khớp khóa chính tổ hợp (id, event_timestamp) của TimescaleDB
+      responses:
+        "200":
+          description: Bản ghi sự kiện duy nhất khớp cặp khóa (id, event_timestamp)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EventView"
+        "404":
+          description: Không tìm thấy sự kiện với cặp locator đã cung cấp
+        "422":
+          description: Thiếu event_timestamp hoặc thiếu múi giờ
+
+components:
+  schemas:
+    EventIngestRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - raw_message
+      properties:
+        raw_message:
+          type: string
+          minLength: 1
+          maxLength: 65535
+        source_ip:
+          type:
+            - string
+            - "null"
+
+    EventIngestBatchRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - items
+      properties:
+        items:
+          type: array
+          minItems: 1
+          maxItems: 1000
+          items:
+            $ref: "#/components/schemas/EventIngestRequest"
+
+    EventIngestPersistedResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+        - event_id
+        - received_at
+      properties:
+        status:
+          type: string
+          enum: ["persisted"]
+        event_id:
+          type: string
+          format: uuid
+        event_timestamp:
+          type:
+            - string
+            - "null"
+          format: date-time
+        receipt_id:
+          type: "null"
+        received_at:
+          type: string
+          format: date-time
+
+    EventIngestQueuedResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+        - receipt_id
+        - received_at
+      properties:
+        status:
+          type: string
+          enum: ["queued"]
+        event_id:
+          type: "null"
+        event_timestamp:
+          type: "null"
+        receipt_id:
+          type: string
+          format: uuid
+        received_at:
+          type: string
+          format: date-time
+
+    EventView:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - event_timestamp
+        - received_at
+        - source_ip
+        - hostname
+        - facility
+        - severity
+        - severity_label
+        - vendor
+      properties:
+        id:
+          type: string
+          format: uuid
+        event_timestamp:
+          type: string
+          format: date-time
+        received_at:
+          type: string
+          format: date-time
+        source_ip:
+          type: string
+        hostname:
+          type: string
+        facility:
+          type: integer
+          minimum: 0
+          maximum: 23
+        severity:
+          type: integer
+          minimum: 0
+          maximum: 7
+        severity_label:
+          type: string
+        vendor:
+          type: string
+        program:
+          type:
+            - string
+            - "null"
+        mnemonic:
+          type:
+            - string
+            - "null"
+        category:
+          type: string
+        message:
+          type: string
+        parse_status:
+          type: string
+
+    EventListResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - items
+        - has_more
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/EventView"
+        next_cursor:
+          type:
+            - string
+            - "null"
+        has_more:
+          type: boolean
+        total_matched:
+          type:
+            - integer
+            - "null"
+
